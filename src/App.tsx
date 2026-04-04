@@ -12,6 +12,7 @@ import Dashboard from "./pages/Dashboard";
 import Subscription from "./pages/Subscription";
 import Wallet from "./pages/Wallet";
 import Marketplace from "./pages/Marketplace";
+import Orders from "./pages/Orders";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AppLayout from "./components/AppLayout";
 import ForgotPassword from "./pages/ForgotPassword";
