@@ -1,0 +1,1 @@
+UPDATE public.dealers SET approval_status = 'approved' WHERE email = 'test@testautogroup.com';
