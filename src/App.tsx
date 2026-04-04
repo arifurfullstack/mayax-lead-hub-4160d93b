@@ -29,6 +29,7 @@ const App = () => (
           <Route path="/rejected" element={<Rejected />} />
           <Route path="/suspended" element={<Suspended />} />
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/subscription" element={<ProtectedRoute><Subscription /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
