@@ -10,6 +10,8 @@ import Rejected from "./pages/Rejected";
 import Suspended from "./pages/Suspended";
 import Dashboard from "./pages/Dashboard";
 import Subscription from "./pages/Subscription";
+import Wallet from "./pages/Wallet";
+import Marketplace from "./pages/Marketplace";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AppLayout from "./components/AppLayout";
 import NotFound from "./pages/NotFound";
@@ -38,6 +40,8 @@ const App = () => (
           >
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/subscription" element={<Subscription />} />
+            <Route path="/wallet" element={<Wallet />} />
+            <Route path="/marketplace" element={<Marketplace />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
