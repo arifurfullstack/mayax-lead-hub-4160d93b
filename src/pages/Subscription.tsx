@@ -1,158 +1,172 @@
-import { Check, Crown, Zap, Shield, Star } from "lucide-react";
+import { Check, Crown, Zap, Shield, Star, Clock, BadgeCheck, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const tiers = [
   {
-    name: "Basic",
-    price: 49,
+    name: "BASIC",
+    price: 249,
     icon: Shield,
-    glowClass: "",
-    borderClass: "border-muted-foreground/30",
-    badgeClass: "bg-muted text-muted-foreground",
-    delay: "24h",
+    delayIcon: Clock,
+    delayText: "Access leads\nafter 24 hours",
+    glowColor: "rgba(6, 182, 212, 0.5)",
+    borderColor: "border-cyan/50",
+    nameColor: "text-cyan",
+    ctaClass: "bg-cyan/20 text-cyan border border-cyan/40 hover:bg-cyan/30",
     features: [
-      "Access to verified leads",
-      "24-hour early access delay",
-      "Email lead delivery",
-      "Basic lead filters",
-      "5 leads/day autopay limit",
+      "Normal priority",
+      "Standard support",
     ],
-    cta: "Get Started",
+    leadCount: "100",
+    cta: "CHOOSE BASIC",
   },
   {
-    name: "Pro",
-    price: 149,
+    name: "PRO",
+    price: 499,
     icon: Zap,
-    glowClass: "glow-blue",
-    borderClass: "border-primary/40",
-    badgeClass: "bg-primary/20 text-primary",
-    delay: "12h",
+    delayIcon: Clock,
+    delayText: "Access leads\nafter 12 hours",
+    glowColor: "rgba(59, 130, 246, 0.5)",
+    borderColor: "border-primary/50",
+    nameColor: "text-primary",
+    ctaClass: "bg-primary/20 text-primary border border-primary/40 hover:bg-primary/30",
     features: [
-      "Everything in Basic",
-      "12-hour early access delay",
-      "Email + webhook delivery",
-      "Advanced lead filters",
-      "15 leads/day autopay limit",
+      "Faster access",
       "Priority support",
     ],
-    cta: "Upgrade to Pro",
+    leadCount: "250",
+    cta: "CHOOSE PRO",
   },
   {
-    name: "Elite",
-    price: 299,
+    name: "ELITE",
+    price: 999,
     icon: Star,
-    glowClass: "glow-purple",
-    borderClass: "border-secondary/40",
-    badgeClass: "bg-secondary/20 text-secondary",
-    delay: "6h",
+    delayIcon: Clock,
+    delayText: "Access leads\nafter 6 hours",
+    glowColor: "rgba(139, 92, 246, 0.5)",
+    borderColor: "border-secondary/50",
+    nameColor: "text-secondary",
+    ctaClass: "bg-secondary/20 text-secondary border border-secondary/40 hover:bg-secondary/30",
     features: [
-      "Everything in Pro",
-      "6-hour early access delay",
-      "Real-time webhook delivery",
-      "All lead filters + saved searches",
-      "30 leads/day autopay limit",
-      "Dedicated account manager",
-      "Custom lead scoring",
+      "Early access",
+      "Priority support",
     ],
-    cta: "Upgrade to Elite",
+    leadCount: "500",
+    cta: "CHOOSE ELITE",
   },
   {
     name: "VIP",
-    price: 599,
+    price: 1799,
     icon: Crown,
-    glowClass: "glow-gold",
-    borderClass: "border-gold/40",
-    badgeClass: "bg-gold/20 text-gold",
-    delay: "Instant",
+    delayIcon: Zap,
+    delayText: "Instant access",
+    glowColor: "rgba(200, 168, 78, 0.5)",
+    borderColor: "border-gold/50",
+    nameColor: "text-gold",
+    ctaClass: "bg-gold/20 text-gold border border-gold/40 hover:bg-gold/30",
     popular: true,
     features: [
-      "Everything in Elite",
-      "Instant lead access — no delay",
-      "All delivery channels",
-      "Unlimited autopay",
-      "White-glove onboarding",
-      "API access",
-      "Custom integrations",
-      "Volume discounts on leads",
+      "Instant access to leads",
+      "Priority placement",
     ],
-    cta: "Go VIP",
+    leadCount: "1000",
+    cta: "CHOOSE VIP",
   },
 ];
 
 const Subscription = () => {
   return (
-    <div className="p-6 md:p-10">
+    <div className="p-6 md:p-10 min-h-full">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-12">
+        <div className="text-center mb-10">
           <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
-            Choose Your Plan
+            Choose Your Subscription
           </h1>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            Unlock faster access to premium, AI-verified buyer leads. Higher tiers get earlier access and more powerful tools.
+          <p className="text-muted-foreground text-base max-w-2xl mx-auto mb-6">
+            Select a plan that suits your needs and unlock access to verified auto leads
           </p>
+
+          {/* Trust Badges */}
+          <div className="flex items-center justify-center gap-6 flex-wrap">
+            <div className="flex items-center gap-2 text-sm text-foreground">
+              <BadgeCheck className="h-5 w-5 text-success" />
+              <span>Verified Leads</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-foreground">
+              <Zap className="h-5 w-5 text-warning" />
+              <span>Fast Access</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-foreground">
+              <Users className="h-5 w-5 text-success" />
+              <span>Trusted Buyers</span>
+            </div>
+          </div>
         </div>
 
         {/* Tier Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
           {tiers.map((tier) => {
-            const Icon = tier.icon;
+            const DelayIcon = tier.delayIcon;
             return (
               <div
                 key={tier.name}
                 className={cn(
-                  "glass-card relative flex flex-col p-6 border transition-transform hover:scale-[1.02]",
-                  tier.borderClass,
-                  tier.glowClass
+                  "relative flex flex-col items-center rounded-2xl border-2 p-6 pt-8 transition-transform hover:scale-[1.03]",
+                  tier.borderColor
                 )}
+                style={{
+                  background: "linear-gradient(180deg, rgba(15, 23, 41, 0.95) 0%, rgba(27, 42, 74, 0.7) 100%)",
+                  boxShadow: `0 0 25px ${tier.glowColor}, inset 0 1px 0 rgba(255,255,255,0.05)`,
+                }}
               >
                 {tier.popular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <span className="bg-gold text-background text-xs font-bold px-3 py-1 rounded-full animate-shimmer bg-[length:200%_100%] bg-gradient-to-r from-gold via-warning to-gold">
+                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-10">
+                    <span className="bg-gradient-to-r from-gold via-warning to-gold text-background text-[10px] font-bold px-4 py-1 rounded-full uppercase tracking-wider whitespace-nowrap">
                       Most Popular
                     </span>
                   </div>
                 )}
 
-                {/* Tier Header */}
-                <div className="flex items-center gap-3 mb-4">
-                  <div className={cn("p-2 rounded-lg", tier.badgeClass)}>
-                    <Icon className="w-5 h-5" />
+                {/* Tier Name */}
+                <h2 className={cn("text-2xl font-extrabold tracking-wider mb-5", tier.nameColor)}>
+                  {tier.name}
+                </h2>
+
+                {/* Access Delay */}
+                <div className="flex items-center gap-2.5 mb-5">
+                  <div className={cn("p-1.5 rounded-full", tier.nameColor === "text-gold" ? "bg-gold/15" : "bg-muted")}>
+                    <DelayIcon className={cn("h-5 w-5", tier.nameColor)} />
                   </div>
-                  <h2 className="text-xl font-bold text-foreground">{tier.name}</h2>
+                  <span className="text-sm text-muted-foreground whitespace-pre-line leading-tight">
+                    {tier.delayText}
+                  </span>
                 </div>
 
-                {/* Pricing */}
-                <div className="mb-1">
+                {/* Price */}
+                <div className="mb-6">
                   <span className="text-4xl font-extrabold text-foreground">${tier.price}</span>
-                  <span className="text-muted-foreground text-sm ml-1">/month</span>
+                  <span className="text-muted-foreground text-sm ml-1">/ mo</span>
                 </div>
-                <p className="text-sm text-muted-foreground mb-6">
-                  Lead access delay:{" "}
-                  <span className="font-mono text-cyan font-semibold">{tier.delay}</span>
-                </p>
 
                 {/* Features */}
-                <ul className="flex-1 space-y-3 mb-6">
+                <ul className="w-full space-y-3 mb-4 flex-1">
                   {tier.features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-2 text-sm text-foreground/80">
-                      <Check className="w-4 h-4 text-success mt-0.5 shrink-0" />
+                    <li key={feature} className="flex items-center gap-2.5 text-sm text-foreground/85">
+                      <Check className="w-4 h-4 text-success shrink-0" />
                       <span>{feature}</span>
                     </li>
                   ))}
+                  <li className="flex items-center gap-2.5 text-sm text-foreground font-semibold">
+                    <Check className="w-4 h-4 text-success shrink-0" />
+                    <span>{tier.leadCount} <span className="font-normal text-foreground/85">Leads / mo</span></span>
+                  </li>
                 </ul>
 
                 {/* CTA */}
                 <button
                   className={cn(
-                    "w-full py-2.5 rounded-lg font-semibold text-sm transition-colors",
-                    tier.name === "VIP"
-                      ? "bg-gradient-to-r from-gold to-warning text-background hover:opacity-90"
-                      : tier.name === "Elite"
-                        ? "gradient-purple-blue text-foreground hover:opacity-90"
-                        : tier.name === "Pro"
-                          ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                          : "bg-muted text-foreground hover:bg-muted/80"
+                    "w-full py-3 rounded-lg font-bold text-sm tracking-wide transition-colors mt-2",
+                    tier.ctaClass
                   )}
                 >
                   {tier.cta}
@@ -161,6 +175,11 @@ const Subscription = () => {
             );
           })}
         </div>
+
+        {/* Footer */}
+        <p className="text-center text-muted-foreground text-sm mt-10">
+          Renew, upgrade, or downgrade anytime. Month-to-month, cancel anytime.
+        </p>
       </div>
     </div>
   );
