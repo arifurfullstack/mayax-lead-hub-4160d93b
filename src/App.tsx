@@ -13,6 +13,7 @@ import Subscription from "./pages/Subscription";
 import Wallet from "./pages/Wallet";
 import Marketplace from "./pages/Marketplace";
 import Orders from "./pages/Orders";
+import Settings from "./pages/Settings";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AppLayout from "./components/AppLayout";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -48,6 +49,7 @@ const App = () => (
             <Route path="/wallet" element={<Wallet />} />
             <Route path="/marketplace" element={<Marketplace />} />
             <Route path="/orders" element={<Orders />} />
+            <Route path="/settings" element={<Settings />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
