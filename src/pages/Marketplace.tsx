@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Search,
   SlidersHorizontal,
@@ -8,11 +8,15 @@ import {
   Clock,
   ChevronLeft,
   ChevronRight,
+  Lock,
+  ArrowUpCircle,
+  CheckSquare,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -28,8 +32,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import {
+  MarketplaceFilterDrawer,
+  defaultFilters,
+  countActiveFilters,
+  applyFilters,
+  type MarketplaceFilters,
+} from "@/components/MarketplaceFilters";
 
 const gradeColors: Record<string, string> = {
   "A+": "border-l-gold",
@@ -45,17 +63,59 @@ const gradeBadgeColors: Record<string, string> = {
   C: "bg-muted text-muted-foreground",
 };
 
+const tierDelayHours: Record<string, number> = {
+  vip: 0,
+  elite: 6,
+  pro: 12,
+  basic: 24,
+};
+
 const perPage = 15;
+
+function useCountdown(targetMs: number) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (targetMs <= Date.now()) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [targetMs]);
+  const diff = Math.max(0, targetMs - now);
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  const s = Math.floor((diff % 60000) / 1000);
+  return { remaining: diff, display: `${h}h ${String(m).padStart(2, "0")}m ${String(s).padStart(2, "0")}s` };
+}
+
+function CountdownBadge({ unlockAt }: { unlockAt: number }) {
+  const { remaining, display } = useCountdown(unlockAt);
+  if (remaining <= 0) return null;
+  return (
+    <span className="font-mono text-[11px] text-cyan whitespace-nowrap">
+      <Lock className="h-3 w-3 inline mr-0.5 mb-0.5" />
+      {display}
+    </span>
+  );
+}
 
 const Marketplace = () => {
   const [leads, setLeads] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dealerId, setDealerId] = useState<string | null>(null);
+  const [dealerTier, setDealerTier] = useState("basic");
+  const [walletBalance, setWalletBalance] = useState(0);
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("newest");
   const [gradeFilter, setGradeFilter] = useState("all");
   const [page, setPage] = useState(0);
-  const [tab, setTab] = useState<"all" | "new" | "saved">("all");
+  const [tab, setTab] = useState<"all" | "new">("all");
+  const [filters, setFilters] = useState<MarketplaceFilters>(defaultFilters);
+
+  // Selection
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  // Purchase modal
+  const [confirmLeads, setConfirmLeads] = useState<any[] | null>(null);
+  const [purchasing, setPurchasing] = useState(false);
 
   useEffect(() => {
     fetchLeads();
@@ -67,11 +127,15 @@ const Marketplace = () => {
 
     const { data: dealer } = await supabase
       .from("dealers")
-      .select("id")
+      .select("id, subscription_tier, wallet_balance")
       .eq("user_id", session.user.id)
       .single();
 
-    if (dealer) setDealerId(dealer.id);
+    if (dealer) {
+      setDealerId(dealer.id);
+      setDealerTier(dealer.subscription_tier);
+      setWalletBalance(dealer.wallet_balance);
+    }
 
     const { data } = await supabase.rpc("get_marketplace_leads", {
       requesting_dealer_id: dealer?.id,
@@ -81,17 +145,36 @@ const Marketplace = () => {
     setLoading(false);
   };
 
+  const delayHours = tierDelayHours[dealerTier] ?? 24;
+
+  const isLocked = useCallback(
+    (lead: any) => {
+      if (delayHours === 0) return false;
+      const ageMs = Date.now() - new Date(lead.created_at).getTime();
+      return ageMs < delayHours * 3600000;
+    },
+    [delayHours]
+  );
+
+  const getUnlockAt = useCallback(
+    (lead: any) => new Date(lead.created_at).getTime() + delayHours * 3600000,
+    [delayHours]
+  );
+
   const filtered = useMemo(() => {
     let result = leads.filter((l) => l.sold_status === "available");
 
     if (tab === "new") {
-      const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const dayAgo = new Date(Date.now() - 86400000).toISOString();
       result = result.filter((l) => l.created_at > dayAgo);
     }
 
     if (gradeFilter !== "all") {
       result = result.filter((l) => l.quality_grade === gradeFilter);
     }
+
+    // Apply advanced filters
+    result = applyFilters(result, filters);
 
     if (search) {
       const q = search.toLowerCase();
@@ -110,25 +193,102 @@ const Marketplace = () => {
     else if (sortBy === "score") result.sort((a, b) => (b.ai_score ?? 0) - (a.ai_score ?? 0));
 
     return result;
-  }, [leads, search, sortBy, gradeFilter, tab]);
+  }, [leads, search, sortBy, gradeFilter, tab, filters]);
 
   const paged = filtered.slice(page * perPage, (page + 1) * perPage);
   const totalPages = Math.ceil(filtered.length / perPage);
 
-  const stats = useMemo(() => ({
-    total: leads.filter((l) => l.sold_status === "available").length,
-    newToday: leads.filter((l) => {
-      const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      return l.sold_status === "available" && l.created_at > dayAgo;
-    }).length,
-    avgPrice: leads.length
-      ? leads.filter((l) => l.sold_status === "available").reduce((s, l) => s + l.price, 0) / Math.max(leads.filter((l) => l.sold_status === "available").length, 1)
-      : 0,
-  }), [leads]);
+  const stats = useMemo(() => {
+    const available = leads.filter((l) => l.sold_status === "available");
+    return {
+      total: available.length,
+      newToday: available.filter((l) => l.created_at > new Date(Date.now() - 86400000).toISOString()).length,
+      avgPrice: available.length ? available.reduce((s, l) => s + l.price, 0) / available.length : 0,
+    };
+  }, [leads]);
 
-  const handleBuy = async (lead: any) => {
-    if (!dealerId) return;
-    toast({ title: "Purchase", description: `Buying lead ${lead.reference_code}... (Purchase flow coming soon)` });
+  const toggleSelect = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAllOnPage = () => {
+    const unlocked = paged.filter((l) => !isLocked(l));
+    const allSelected = unlocked.every((l) => selected.has(l.id));
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allSelected) {
+        unlocked.forEach((l) => next.delete(l.id));
+      } else {
+        unlocked.forEach((l) => next.add(l.id));
+      }
+      return next;
+    });
+  };
+
+  const selectedLeads = useMemo(
+    () => leads.filter((l) => selected.has(l.id) && l.sold_status === "available" && !isLocked(l)),
+    [leads, selected, isLocked]
+  );
+
+  const selectedTotal = selectedLeads.reduce((s, l) => s + Number(l.price), 0);
+
+  const openConfirm = (leadsList: any[]) => setConfirmLeads(leadsList);
+
+  const executePurchase = async () => {
+    if (!confirmLeads?.length) return;
+    setPurchasing(true);
+
+    const leadIds = confirmLeads.map((l) => l.id);
+    const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+    const { data: { session } } = await supabase.auth.getSession();
+
+    try {
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/purchase-lead`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session?.access_token}`,
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({ lead_ids: leadIds }),
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast({ title: "Purchase Failed", description: data.error || "Unknown error", variant: "destructive" });
+        setPurchasing(false);
+        return;
+      }
+
+      if (data.purchased > 0) {
+        toast({
+          title: "Purchase Successful!",
+          description: `${data.purchased} lead(s) purchased. New balance: $${Number(data.new_balance).toFixed(2)}`,
+        });
+        setWalletBalance(data.new_balance);
+        setSelected(new Set());
+      }
+
+      if (data.failed > 0) {
+        const errors = data.results.filter((r: any) => !r.success).map((r: any) => r.error).join("; ");
+        toast({ title: `${data.failed} lead(s) failed`, description: errors, variant: "destructive" });
+      }
+
+      setConfirmLeads(null);
+      fetchLeads();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+    setPurchasing(false);
   };
 
   const maskPII = (val: string | null) => {
@@ -138,9 +298,11 @@ const Marketplace = () => {
     return val;
   };
 
+  const activeFilterCount = countActiveFilters(filters);
+
   if (loading) {
     return (
-      <div className="p-6 flex items-center justify-center">
+      <div className="p-6 flex items-center justify-center min-h-[400px]">
         <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -191,7 +353,7 @@ const Marketplace = () => {
               className="pl-10 bg-card border-border"
             />
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             {(["all", "new"] as const).map((t) => (
               <Button
                 key={t}
@@ -203,31 +365,37 @@ const Marketplace = () => {
                 {t === "all" ? "All" : "New"}
               </Button>
             ))}
+            <Select value={gradeFilter} onValueChange={(v) => { setGradeFilter(v); setPage(0); }}>
+              <SelectTrigger className="w-[120px] bg-card border-border h-9">
+                <SelectValue placeholder="Grade" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Grades</SelectItem>
+                <SelectItem value="A+">A+</SelectItem>
+                <SelectItem value="A">A</SelectItem>
+                <SelectItem value="B">B</SelectItem>
+                <SelectItem value="C">C</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={sortBy} onValueChange={(v) => { setSortBy(v); setPage(0); }}>
+              <SelectTrigger className="w-[130px] bg-card border-border h-9">
+                <SlidersHorizontal className="h-3 w-3 mr-1" />
+                <SelectValue placeholder="Sort" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">Newest</SelectItem>
+                <SelectItem value="price_low">Price: Low</SelectItem>
+                <SelectItem value="price_high">Price: High</SelectItem>
+                <SelectItem value="score">AI Score</SelectItem>
+              </SelectContent>
+            </Select>
+            <MarketplaceFilterDrawer
+              filters={filters}
+              onChange={(f) => { setFilters(f); setPage(0); }}
+              onReset={() => { setFilters(defaultFilters); setPage(0); }}
+              activeCount={activeFilterCount}
+            />
           </div>
-          <Select value={gradeFilter} onValueChange={(v) => { setGradeFilter(v); setPage(0); }}>
-            <SelectTrigger className="w-[120px] bg-card border-border">
-              <SelectValue placeholder="Grade" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Grades</SelectItem>
-              <SelectItem value="A+">A+</SelectItem>
-              <SelectItem value="A">A</SelectItem>
-              <SelectItem value="B">B</SelectItem>
-              <SelectItem value="C">C</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={sortBy} onValueChange={(v) => { setSortBy(v); setPage(0); }}>
-            <SelectTrigger className="w-[140px] bg-card border-border">
-              <SlidersHorizontal className="h-3 w-3 mr-1" />
-              <SelectValue placeholder="Sort" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="newest">Newest</SelectItem>
-              <SelectItem value="price_low">Price: Low</SelectItem>
-              <SelectItem value="price_high">Price: High</SelectItem>
-              <SelectItem value="score">AI Score</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
 
         {/* Lead Table */}
@@ -242,6 +410,12 @@ const Marketplace = () => {
                 <Table>
                   <TableHeader>
                     <TableRow className="border-border hover:bg-transparent">
+                      <TableHead className="w-10">
+                        <Checkbox
+                          checked={paged.filter((l) => !isLocked(l)).length > 0 && paged.filter((l) => !isLocked(l)).every((l) => selected.has(l.id))}
+                          onCheckedChange={selectAllOnPage}
+                        />
+                      </TableHead>
                       <TableHead className="text-muted-foreground w-[100px]">Code</TableHead>
                       <TableHead className="text-muted-foreground">Name</TableHead>
                       <TableHead className="text-muted-foreground hidden md:table-cell">Contact</TableHead>
@@ -250,56 +424,74 @@ const Marketplace = () => {
                       <TableHead className="text-muted-foreground">Grade</TableHead>
                       <TableHead className="text-muted-foreground hidden sm:table-cell">Score</TableHead>
                       <TableHead className="text-muted-foreground text-right">Price</TableHead>
-                      <TableHead className="text-muted-foreground text-right">Action</TableHead>
+                      <TableHead className="text-muted-foreground text-right w-[120px]">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paged.map((lead) => (
-                      <TableRow
-                        key={lead.id}
-                        className={cn(
-                          "border-border border-l-4",
-                          gradeColors[lead.quality_grade] || "border-l-muted"
-                        )}
-                      >
-                        <TableCell className="font-mono text-xs text-cyan">
-                          {lead.reference_code}
-                        </TableCell>
-                        <TableCell className="text-sm text-foreground">
-                          {lead.first_name} {lead.last_name?.charAt(0)}.
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
-                          <div>{maskPII(lead.email)}</div>
-                          <div className="text-xs">{maskPII(lead.phone)}</div>
-                        </TableCell>
-                        <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
-                          {lead.city}, {lead.province}
-                        </TableCell>
-                        <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
-                          {lead.vehicle_preference || "—"}
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={cn("text-xs border-0", gradeBadgeColors[lead.quality_grade] || "bg-muted text-muted-foreground")}>
-                            {lead.quality_grade}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="hidden sm:table-cell">
-                          <span className="font-mono text-sm text-foreground">{lead.ai_score ?? 0}</span>
-                        </TableCell>
-                        <TableCell className="text-right font-semibold text-foreground">
-                          ${Number(lead.price).toFixed(2)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            size="sm"
-                            onClick={() => handleBuy(lead)}
-                            className="gradient-blue-cyan text-foreground gap-1 text-xs"
-                          >
-                            <ShoppingCart className="h-3 w-3" /> Buy
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {paged.map((lead) => {
+                      const locked = isLocked(lead);
+                      return (
+                        <TableRow
+                          key={lead.id}
+                          className={cn(
+                            "border-border border-l-4",
+                            gradeColors[lead.quality_grade] || "border-l-muted",
+                            locked && "opacity-60"
+                          )}
+                        >
+                          <TableCell>
+                            {locked ? (
+                              <Lock className="h-4 w-4 text-muted-foreground" />
+                            ) : (
+                              <Checkbox
+                                checked={selected.has(lead.id)}
+                                onCheckedChange={() => toggleSelect(lead.id)}
+                              />
+                            )}
+                          </TableCell>
+                          <TableCell className="font-mono text-xs text-cyan">
+                            {lead.reference_code}
+                          </TableCell>
+                          <TableCell className="text-sm text-foreground">
+                            {lead.first_name} {lead.last_name?.charAt(0)}.
+                          </TableCell>
+                          <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
+                            <div>{maskPII(lead.email)}</div>
+                            <div className="text-xs">{maskPII(lead.phone)}</div>
+                          </TableCell>
+                          <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
+                            {lead.city}, {lead.province}
+                          </TableCell>
+                          <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
+                            {lead.vehicle_preference || "—"}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={cn("text-xs border-0", gradeBadgeColors[lead.quality_grade] || "bg-muted text-muted-foreground")}>
+                              {lead.quality_grade}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="hidden sm:table-cell">
+                            <span className="font-mono text-sm text-foreground">{lead.ai_score ?? 0}</span>
+                          </TableCell>
+                          <TableCell className="text-right font-semibold text-foreground">
+                            ${Number(lead.price).toFixed(2)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {locked ? (
+                              <CountdownBadge unlockAt={getUnlockAt(lead)} />
+                            ) : (
+                              <Button
+                                size="sm"
+                                onClick={() => openConfirm([lead])}
+                                className="gradient-blue-cyan text-foreground gap-1 text-xs"
+                              >
+                                <ShoppingCart className="h-3 w-3" /> Buy
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
@@ -321,7 +513,84 @@ const Marketplace = () => {
             </>
           )}
         </div>
+
+        {/* Batch Purchase Sticky Bar */}
+        {selected.size > 0 && (
+          <div className="fixed bottom-0 left-0 right-0 z-40 bg-card/95 backdrop-blur-md border-t border-border p-4">
+            <div className="max-w-7xl mx-auto flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <CheckSquare className="h-5 w-5 text-primary" />
+                <div>
+                  <span className="text-foreground font-semibold">{selectedLeads.length} lead(s) selected</span>
+                  <span className="text-muted-foreground ml-2">Total: <span className="text-foreground font-bold">${selectedTotal.toFixed(2)}</span></span>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => setSelected(new Set())}>
+                  Clear
+                </Button>
+                <Button
+                  size="sm"
+                  className="gradient-blue-cyan text-foreground gap-1"
+                  onClick={() => openConfirm(selectedLeads)}
+                  disabled={selectedLeads.length === 0}
+                >
+                  <ShoppingCart className="h-4 w-4" /> Buy {selectedLeads.length} Lead(s)
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Confirm Purchase Dialog */}
+      <Dialog open={!!confirmLeads} onOpenChange={() => setConfirmLeads(null)}>
+        <DialogContent className="glass border-border max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Confirm Purchase</DialogTitle>
+          </DialogHeader>
+          {confirmLeads && (
+            <div className="space-y-3">
+              <div className="max-h-48 overflow-y-auto space-y-2">
+                {confirmLeads.map((l) => (
+                  <div key={l.id} className="flex justify-between items-center text-sm p-2 rounded-lg bg-muted/30">
+                    <div>
+                      <span className="font-mono text-cyan text-xs">{l.reference_code}</span>
+                      <span className="text-foreground ml-2">{l.first_name} {l.last_name?.charAt(0)}.</span>
+                    </div>
+                    <span className="font-semibold text-foreground">${Number(l.price).toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="border-t border-border pt-3 flex justify-between">
+                <span className="text-muted-foreground">Total</span>
+                <span className="text-lg font-bold text-foreground">
+                  ${confirmLeads.reduce((s, l) => s + Number(l.price), 0).toFixed(2)}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Wallet Balance</span>
+                <span className={cn("font-semibold", walletBalance >= confirmLeads.reduce((s, l) => s + Number(l.price), 0) ? "text-success" : "text-destructive")}>
+                  ${walletBalance.toFixed(2)}
+                </span>
+              </div>
+              {walletBalance < confirmLeads.reduce((s, l) => s + Number(l.price), 0) && (
+                <p className="text-destructive text-xs">Insufficient funds. Please add more funds to your wallet.</p>
+              )}
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setConfirmLeads(null)}>Cancel</Button>
+            <Button
+              className="gradient-blue-cyan text-foreground"
+              disabled={purchasing || !confirmLeads || walletBalance < confirmLeads.reduce((s, l) => s + Number(l.price), 0)}
+              onClick={executePurchase}
+            >
+              {purchasing ? "Processing..." : "Confirm Purchase"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
