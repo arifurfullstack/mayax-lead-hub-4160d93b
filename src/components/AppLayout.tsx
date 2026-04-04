@@ -16,6 +16,8 @@ const AppLayout = () => {
   const [dealer, setDealer] = useState<DealerInfo | null>(null);
 
   useEffect(() => {
+    let dealerId: string | null = null;
+
     const fetchDealer = async () => {
       const {
         data: { session },
@@ -24,13 +26,43 @@ const AppLayout = () => {
 
       const { data } = await supabase
         .from("dealers")
-        .select("dealership_name, subscription_tier, wallet_balance")
+        .select("id, dealership_name, subscription_tier, wallet_balance")
         .eq("user_id", session.user.id)
         .single();
 
-      if (data) setDealer(data);
+      if (data) {
+        dealerId = data.id;
+        setDealer(data);
+      }
     };
+
     fetchDealer();
+
+    const channel = supabase
+      .channel("dealer-balance")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "dealers" },
+        (payload) => {
+          if (payload.new && payload.new.id === dealerId) {
+            setDealer((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    wallet_balance: payload.new.wallet_balance,
+                    subscription_tier: payload.new.subscription_tier,
+                    dealership_name: payload.new.dealership_name,
+                  }
+                : prev
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const handleLogout = async () => {
