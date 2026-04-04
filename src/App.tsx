@@ -14,6 +14,7 @@ import Wallet from "./pages/Wallet";
 import Marketplace from "./pages/Marketplace";
 import Orders from "./pages/Orders";
 import Settings from "./pages/Settings";
+import AutoPay from "./pages/AutoPay";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AppLayout from "./components/AppLayout";
 import ForgotPassword from "./pages/ForgotPassword";
