@@ -1,0 +1,1 @@
+UPDATE leads SET created_at = now() - interval '2 days' WHERE reference_code IN ('MX-2026-001', 'MX-2026-002', 'MX-2026-003', 'MX-2026-004', 'MX-2026-005');
