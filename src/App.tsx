@@ -9,6 +9,7 @@ import Pending from "./pages/Pending";
 import Rejected from "./pages/Rejected";
 import Suspended from "./pages/Suspended";
 import Dashboard from "./pages/Dashboard";
+import Subscription from "./pages/Subscription";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 
@@ -28,6 +29,7 @@ const App = () => (
           <Route path="/rejected" element={<Rejected />} />
           <Route path="/suspended" element={<Suspended />} />
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/subscription" element={<ProtectedRoute><Subscription /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
