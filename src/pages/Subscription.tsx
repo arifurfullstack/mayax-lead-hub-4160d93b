@@ -76,8 +76,19 @@ const tiers = [
 
 const Subscription = () => {
   return (
-    <div className="p-6 md:p-10 min-h-full">
-      <div className="max-w-7xl mx-auto">
+    <div className="relative p-6 md:p-10 min-h-full overflow-hidden">
+      {/* Background Image */}
+      <div className="absolute inset-0 z-0">
+        <img
+          src={subscriptionBg}
+          alt=""
+          className="w-full h-full object-cover"
+          width={1920}
+          height={1080}
+        />
+        <div className="absolute inset-0 bg-background/70 backdrop-blur-[2px]" />
+      </div>
+      <div className="relative z-10 max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-10">
           <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
