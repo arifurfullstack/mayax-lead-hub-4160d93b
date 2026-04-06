@@ -53,6 +53,7 @@ const AppLayout = () => {
                     wallet_balance: payload.new.wallet_balance,
                     subscription_tier: payload.new.subscription_tier,
                     dealership_name: payload.new.dealership_name,
+                    profile_picture_url: payload.new.profile_picture_url,
                   }
                 : prev
             );
