@@ -512,8 +512,33 @@ const AdminDashboard = () => {
                   }}
                 />
               </div>
-            </div>
-          )}
+              <div className="border-t border-border pt-4">
+                {!confirmDelete ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10"
+                    onClick={() => setConfirmDelete(true)}
+                  >
+                    <Trash2 className="h-4 w-4" /> Delete Lead
+                  </Button>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <p className="text-sm text-destructive">Are you sure?</p>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      disabled={deletingLead}
+                      onClick={() => deleteLead(selectedLead.id)}
+                    >
+                      {deletingLead ? "Deleting…" : "Yes, Delete"}
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => setConfirmDelete(false)}>
+                      Cancel
+                    </Button>
+                  </div>
+                )}
+              </div>
         </DialogContent>
       </Dialog>
     </div>
