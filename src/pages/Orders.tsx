@@ -5,17 +5,8 @@ import {
   Clock,
   XCircle,
   RefreshCw,
-  ChevronDown,
-  ChevronUp,
   Search,
-  Mail,
-  Phone,
-  User,
-  MapPin,
-  CreditCard,
-  Car,
-  FileText,
-  DollarSign,
+  Eye,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
