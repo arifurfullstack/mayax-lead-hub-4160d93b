@@ -131,6 +131,7 @@ export type Database = {
           id: string
           notification_email: string | null
           phone: string | null
+          profile_picture_url: string | null
           province: string | null
           subscription_tier: string
           updated_at: string
@@ -152,6 +153,7 @@ export type Database = {
           id?: string
           notification_email?: string | null
           phone?: string | null
+          profile_picture_url?: string | null
           province?: string | null
           subscription_tier?: string
           updated_at?: string
@@ -173,6 +175,7 @@ export type Database = {
           id?: string
           notification_email?: string | null
           phone?: string | null
+          profile_picture_url?: string | null
           province?: string | null
           subscription_tier?: string
           updated_at?: string

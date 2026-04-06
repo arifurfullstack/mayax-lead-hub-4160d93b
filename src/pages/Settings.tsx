@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   User,
   Building2,
@@ -15,6 +15,8 @@ import {
   Shield,
   Copy,
   Check,
+  Camera,
+  Loader2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -34,6 +36,7 @@ import { toast } from "@/hooks/use-toast";
 
 interface DealerProfile {
   id: string;
+  user_id: string;
   dealership_name: string;
   contact_person: string;
   email: string;
@@ -46,6 +49,7 @@ interface DealerProfile {
   webhook_url: string | null;
   webhook_secret: string | null;
   autopay_enabled: boolean | null;
+  profile_picture_url: string | null;
 }
 
 const provinces = [
@@ -61,6 +65,9 @@ const Settings = () => {
   const [saving, setSaving] = useState(false);
   const [showWebhookSecret, setShowWebhookSecret] = useState(false);
   const [copiedSecret, setCopiedSecret] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form state
   const [form, setForm] = useState({
@@ -84,12 +91,13 @@ const Settings = () => {
 
       const { data } = await supabase
         .from("dealers")
-        .select("id, dealership_name, contact_person, email, phone, address, province, website, business_type, notification_email, webhook_url, webhook_secret, autopay_enabled")
+        .select("id, user_id, dealership_name, contact_person, email, phone, address, province, website, business_type, notification_email, webhook_url, webhook_secret, autopay_enabled, profile_picture_url")
         .eq("user_id", session.user.id)
         .single();
 
       if (data) {
-        setDealer(data);
+        setDealer(data as DealerProfile);
+        setAvatarUrl(data.profile_picture_url || null);
         setForm({
           dealership_name: data.dealership_name || "",
           contact_person: data.contact_person || "",
@@ -190,6 +198,49 @@ const Settings = () => {
     setTimeout(() => setCopiedSecret(false), 2000);
   };
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !dealer) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Invalid file", description: "Please upload an image file.", variant: "destructive" });
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Max file size is 2MB.", variant: "destructive" });
+      return;
+    }
+
+    setUploadingAvatar(true);
+    const ext = file.name.split(".").pop();
+    const filePath = `${dealer.user_id}/avatar.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("profile-pictures")
+      .upload(filePath, file, { upsert: true });
+
+    if (uploadError) {
+      toast({ title: "Upload failed", description: uploadError.message, variant: "destructive" });
+      setUploadingAvatar(false);
+      return;
+    }
+
+    const { data: urlData } = supabase.storage
+      .from("profile-pictures")
+      .getPublicUrl(filePath);
+
+    const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+
+    await supabase
+      .from("dealers")
+      .update({ profile_picture_url: publicUrl })
+      .eq("id", dealer.id);
+
+    setAvatarUrl(publicUrl);
+    setUploadingAvatar(false);
+    toast({ title: "Updated", description: "Profile picture updated successfully." });
+  };
+
   if (loading) {
     return (
       <div className="p-6 space-y-6 animate-pulse">
@@ -227,6 +278,33 @@ const Settings = () => {
 
         {/* Profile Tab */}
         <TabsContent value="profile" className="space-y-6">
+          {/* Avatar Upload */}
+          <div className="glass-card p-6 flex items-center gap-6">
+            <div className="relative group">
+              <div className="h-20 w-20 rounded-full overflow-hidden bg-muted ring-2 ring-border">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="Profile" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="h-full w-full flex items-center justify-center bg-primary/20 text-primary text-2xl font-bold">
+                    {(dealer?.dealership_name || "D").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingAvatar}
+                className="absolute inset-0 rounded-full bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+              >
+                {uploadingAvatar ? <Loader2 className="h-5 w-5 animate-spin text-foreground" /> : <Camera className="h-5 w-5 text-foreground" />}
+              </button>
+              <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-foreground">{dealer?.dealership_name}</p>
+              <p className="text-xs text-muted-foreground mt-1">Click the avatar to upload a new photo (max 2MB)</p>
+            </div>
+          </div>
+
           {/* Business Info */}
           <div className="glass-card p-6 space-y-5">
             <div className="flex items-center gap-2 mb-1">

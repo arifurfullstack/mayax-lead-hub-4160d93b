@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Wallet, Bell, Settings, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link, useNavigate } from "react-router-dom";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,6 +25,7 @@ interface TopNavbarProps {
   tier?: string;
   walletBalance?: number;
   onLogout?: () => void;
+  profilePictureUrl?: string | null;
 }
 
 const TopNavbar = ({
@@ -32,6 +33,7 @@ const TopNavbar = ({
   tier = "basic",
   walletBalance = 0,
   onLogout,
+  profilePictureUrl,
 }: TopNavbarProps) => {
   const navigate = useNavigate();
   const initials = dealerName
@@ -98,6 +100,9 @@ const TopNavbar = ({
           <DropdownMenuTrigger asChild>
             <button className="focus:outline-none">
               <Avatar className="h-8 w-8 cursor-pointer ring-1 ring-border hover:ring-primary/50 transition-all">
+                {profilePictureUrl ? (
+                  <AvatarImage src={profilePictureUrl} alt={dealerName} />
+                ) : null}
                 <AvatarFallback className="bg-primary/20 text-primary text-xs font-semibold">
                   {initials}
                 </AvatarFallback>

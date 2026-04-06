@@ -9,6 +9,7 @@ interface DealerInfo {
   dealership_name: string;
   subscription_tier: string;
   wallet_balance: number;
+  profile_picture_url: string | null;
 }
 
 const AppLayout = () => {
@@ -26,7 +27,7 @@ const AppLayout = () => {
 
       const { data } = await supabase
         .from("dealers")
-        .select("id, dealership_name, subscription_tier, wallet_balance")
+        .select("id, dealership_name, subscription_tier, wallet_balance, profile_picture_url")
         .eq("user_id", session.user.id)
         .single();
 
@@ -52,6 +53,7 @@ const AppLayout = () => {
                     wallet_balance: payload.new.wallet_balance,
                     subscription_tier: payload.new.subscription_tier,
                     dealership_name: payload.new.dealership_name,
+                    profile_picture_url: payload.new.profile_picture_url,
                   }
                 : prev
             );
@@ -83,6 +85,7 @@ const AppLayout = () => {
             tier={dealer?.subscription_tier}
             walletBalance={dealer?.wallet_balance ?? 0}
             onLogout={handleLogout}
+            profilePictureUrl={dealer?.profile_picture_url}
           />
           <main className="flex-1 overflow-auto">
             <Outlet />
