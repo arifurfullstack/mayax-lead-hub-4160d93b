@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import AdminAddLeadDialog from "@/components/AdminAddLeadDialog";
 
 interface LeadFileEntry {
   name: string;
@@ -57,9 +58,10 @@ const PAGE_SIZE_OPTIONS = [10, 25, 50];
 interface Props {
   leads: AdminLead[];
   onSelectLead: (lead: AdminLead) => void;
+  onRefresh: () => void;
 }
 
-export default function AdminLeadTable({ leads, onSelectLead }: Props) {
+export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [gradeFilter, setGradeFilter] = useState("all");
@@ -144,7 +146,8 @@ export default function AdminLeadTable({ leads, onSelectLead }: Props) {
   return (
     <div className="space-y-4">
       {/* Filters row */}
-      <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
+      <div className="flex flex-col sm:flex-row gap-3 flex-wrap items-start">
+        <AdminAddLeadDialog onLeadAdded={onRefresh} />
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input

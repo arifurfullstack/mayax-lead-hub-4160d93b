@@ -360,7 +360,7 @@ const AdminDashboard = () => {
         </TabsContent>
 
         <TabsContent value="leads" className="space-y-4">
-          <AdminLeadTable leads={leads} onSelectLead={(l) => setSelectedLead(l)} />
+          <AdminLeadTable leads={leads} onSelectLead={(l) => setSelectedLead(l)} onRefresh={fetchData} />
         </TabsContent>
 
         {/* ─── Platform Settings Tab ─── */}
