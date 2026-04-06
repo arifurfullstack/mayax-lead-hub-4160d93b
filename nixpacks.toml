@@ -1,12 +1,11 @@
 [phases.setup]
 nixPkgs = ["nodejs_20"]
-cmds = ["npm i -g bun"]
 
 [phases.install]
-cmds = ["bun install --frozen-lockfile"]
+cmds = ["npm install"]
 
 [phases.build]
-cmds = ["bun run build"]
+cmds = ["npm run build"]
 
 [start]
-cmd = "npx serve dist -s -l 3000"
+cmd = "npm run preview -- --host 0.0.0.0 --port 3000 --strictPort"
