@@ -12,6 +12,7 @@ import {
   RefreshCw,
   Save,
   Shield,
+  Palette,
   TrendingUp,
   DollarSign,
   Package,
