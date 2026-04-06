@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Shield, MapPin, Clock, FileText, User, Home, Monitor, Building2, CheckCircle2, Coins, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface LeadCardProps {
   lead: any;
@@ -90,7 +91,7 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
         <span className="text-xl font-bold text-foreground font-mono-timer select-none" style={{ filter: "blur(6px)" }}>
           {creditRange}
         </span>
-        <Lock className="h-3 w-3 text-muted-foreground/60" />
+        <Tooltip><TooltipTrigger asChild><Lock className="h-3 w-3 text-muted-foreground/60 cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Purchase to reveal</TooltipContent></Tooltip>
       </div>
 
       {/* Location — blurred */}
@@ -98,7 +99,7 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
         <div className="flex items-center gap-2 mb-2 text-muted-foreground">
           <MapPin className="h-4 w-4" />
           <span className="text-sm select-none" style={{ filter: "blur(5px)" }}>{location}</span>
-          <Lock className="h-3 w-3 text-muted-foreground/60" />
+          <Tooltip><TooltipTrigger asChild><Lock className="h-3 w-3 text-muted-foreground/60 cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Purchase to reveal</TooltipContent></Tooltip>
         </div>
       )}
 
@@ -107,7 +108,7 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
         <div className="flex items-center gap-2 mb-3 text-muted-foreground">
           <Coins className="h-4 w-4 text-[hsl(var(--gold))]" />
           <span className="text-sm font-medium font-mono-timer select-none" style={{ filter: "blur(5px)" }}>{incomeDisplay}</span>
-          <Lock className="h-3 w-3 text-muted-foreground/60" />
+          <Tooltip><TooltipTrigger asChild><Lock className="h-3 w-3 text-muted-foreground/60 cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Purchase to reveal</TooltipContent></Tooltip>
         </div>
       )}
 
