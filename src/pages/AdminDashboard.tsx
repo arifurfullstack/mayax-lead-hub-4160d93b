@@ -117,7 +117,7 @@ const AdminDashboard = () => {
       supabase.from("platform_settings").select("*"),
     ]);
     setDealers((d as Dealer[]) ?? []);
-    setLeads((l as Lead[]) ?? []);
+    setLeads((l as unknown as Lead[]) ?? []);
     const settingsMap: Record<string, string> = {};
     (s ?? []).forEach((row: any) => { settingsMap[row.key] = row.value ?? ""; });
     setPlatformSettings(settingsMap);
