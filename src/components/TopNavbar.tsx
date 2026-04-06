@@ -33,6 +33,7 @@ const TopNavbar = ({
   tier = "basic",
   walletBalance = 0,
   onLogout,
+  profilePictureUrl,
 }: TopNavbarProps) => {
   const navigate = useNavigate();
   const initials = dealerName
