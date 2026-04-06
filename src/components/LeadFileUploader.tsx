@@ -63,7 +63,7 @@ const LeadFileUploader = ({ leadId, files, onFilesChange }: Props) => {
     const updated = files.filter((_, i) => i !== index);
     await supabase
       .from("leads")
-      .update({ document_files: updated as unknown as Record<string, unknown>[] })
+      .update({ document_files: JSON.parse(JSON.stringify(updated)) })
       .eq("id", leadId);
 
     onFilesChange(updated);
