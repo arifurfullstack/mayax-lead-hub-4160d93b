@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -6,9 +7,11 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import {
-  Mail, Phone, User, MapPin, CreditCard, Car, FileText, DollarSign, Package,
+  Mail, Phone, User, MapPin, CreditCard, Car, FileText, DollarSign, Package, Download, Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
 
 interface LeadDetail {
   reference_code: string;
