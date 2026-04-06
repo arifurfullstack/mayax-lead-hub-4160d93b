@@ -74,6 +74,22 @@
       radial-gradient(ellipse at 80% 70%, rgba(59, 107, 220, 0.06) 0%, transparent 50%);
   }
 
+  .starfield::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background-image:
+      radial-gradient(2px 2px at 18% 22%, rgba(255,255,255,0.5), transparent),
+      radial-gradient(1.5px 1.5px at 52% 38%, rgba(180,210,255,0.4), transparent),
+      radial-gradient(2px 2px at 78% 62%, rgba(255,255,255,0.35), transparent),
+      radial-gradient(1.5px 1.5px at 35% 72%, rgba(180,210,255,0.3), transparent),
+      radial-gradient(2px 2px at 88% 18%, rgba(255,255,255,0.45), transparent),
+      radial-gradient(1.5px 1.5px at 8% 85%, rgba(180,210,255,0.3), transparent);
+    animation: drift-particles 25s ease-in-out infinite alternate;
+  }
+
   .starfield::before {
     content: '';
     position: fixed;
@@ -239,5 +255,26 @@
     background: linear-gradient(90deg, #ef4444 0%, #eab308 40%, #22c55e 100%) !important;
     height: 6px;
     border-radius: 3px;
+  }
+}
+
+@keyframes drift-particles {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.6;
+  }
+  25% {
+    opacity: 0.9;
+  }
+  50% {
+    transform: translate(15px, -20px) scale(1.05);
+    opacity: 0.5;
+  }
+  75% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translate(-10px, 12px) scale(0.98);
+    opacity: 0.65;
   }
 }
