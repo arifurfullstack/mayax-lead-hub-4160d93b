@@ -480,13 +480,34 @@ const AdminDashboard = () => {
         </DialogContent>
       </Dialog>
 
-      {/* ─── Lead Detail Dialog ─── */}
-      <Dialog open={!!selectedLead} onOpenChange={() => { setSelectedLead(null); setConfirmDelete(false); }}>
-        <DialogContent className="bg-card border-border max-w-lg">
+      {/* ─── Lead Detail / Edit Dialog ─── */}
+      <Dialog open={!!selectedLead} onOpenChange={() => { setSelectedLead(null); setConfirmDelete(false); setEditingLead(false); }}>
+        <DialogContent className="bg-card border-border max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-foreground font-mono">{selectedLead?.reference_code}</DialogTitle>
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-foreground font-mono">{selectedLead?.reference_code}</DialogTitle>
+              {selectedLead && !editingLead && (
+                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => {
+                  setEditForm({
+                    first_name: selectedLead.first_name,
+                    last_name: selectedLead.last_name,
+                    email: selectedLead.email ?? "",
+                    phone: selectedLead.phone ?? "",
+                    city: selectedLead.city ?? "",
+                    province: selectedLead.province ?? "",
+                    quality_grade: selectedLead.quality_grade ?? "B",
+                    ai_score: String(selectedLead.ai_score ?? ""),
+                    price: String(selectedLead.price),
+                    sold_status: selectedLead.sold_status,
+                  });
+                  setEditingLead(true);
+                }}>
+                  <Pencil className="h-3.5 w-3.5" /> Edit
+                </Button>
+              )}
+            </div>
           </DialogHeader>
-          {selectedLead && (
+          {selectedLead && !editingLead && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div><span className="text-muted-foreground text-xs">Name</span><p className="text-foreground">{selectedLead.first_name} {selectedLead.last_name}</p></div>
@@ -515,30 +536,81 @@ const AdminDashboard = () => {
               </div>
               <div className="border-t border-border pt-4">
                 {!confirmDelete ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10"
-                    onClick={() => setConfirmDelete(true)}
-                  >
+                  <Button variant="outline" size="sm" className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => setConfirmDelete(true)}>
                     <Trash2 className="h-4 w-4" /> Delete Lead
                   </Button>
                 ) : (
                   <div className="flex items-center gap-3">
                     <p className="text-sm text-destructive">Are you sure?</p>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      disabled={deletingLead}
-                      onClick={() => deleteLead(selectedLead.id)}
-                    >
+                    <Button variant="destructive" size="sm" disabled={deletingLead} onClick={() => deleteLead(selectedLead.id)}>
                       {deletingLead ? "Deleting…" : "Yes, Delete"}
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => setConfirmDelete(false)}>
-                      Cancel
-                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => setConfirmDelete(false)}>Cancel</Button>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+          {selectedLead && editingLead && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">First Name</Label>
+                  <Input value={editForm.first_name} onChange={(e) => setEditForm((f) => ({ ...f, first_name: e.target.value }))} className="bg-background border-border" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Last Name</Label>
+                  <Input value={editForm.last_name} onChange={(e) => setEditForm((f) => ({ ...f, last_name: e.target.value }))} className="bg-background border-border" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Email</Label>
+                  <Input value={editForm.email} onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} className="bg-background border-border" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Phone</Label>
+                  <Input value={editForm.phone} onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))} className="bg-background border-border" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">City</Label>
+                  <Input value={editForm.city} onChange={(e) => setEditForm((f) => ({ ...f, city: e.target.value }))} className="bg-background border-border" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Province</Label>
+                  <Input value={editForm.province} onChange={(e) => setEditForm((f) => ({ ...f, province: e.target.value }))} className="bg-background border-border" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Quality Grade</Label>
+                  <Select value={editForm.quality_grade} onValueChange={(v) => setEditForm((f) => ({ ...f, quality_grade: v }))}>
+                    <SelectTrigger className="bg-background border-border"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {["A+", "A", "B", "C"].map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">AI Score</Label>
+                  <Input type="number" min={0} max={100} value={editForm.ai_score} onChange={(e) => setEditForm((f) => ({ ...f, ai_score: e.target.value }))} className="bg-background border-border" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Price ($)</Label>
+                  <Input type="number" min={0} step="0.01" value={editForm.price} onChange={(e) => setEditForm((f) => ({ ...f, price: e.target.value }))} className="bg-background border-border" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Status</Label>
+                  <Select value={editForm.sold_status} onValueChange={(v) => setEditForm((f) => ({ ...f, sold_status: v }))}>
+                    <SelectTrigger className="bg-background border-border"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="available">Available</SelectItem>
+                      <SelectItem value="sold">Sold</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 pt-2 border-t border-border">
+                <Button variant="outline" size="sm" onClick={() => setEditingLead(false)}>Cancel</Button>
+                <Button size="sm" disabled={savingLead} className="gradient-blue-cyan text-foreground" onClick={saveLeadEdits}>
+                  {savingLead ? "Saving…" : "Save Changes"}
+                </Button>
               </div>
             </div>
           )}
