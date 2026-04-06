@@ -37,7 +37,6 @@ const Marketplace = () => {
   const [filters, setFilters] = useState<MarketplaceFilters>(defaultFilters);
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
 
-  // Purchase modal
   const [confirmLead, setConfirmLead] = useState<any | null>(null);
   const [purchasing, setPurchasing] = useState(false);
 
@@ -161,14 +160,14 @@ const Marketplace = () => {
 
   if (loading) {
     return (
-      <div className="marketplace-light min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="marketplace-light min-h-screen pb-20">
+    <div className="min-h-screen pb-20">
       <div className="max-w-[1400px] mx-auto px-4 py-6">
         <div className="flex gap-6">
           {/* Left sidebar filters */}
@@ -193,13 +192,13 @@ const Marketplace = () => {
           <div className="flex-1 min-w-0">
             {/* Header */}
             <div className="flex items-center gap-2 mb-5">
-              <h2 className="text-lg font-semibold text-gray-800">Leads</h2>
-              <ChevronDown className="h-4 w-4 text-gray-500" />
+              <h2 className="text-lg font-semibold text-foreground">Leads</h2>
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
             </div>
 
             {/* Card grid */}
             {filtered.length === 0 ? (
-              <div className="text-center py-20 text-gray-500">
+              <div className="text-center py-20 text-muted-foreground">
                 No leads match your criteria.
               </div>
             ) : (
@@ -222,20 +221,20 @@ const Marketplace = () => {
       </div>
 
       {/* Bottom sticky bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur border-t border-gray-200 py-3 px-6 z-50">
+      <div className="fixed bottom-0 left-0 right-0 glass border-t border-border py-3 px-6 z-50">
         <div className="max-w-[1400px] mx-auto flex items-center justify-between">
           <button
             onClick={() => setFilters(defaultFilters)}
-            className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-800 font-medium"
+            className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground font-medium transition-colors"
           >
             Clear Filters <ChevronRight className="h-4 w-4" />
           </button>
           <div className="flex items-center gap-4">
-            <span className="text-gray-700 font-medium">
-              Total: <span className="font-bold">${selectedTotal.toFixed(0)}</span>
+            <span className="text-muted-foreground font-medium">
+              Total: <span className="font-bold text-foreground font-mono-timer">${selectedTotal.toFixed(0)}</span>
             </span>
             <button
-              className="px-6 py-2.5 rounded-lg bg-green-700 text-white font-semibold text-sm hover:bg-green-800 transition-colors disabled:opacity-50"
+              className="px-6 py-2.5 rounded-lg border border-emerald-500/50 text-emerald-400 font-semibold text-sm hover:bg-emerald-500/10 transition-colors disabled:opacity-50"
               disabled={selectedLeads.size === 0}
               onClick={() => {
                 const firstSelected = filtered.find((l) => selectedLeads.has(l.id));
@@ -250,38 +249,38 @@ const Marketplace = () => {
 
       {/* Confirm Purchase Dialog */}
       <Dialog open={!!confirmLead} onOpenChange={() => setConfirmLead(null)}>
-        <DialogContent className="bg-white border-gray-200 max-w-md">
+        <DialogContent className="bg-card border-border max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-gray-800">Confirm Purchase</DialogTitle>
+            <DialogTitle className="text-foreground">Confirm Purchase</DialogTitle>
           </DialogHeader>
           {confirmLead && (
             <div className="space-y-3">
-              <div className="flex justify-between items-center text-sm p-3 rounded-lg bg-gray-50">
+              <div className="flex justify-between items-center text-sm p-3 rounded-lg bg-muted">
                 <div>
-                  <span className="font-mono text-blue-600 text-xs">{confirmLead.reference_code}</span>
-                  <span className="text-gray-800 ml-2">{confirmLead.first_name} {confirmLead.last_name?.charAt(0)}.</span>
+                  <span className="font-mono text-primary text-xs">{confirmLead.reference_code}</span>
+                  <span className="text-foreground ml-2">{confirmLead.first_name} {confirmLead.last_name?.charAt(0)}.</span>
                 </div>
-                <span className="font-semibold text-gray-800">${Number(confirmLead.price).toFixed(2)}</span>
+                <span className="font-semibold text-foreground">${Number(confirmLead.price).toFixed(2)}</span>
               </div>
-              <div className="border-t border-gray-200 pt-3 flex justify-between">
-                <span className="text-gray-500">Total</span>
-                <span className="text-lg font-bold text-gray-800">${Number(confirmLead.price).toFixed(2)}</span>
+              <div className="border-t border-border pt-3 flex justify-between">
+                <span className="text-muted-foreground">Total</span>
+                <span className="text-lg font-bold text-foreground">${Number(confirmLead.price).toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Wallet Balance</span>
-                <span className={cn("font-semibold", walletBalance >= confirmLead.price ? "text-green-600" : "text-red-500")}>
+                <span className="text-muted-foreground">Wallet Balance</span>
+                <span className={cn("font-semibold", walletBalance >= confirmLead.price ? "text-emerald-400" : "text-destructive")}>
                   ${walletBalance.toFixed(2)}
                 </span>
               </div>
               {walletBalance < confirmLead.price && (
-                <p className="text-red-500 text-xs">Insufficient funds. Please add more funds to your wallet.</p>
+                <p className="text-destructive text-xs">Insufficient funds. Please add more funds to your wallet.</p>
               )}
             </div>
           )}
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setConfirmLead(null)} className="border-gray-300 text-gray-700">Cancel</Button>
+            <Button variant="outline" onClick={() => setConfirmLead(null)}>Cancel</Button>
             <button
-              className="px-4 py-2 rounded-lg bg-green-700 text-white font-semibold text-sm hover:bg-green-800 transition-colors disabled:opacity-50"
+              className="px-4 py-2 rounded-lg border border-emerald-500/50 text-emerald-400 font-semibold text-sm hover:bg-emerald-500/10 transition-colors disabled:opacity-50"
               disabled={purchasing || !confirmLead || walletBalance < confirmLead.price}
               onClick={executePurchase}
             >

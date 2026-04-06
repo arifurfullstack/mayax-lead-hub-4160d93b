@@ -75,7 +75,7 @@ function CollapsibleSection({ title, children, defaultOpen = false }: { title: s
   const [open, setOpen] = useState(defaultOpen);
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <CollapsibleTrigger className="flex items-center justify-between w-full py-2 text-sm font-semibold text-gray-800 hover:text-gray-600">
+      <CollapsibleTrigger className="flex items-center justify-between w-full py-2 text-sm font-semibold text-foreground hover:text-muted-foreground transition-colors">
         {title}
         {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
       </CollapsibleTrigger>
@@ -100,7 +100,7 @@ function FilterContent({ filters, onChange, onReset, activeCount }: FilterSideba
     <div className="space-y-5 text-sm">
       {/* Credit Range */}
       <div>
-        <p className="font-semibold text-gray-800 mb-3">Credit Range</p>
+        <p className="font-semibold text-foreground mb-3">Credit Range</p>
         <div className="relative">
           <Slider
             min={300}
@@ -111,7 +111,7 @@ function FilterContent({ filters, onChange, onReset, activeCount }: FilterSideba
             className="marketplace-slider"
           />
         </div>
-        <div className="flex justify-between text-xs text-gray-500 mt-1">
+        <div className="flex justify-between text-xs text-muted-foreground mt-1">
           <span>{filters.creditMin}</span>
           <span>{filters.creditMax}</span>
         </div>
@@ -119,13 +119,13 @@ function FilterContent({ filters, onChange, onReset, activeCount }: FilterSideba
 
       {/* Income Range */}
       <div>
-        <p className="font-semibold text-gray-800 mb-2">Income Range</p>
-        <div className="flex items-center gap-2 text-xs text-gray-600">
+        <p className="font-semibold text-foreground mb-2">Income Range</p>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Coins className="h-4 w-4 text-amber-500" />
           <span>500 LD</span>
           <div className="flex gap-1 ml-2">
             {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className={cn("w-2 h-2 rounded-full", i <= 3 ? "bg-gray-400" : "bg-gray-200")} />
+              <div key={i} className={cn("w-2 h-2 rounded-full", i <= 3 ? "bg-muted-foreground" : "bg-muted")} />
             ))}
           </div>
         </div>
@@ -133,14 +133,14 @@ function FilterContent({ filters, onChange, onReset, activeCount }: FilterSideba
 
       {/* Documents Uploaded */}
       <div>
-        <p className="font-semibold text-gray-800 mb-3">Documents Uploaded</p>
+        <p className="font-semibold text-foreground mb-3">Documents Uploaded</p>
         <div className="space-y-2.5">
           {documentOptions.map((d) => (
-            <label key={d.value} className="flex items-center gap-2.5 cursor-pointer text-gray-700">
+            <label key={d.value} className="flex items-center gap-2.5 cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
               <Checkbox
                 checked={filters.documents.includes(d.value)}
                 onCheckedChange={() => toggleArray("documents", d.value)}
-                className="border-blue-400 data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500"
+                className="border-primary data-[state=checked]:bg-primary data-[state=checked]:border-primary"
               />
               <span className="text-sm">{d.label}</span>
             </label>
@@ -149,15 +149,15 @@ function FilterContent({ filters, onChange, onReset, activeCount }: FilterSideba
       </div>
 
       {/* Collapsible sections */}
-      <div className="border-t border-gray-200 pt-3 space-y-1">
+      <div className="border-t border-border pt-3 space-y-1">
         <CollapsibleSection title="Location">
           <div className="space-y-2 max-h-32 overflow-y-auto">
             {provinceOptions.map((p) => (
-              <label key={p} className="flex items-center gap-2 cursor-pointer text-gray-700 text-sm">
+              <label key={p} className="flex items-center gap-2 cursor-pointer text-muted-foreground text-sm hover:text-foreground transition-colors">
                 <Checkbox
                   checked={filters.provinces.includes(p)}
                   onCheckedChange={() => toggleArray("provinces", p)}
-                  className="border-blue-400 data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500"
+                  className="border-primary data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                 />
                 <span>{p}</span>
               </label>
@@ -168,11 +168,11 @@ function FilterContent({ filters, onChange, onReset, activeCount }: FilterSideba
         <CollapsibleSection title="Vehicle">
           <div className="space-y-2">
             {vehicleTypes.map((v) => (
-              <label key={v} className="flex items-center gap-2 cursor-pointer text-gray-700 text-sm">
+              <label key={v} className="flex items-center gap-2 cursor-pointer text-muted-foreground text-sm hover:text-foreground transition-colors">
                 <Checkbox
                   checked={filters.vehicleType === v}
                   onCheckedChange={() => update({ vehicleType: filters.vehicleType === v ? "all" : v })}
-                  className="border-blue-400 data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500"
+                  className="border-primary data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                 />
                 <span>{v}</span>
               </label>
@@ -183,11 +183,11 @@ function FilterContent({ filters, onChange, onReset, activeCount }: FilterSideba
         <CollapsibleSection title="Lead Age">
           <div className="space-y-2">
             {ageOptions.map((a) => (
-              <label key={a.value} className="flex items-center gap-2 cursor-pointer text-gray-700 text-sm">
+              <label key={a.value} className="flex items-center gap-2 cursor-pointer text-muted-foreground text-sm hover:text-foreground transition-colors">
                 <Checkbox
                   checked={filters.maxAge === a.value}
                   onCheckedChange={() => update({ maxAge: filters.maxAge === a.value ? "all" : a.value })}
-                  className="border-blue-400 data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500"
+                  className="border-primary data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                 />
                 <span>{a.label}</span>
               </label>
@@ -197,10 +197,10 @@ function FilterContent({ filters, onChange, onReset, activeCount }: FilterSideba
       </div>
 
       {/* Clear Filters */}
-      <div className="pt-3 border-t border-gray-200">
+      <div className="pt-3 border-t border-border">
         <button
           onClick={onReset}
-          className="flex items-center justify-between w-full px-4 py-2.5 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors"
+          className="flex items-center justify-between w-full px-4 py-2.5 rounded-lg border border-border text-muted-foreground text-sm font-medium hover:text-foreground hover:border-muted-foreground transition-colors"
         >
           <span>Clear Filters</span>
           <ChevronRight className="h-4 w-4" />
@@ -213,8 +213,8 @@ function FilterContent({ filters, onChange, onReset, activeCount }: FilterSideba
 /** Persistent sidebar for desktop */
 export function MarketplaceFilterSidebar(props: FilterSidebarProps) {
   return (
-    <aside className="w-[280px] shrink-0 bg-white rounded-2xl shadow-sm border border-gray-100 p-5 h-fit sticky top-4 hidden lg:block">
-      <h2 className="text-lg font-bold text-gray-800 mb-5">Filters</h2>
+    <aside className="w-[280px] shrink-0 glass-card p-5 h-fit sticky top-4 hidden lg:block">
+      <h2 className="text-lg font-bold text-foreground mb-5">Filters</h2>
       <FilterContent {...props} />
     </aside>
   );
@@ -228,15 +228,15 @@ export function MarketplaceFilterDrawer(props: FilterSidebarProps) {
         <Button variant="outline" size="sm" className="gap-1.5 relative lg:hidden">
           <Filter className="h-3.5 w-3.5" /> Filters
           {props.activeCount > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 bg-blue-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center">
+            <span className="absolute -top-1.5 -right-1.5 bg-primary text-primary-foreground text-[10px] w-4 h-4 rounded-full flex items-center justify-center">
               {props.activeCount}
             </span>
           )}
         </Button>
       </SheetTrigger>
-      <SheetContent className="bg-white border-gray-200 overflow-y-auto">
+      <SheetContent className="bg-card border-border overflow-y-auto">
         <SheetHeader>
-          <SheetTitle className="text-gray-800">Filter Leads</SheetTitle>
+          <SheetTitle className="text-foreground">Filter Leads</SheetTitle>
         </SheetHeader>
         <div className="mt-4">
           <FilterContent {...props} />
