@@ -76,6 +76,12 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
     >
       <div className="shimmer-sweep" style={{ animationDelay: `${index * 80 + 300}ms` }} />
 
+      {isNew && !selected && (
+        <div className="absolute top-3 right-3 z-10 badge-green text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">
+          New
+        </div>
+      )}
+
       {selected && (
         <div className="absolute top-3 right-3 z-10 w-6 h-6 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/30">
           <CheckCircle2 className="h-4 w-4 text-primary-foreground" />
