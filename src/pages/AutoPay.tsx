@@ -106,6 +106,11 @@ const AutoPay = () => {
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState<AutoPayData>(defaultSettings);
   const [existingId, setExistingId] = useState<string | null>(null);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [todayPurchases, setTodayPurchases] = useState(0);
+  const [todaySpent, setTodaySpent] = useState(0);
+  const [monthUsage, setMonthUsage] = useState<{ used: number; limit: number | null }>({ used: 0, limit: null });
+  const [recentPurchases, setRecentPurchases] = useState<any[]>([]);
 
   const isEligible = tier === "elite" || tier === "vip";
 
@@ -116,14 +121,16 @@ const AutoPay = () => {
 
       const { data: dealer } = await supabase
         .from("dealers")
-        .select("id, subscription_tier")
+        .select("id, subscription_tier, wallet_balance")
         .eq("user_id", session.user.id)
         .single();
 
       if (!dealer) return;
       setDealerId(dealer.id);
       setTier(dealer.subscription_tier);
+      setWalletBalance(Number(dealer.wallet_balance));
 
+      // Load autopay settings
       const { data: ap } = await supabase
         .from("autopay_settings")
         .select("*")
@@ -151,6 +158,45 @@ const AutoPay = () => {
           model: ap.model ?? "",
         });
       }
+
+      // Load today's autopay purchases
+      const todayStr = new Date().toISOString().split("T")[0];
+      const { data: todayTxns } = await supabase
+        .from("wallet_transactions")
+        .select("amount, created_at, description")
+        .eq("dealer_id", dealer.id)
+        .eq("type", "autopay")
+        .gte("created_at", `${todayStr}T00:00:00.000Z`)
+        .order("created_at", { ascending: false });
+
+      if (todayTxns) {
+        setTodayPurchases(todayTxns.length);
+        setTodaySpent(todayTxns.reduce((s, t) => s + Math.abs(Number(t.amount)), 0));
+      }
+
+      // Load recent autopay purchases (last 10)
+      const { data: recent } = await supabase
+        .from("wallet_transactions")
+        .select("amount, created_at, description")
+        .eq("dealer_id", dealer.id)
+        .eq("type", "autopay")
+        .order("created_at", { ascending: false })
+        .limit(10);
+      setRecentPurchases(recent ?? []);
+
+      // Load monthly usage
+      const now = new Date();
+      const periodStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+      const { data: usage } = await supabase
+        .from("dealer_subscription_usage")
+        .select("leads_used, leads_limit")
+        .eq("dealer_id", dealer.id)
+        .eq("period_start", periodStart)
+        .maybeSingle();
+      if (usage) {
+        setMonthUsage({ used: usage.leads_used, limit: usage.leads_limit });
+      }
+
       setLoading(false);
     };
     load();
@@ -283,6 +329,46 @@ const AutoPay = () => {
             onCheckedChange={(v) => update("enabled", v)}
             className="data-[state=checked]:bg-success"
           />
+        </div>
+      </div>
+
+      {/* Stats Dashboard */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="glass-card p-4 space-y-1">
+          <div className="flex items-center gap-2 text-muted-foreground text-xs">
+            <DollarSign className="h-3.5 w-3.5" />
+            Wallet Balance
+          </div>
+          <p className="text-lg font-bold text-foreground">${walletBalance.toFixed(2)}</p>
+        </div>
+        <div className="glass-card p-4 space-y-1">
+          <div className="flex items-center gap-2 text-muted-foreground text-xs">
+            <Zap className="h-3.5 w-3.5" />
+            Today's Purchases
+          </div>
+          <p className="text-lg font-bold text-foreground">
+            {todayPurchases}
+            <span className="text-xs font-normal text-muted-foreground">/{settings.leads_per_day}</span>
+          </p>
+        </div>
+        <div className="glass-card p-4 space-y-1">
+          <div className="flex items-center gap-2 text-muted-foreground text-xs">
+            <DollarSign className="h-3.5 w-3.5" />
+            Spent Today
+          </div>
+          <p className="text-lg font-bold text-foreground">${todaySpent.toFixed(2)}</p>
+        </div>
+        <div className="glass-card p-4 space-y-1">
+          <div className="flex items-center gap-2 text-muted-foreground text-xs">
+            <Users className="h-3.5 w-3.5" />
+            Monthly Usage
+          </div>
+          <p className="text-lg font-bold text-foreground">
+            {monthUsage.used}
+            {monthUsage.limit !== null && (
+              <span className="text-xs font-normal text-muted-foreground">/{monthUsage.limit}</span>
+            )}
+          </p>
         </div>
       </div>
 
@@ -518,6 +604,33 @@ const AutoPay = () => {
           </div>
         </div>
       </div>
+
+      {/* Recent AutoPay Activity */}
+      {recentPurchases.length > 0 && (
+        <div className="glass-card overflow-hidden">
+          <div className="p-4 border-b border-border">
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <Clock className="h-4 w-4 text-primary" />
+              Recent AutoPay Activity
+            </h3>
+          </div>
+          <div className="divide-y divide-border">
+            {recentPurchases.map((txn, i) => (
+              <div key={i} className="px-4 py-3 flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-foreground">{txn.description}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {new Date(txn.created_at).toLocaleString()}
+                  </p>
+                </div>
+                <span className="text-sm font-mono text-destructive">
+                  -${Math.abs(Number(txn.amount)).toFixed(2)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Save */}
       <div className="flex justify-end">
