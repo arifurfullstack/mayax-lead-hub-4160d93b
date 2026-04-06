@@ -1,42 +1,81 @@
 
 
-## Subscription Page UI Refinement Plan
+## Marketplace Page Redesign Plan
 
-### Key Differences Between Current Implementation and Reference
+### Current vs Reference
 
-Comparing the current code with the reference image, these are the gaps:
+The current marketplace uses a **dark-themed table layout** with a filter drawer. The reference shows a completely different design:
 
-1. **Font**: Reference uses **Poppins** font family; current uses Inter. Need to import Poppins and apply it to the subscription page.
-2. **Background**: Reference shows a **cinematic car dealership lot** background image at the bottom (rain-soaked cars with neon reflections). Current only has CSS gradient blobs — no photographic background.
-3. **Card border glow intensity**: Reference shows much more vivid, saturated neon border glows — almost like bright neon tubes around each card. Current borders are too subtle.
-4. **Card top glow**: Reference cards have a more pronounced vertical neon light beam/streak at the top edge of each card.
-5. **More atmospheric neon streaks**: Reference has multiple bright horizontal neon light streaks/flares in the upper portion of the page (purple, cyan, gold).
-6. **VIP "MOST POPULAR" badge**: In reference it has a distinct rounded border/outline style, positioned at top-right corner with a capsule/pill border around it.
-7. **Card spacing and sizing**: Cards in reference appear slightly taller with more breathing room.
-8. **Bottom atmospheric car image**: The reference clearly shows a dark, moody car lot scene at the bottom of the page — this is a key visual element.
+- **Light/soft background** with subtle gradient (not dark theme)
+- **Card grid layout** (3 columns) instead of a table
+- **Persistent left sidebar** with filters (not a drawer)
+- **Top horizontal navbar** with logo, nav links, wallet balance, "Add Funds" button, profile avatar
+- **Lead cards** with credit grade badges (A+/A/B/C), colored left borders, initials avatars, location, document icons, AI score, price, countdown timers, and action buttons
+- **Bottom sticky bar** with "Clear Filters", total price, and bulk "BUY LEAD" button
+- **Documents section** with checkboxes: Driver License, Paystubs, Bank Statements, Credit Report, Pre-Approval Cert.
 
 ### Implementation Plan
 
-**File: `src/pages/Subscription.tsx`**
+#### 1. Redesign MarketplaceFilters — persistent left sidebar
 
-1. **Add Poppins font import** — add a Google Fonts `@import` or `<link>` for Poppins (weights 300-800), and apply `fontFamily: 'Poppins, sans-serif'` to the page wrapper.
+**File: `src/components/MarketplaceFilters.tsx`**
 
-2. **Add cinematic car lot background image** — use a dark, moody car dealership lot image as a background layer at the bottom portion of the page. Since we cannot use external images reliably, we will create a more intense atmospheric CSS effect with stronger neon streaks, multiple light flares, and a richer gradient composition to simulate the cinematic feel. Alternatively, source a free car lot image and place it in `src/assets/`.
+- Export a new `MarketplaceFilterSidebar` component (not a drawer) that renders as a fixed left panel (~280px wide)
+- Sections: Credit Range (gradient slider), Income Range (with coin icon + visual pips), Documents Uploaded (5 checkboxes including Credit Report and Pre-Approval Cert.), Location (collapsible dropdown), Vehicle (collapsible dropdown), Lead Age (collapsible dropdown), Clear Filters button at bottom
+- Light theme styling: white background, soft borders, clean typography
+- Keep the existing `MarketplaceFilterDrawer` for mobile (shown via Sheet on small screens)
 
-3. **Intensify card border glows** — increase border opacity from ~0.4 to ~0.6, increase box-shadow outer glow from `0.1` to `0.2-0.25`, and add a second outer glow ring for the neon tube effect.
+#### 2. Create LeadCard component
 
-4. **Enhance top-edge card glow** — make the `::before` gradient taller and more intense (opacity from 0.12 to 0.2).
+**File: `src/components/LeadCard.tsx`** (new)
 
-5. **Add more neon streak lines** — add 4-5 additional rotated gradient streaks in the background at varied positions, colors (cyan, purple, gold, blue), and opacities.
+Each card displays:
+- **Credit grade badge** (top-left): A+, A, B, C with color coding — green (A+), blue (A), gold (B), gray (C)
+- **"A+ Verified" pill badge** next to grade for A+ leads
+- **Initials avatar** (colored circle matching grade) + Name + Buyer Type ("Online Buyer" / "In-Store Buyer")
+- **Credit score range** (e.g. "684-710") with shield icon
+- **Location** (City, Province) with map pin icon
+- **Document icons** row (small icons for each uploaded doc)
+- **AI Score** display
+- **Price** prominently shown
+- **Status**: "Available Now" badge (green) or "Unlocks in Xh Xm" countdown
+- **Action button**: "BUY LEAD" (green) for available, "Upgrade to Unlock" (green outline) for locked/lower tier
+- Card has a **colored left border** matching the grade color
+- White/light card background with subtle shadow
 
-6. **Refine VIP "MOST POPULAR" badge** — add a rounded capsule border outline around the text to match the reference style.
+#### 3. Redesign Marketplace page layout
 
-7. **Strengthen hover effects** — increase translateY to -6px and make glow more dramatic on hover.
+**File: `src/pages/Marketplace.tsx`**
 
-### Technical Details
+- Remove the table layout, stats bar, search bar, and tab buttons
+- New layout: `flex` with left sidebar (filters, ~280px) + right content area
+- Content area header: "Leads" dropdown/label
+- Content area: responsive card grid (3 cols on desktop, 2 on tablet, 1 on mobile)
+- Bottom sticky bar: "Clear Filters >" button (left), "Total: $X" + "BUY LEAD" button (right) for cart/bulk purchase
+- Keep all existing data fetching, filtering logic, purchase dialog
+- Add card selection state for bulk purchases (checkbox or click-to-select)
+- Light background styling for the marketplace page specifically
 
-- Poppins will be imported via Google Fonts CSS import in the component or added to `index.css`
-- All visual changes are CSS-only in `src/pages/Subscription.tsx`
-- No database or backend changes needed
-- No new dependencies required
+#### 4. Light theme for marketplace page only
+
+Apply a scoped light theme to the marketplace page wrapper using inline CSS variables or a light-mode class, overriding the global dark theme for this page only:
+- Background: soft white/light gray gradient
+- Cards: white with subtle shadows
+- Text: dark gray/navy
+- Accent colors remain (green, blue, gold for grades)
+
+#### 5. Update document filter options
+
+Add "Credit Report" and "Pre-Approval Cert." to the document options in `MarketplaceFilters.tsx` to match reference (currently only has license, paystub, bank_statement).
+
+### Files to modify
+- `src/components/MarketplaceFilters.tsx` — add sidebar variant + new doc options
+- `src/components/LeadCard.tsx` — new card component
+- `src/pages/Marketplace.tsx` — full layout redesign
+
+### Technical notes
+- No database changes needed — same lead data fields are used
+- Purchase flow (dialog + edge function) remains unchanged
+- Filter logic (`applyFilters`, `countActiveFilters`) remains unchanged
+- Mobile: sidebar collapses to a Sheet drawer; cards stack single-column
 
