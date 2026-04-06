@@ -20,6 +20,7 @@ import AppLayout from "./components/AppLayout";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
+import AdminDashboard from "./pages/AdminDashboard";
 import DynamicHead from "./components/DynamicHead";
 
 const queryClient = new QueryClient();
