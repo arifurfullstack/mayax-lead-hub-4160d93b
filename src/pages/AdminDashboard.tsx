@@ -266,6 +266,9 @@ const AdminDashboard = () => {
           <TabsTrigger value="settings" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
             <Settings2 className="h-4 w-4" /> Platform Settings
           </TabsTrigger>
+          <TabsTrigger value="plans" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
+            <CreditCard className="h-4 w-4" /> Plans
+          </TabsTrigger>
         </TabsList>
 
         {/* ─── Dealers Tab ─── */}
