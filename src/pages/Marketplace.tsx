@@ -58,6 +58,17 @@ const Marketplace = () => {
       setDealerId(dealer.id);
       setDealerTier(dealer.subscription_tier);
       setWalletBalance(dealer.wallet_balance);
+
+      // Fetch current month usage
+      const now = new Date();
+      const periodStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+      const { data: usageData } = await supabase
+        .from("dealer_subscription_usage")
+        .select("leads_used, leads_limit")
+        .eq("dealer_id", dealer.id)
+        .eq("period_start", periodStr)
+        .maybeSingle();
+      if (usageData) setUsage(usageData);
     }
 
     const { data } = await supabase.rpc("get_marketplace_leads", {
