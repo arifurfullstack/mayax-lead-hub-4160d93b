@@ -82,6 +82,7 @@ const AppLayout = () => {
             dealerName={dealer?.dealership_name}
             tier={dealer?.subscription_tier}
             walletBalance={dealer?.wallet_balance ?? 0}
+            onLogout={handleLogout}
           />
           <main className="flex-1 overflow-auto">
             <Outlet />
