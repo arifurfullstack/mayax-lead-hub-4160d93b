@@ -124,6 +124,19 @@ const AdminBrandingSettings = ({
     if (faviconInputRef.current) faviconInputRef.current.value = "";
   };
 
+  const handleOgImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingOgImage(true);
+    const url = await uploadFile(file, "logo");
+    if (url) {
+      setSettingsForm((prev) => ({ ...prev, theme_og_image_url: url }));
+      toast({ title: "Social share image uploaded", description: "Don't forget to save settings." });
+    }
+    setUploadingOgImage(false);
+    if (ogImageInputRef.current) ogImageInputRef.current.value = "";
+  };
+
   const clearImage = (key: string) => {
     setSettingsForm((prev) => ({ ...prev, [key]: "" }));
   };
