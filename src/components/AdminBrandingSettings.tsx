@@ -272,6 +272,67 @@ const AdminBrandingSettings = ({
             </div>
           </div>
         </div>
+
+        {/* OG / Social Share Image */}
+        <div className="space-y-3 mt-6">
+          <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+            <ImageIcon className="h-3.5 w-3.5" />
+            Social Share Image (OG Image)
+          </Label>
+          <p className="text-[10px] text-muted-foreground/60">
+            This image appears when you share your website link on WhatsApp, Facebook, Twitter, etc.
+            Recommended size: 1200×630px.
+          </p>
+          <div className="flex items-center gap-4">
+            <div className="h-20 w-36 rounded-lg border border-border bg-card flex items-center justify-center overflow-hidden shrink-0">
+              {settingsForm.theme_og_image_url ? (
+                <img
+                  src={settingsForm.theme_og_image_url}
+                  alt="OG Image"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <ImageIcon className="h-8 w-8 text-muted-foreground/30" />
+              )}
+            </div>
+            <div className="space-y-2 flex-1">
+              <input
+                ref={ogImageInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                onChange={handleOgImageUpload}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 w-full"
+                disabled={uploadingOgImage}
+                onClick={() => ogImageInputRef.current?.click()}
+              >
+                {uploadingOgImage ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="h-4 w-4" />
+                )}
+                {uploadingOgImage ? "Uploading…" : "Upload OG Image"}
+              </Button>
+              {settingsForm.theme_og_image_url && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 text-destructive hover:text-destructive w-full"
+                  onClick={() => clearImage("theme_og_image_url")}
+                >
+                  <X className="h-3.5 w-3.5" /> Remove
+                </Button>
+              )}
+              <p className="text-[10px] text-muted-foreground/60">
+                PNG, JPG, or WEBP. Max 5MB. Ideal: 1200×630px.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Text Settings Section */}
