@@ -480,7 +480,7 @@ const AdminDashboard = () => {
       </Dialog>
 
       {/* ─── Lead Detail Dialog ─── */}
-      <Dialog open={!!selectedLead} onOpenChange={() => setSelectedLead(null)}>
+      <Dialog open={!!selectedLead} onOpenChange={() => { setSelectedLead(null); setConfirmDelete(false); }}>
         <DialogContent className="bg-card border-border max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-foreground font-mono">{selectedLead?.reference_code}</DialogTitle>
