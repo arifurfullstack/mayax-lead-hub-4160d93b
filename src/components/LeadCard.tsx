@@ -80,10 +80,18 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
         </div>
       )}
 
-      {/* Lead type */}
+      {/* Lead type + grade badge */}
       <div className="flex items-center gap-2 mb-1.5">
         <span className="text-muted-foreground">{leadType.icon}</span>
         <span className="text-sm font-semibold text-foreground">{leadType.label}</span>
+        {lead.quality_grade && (
+          <span className={cn(
+            "ml-auto text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider font-mono-timer",
+            gradeColors[lead.quality_grade.toLowerCase()] ?? gradeColors.c
+          )}>
+            {lead.quality_grade}
+          </span>
+        )}
       </div>
 
       {/* Buyer type */}
