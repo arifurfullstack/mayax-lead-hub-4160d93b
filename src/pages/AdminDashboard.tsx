@@ -171,7 +171,43 @@ const AdminDashboard = () => {
     }
   };
 
-  const filteredDealers = dealers.filter((d) => {
+  /* ─── Edit Lead ─── */
+  const [editingLead, setEditingLead] = useState(false);
+  const [savingLead, setSavingLead] = useState(false);
+  const [editForm, setEditForm] = useState({
+    first_name: "", last_name: "", email: "", phone: "",
+    city: "", province: "", quality_grade: "B", ai_score: "",
+    price: "", sold_status: "available",
+  });
+
+  const saveLeadEdits = async () => {
+    if (!selectedLead) return;
+    setSavingLead(true);
+    const updates = {
+      first_name: editForm.first_name,
+      last_name: editForm.last_name,
+      email: editForm.email || null,
+      phone: editForm.phone || null,
+      city: editForm.city || null,
+      province: editForm.province || null,
+      quality_grade: editForm.quality_grade,
+      ai_score: editForm.ai_score ? Number(editForm.ai_score) : 0,
+      price: Number(editForm.price),
+      sold_status: editForm.sold_status,
+    };
+    const { error } = await supabase.from("leads").update(updates).eq("id", selectedLead.id);
+    setSavingLead(false);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Updated", description: "Lead updated successfully." });
+      const updated = { ...selectedLead, ...updates };
+      setSelectedLead(updated as Lead);
+      setLeads((prev) => prev.map((l) => l.id === selectedLead.id ? { ...l, ...updates } as Lead : l));
+      setEditingLead(false);
+    }
+  };
+
     const matchSearch =
       d.dealership_name.toLowerCase().includes(dealerSearch.toLowerCase()) ||
       d.email.toLowerCase().includes(dealerSearch.toLowerCase()) ||
