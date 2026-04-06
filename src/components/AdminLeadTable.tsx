@@ -57,6 +57,7 @@ const PAGE_SIZE_OPTIONS = [10, 25, 50];
 interface Props {
   leads: AdminLead[];
   onSelectLead: (lead: AdminLead) => void;
+  onRefresh: () => void;
 }
 
 export default function AdminLeadTable({ leads, onSelectLead }: Props) {
