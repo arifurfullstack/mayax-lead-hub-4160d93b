@@ -11,19 +11,34 @@ const DynamicHead = () => {
     const tagline = settings.theme_tagline || "";
     const description = settings.theme_meta_description || "";
     const favicon = settings.theme_favicon_url;
+    const logo = settings.theme_logo_url;
 
     // Title
     document.title = tagline ? `${name} — ${tagline}` : name;
 
     // Meta description
-    const metaDesc = document.querySelector('meta[name="description"]');
-    if (metaDesc) metaDesc.setAttribute("content", description);
+    let metaDesc = document.querySelector('meta[name="description"]');
+    if (!metaDesc) {
+      metaDesc = document.createElement("meta");
+      metaDesc.setAttribute("name", "description");
+      document.head.appendChild(metaDesc);
+    }
+    metaDesc.setAttribute("content", description);
 
     // OG tags
-    const ogTitle = document.querySelector('meta[property="og:title"]');
-    if (ogTitle) ogTitle.setAttribute("content", name);
-    const ogDesc = document.querySelector('meta[property="og:description"]');
-    if (ogDesc) ogDesc.setAttribute("content", description);
+    const ensureOg = (property: string, content: string) => {
+      let el = document.querySelector(`meta[property="${property}"]`);
+      if (!el) {
+        el = document.createElement("meta");
+        el.setAttribute("property", property);
+        document.head.appendChild(el);
+      }
+      el.setAttribute("content", content);
+    };
+
+    ensureOg("og:title", name);
+    ensureOg("og:description", description);
+    if (logo) ensureOg("og:image", logo);
 
     // Favicon
     if (favicon) {
@@ -34,6 +49,15 @@ const DynamicHead = () => {
         document.head.appendChild(link);
       }
       link.href = favicon;
+
+      // Also set apple-touch-icon
+      let appleLink = document.querySelector('link[rel="apple-touch-icon"]') as HTMLLinkElement;
+      if (!appleLink) {
+        appleLink = document.createElement("link");
+        appleLink.rel = "apple-touch-icon";
+        document.head.appendChild(appleLink);
+      }
+      appleLink.href = favicon;
     }
   }, [settings]);
 

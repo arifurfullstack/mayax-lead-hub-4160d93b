@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useNotifications } from "@/hooks/useNotifications";
+import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import { formatDistanceToNow } from "date-fns";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -43,6 +44,11 @@ const TopNavbar = ({
   const navigate = useNavigate();
   const { notifications, unreadCount, markAsRead, markAllAsRead } =
     useNotifications(dealerId);
+  const { data: platformSettings } = usePlatformSettings();
+
+  const siteName = platformSettings?.theme_website_name || "MayaX";
+  const siteTagline = platformSettings?.theme_tagline || "Lead Hub";
+  const logoUrl = platformSettings?.theme_logo_url;
 
   const initials = dealerName
     .split(" ")
@@ -65,11 +71,15 @@ const TopNavbar = ({
       <div className="flex items-center gap-3">
         <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
         <div className="flex items-center gap-2">
-          <span className="text-lg font-bold bg-gradient-to-r from-primary to-cyan bg-clip-text text-transparent">
-            MayaX
-          </span>
+          {logoUrl ? (
+            <img src={logoUrl} alt={siteName} className="h-7 object-contain" />
+          ) : (
+            <span className="text-lg font-bold bg-gradient-to-r from-primary to-cyan bg-clip-text text-transparent">
+              {siteName}
+            </span>
+          )}
           <span className="text-xs text-muted-foreground font-medium tracking-widest uppercase hidden sm:inline">
-            Lead Hub
+            {siteTagline}
           </span>
         </div>
       </div>
