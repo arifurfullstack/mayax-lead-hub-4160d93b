@@ -9,14 +9,18 @@ import {
   ChevronLeft,
   ChevronRight,
   Lock,
-  ArrowUpCircle,
-  CheckSquare,
+  DollarSign,
+  ShieldCheck,
+  Zap,
+  Phone,
+  Mail,
+  Car,
+  CheckCircle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -49,28 +53,12 @@ import {
   type MarketplaceFilters,
 } from "@/components/MarketplaceFilters";
 
-const gradeColors: Record<string, string> = {
-  "A+": "border-l-gold",
-  A: "border-l-primary",
-  B: "border-l-cyan",
-  C: "border-l-muted-foreground",
-};
-
-const gradeBadgeColors: Record<string, string> = {
-  "A+": "bg-gold/20 text-gold",
-  A: "bg-primary/20 text-primary",
-  B: "bg-cyan/20 text-cyan",
-  C: "bg-muted text-muted-foreground",
-};
-
 const tierDelayHours: Record<string, number> = {
   vip: 0,
   elite: 6,
   pro: 12,
   basic: 24,
 };
-
-const perPage = 15;
 
 function useCountdown(targetMs: number) {
   const [now, setNow] = useState(Date.now());
@@ -97,6 +85,17 @@ function CountdownBadge({ unlockAt }: { unlockAt: number }) {
   );
 }
 
+function timeAgo(dateStr: string) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins} minutes ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} hours ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} days ago`;
+}
+
 const Marketplace = () => {
   const [leads, setLeads] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -105,16 +104,13 @@ const Marketplace = () => {
   const [walletBalance, setWalletBalance] = useState(0);
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("newest");
-  const [gradeFilter, setGradeFilter] = useState("all");
   const [page, setPage] = useState(0);
-  const [tab, setTab] = useState<"all" | "new">("all");
+  const [perPage, setPerPage] = useState(25);
+  const [tab, setTab] = useState<"all" | "new" | "saved">("all");
   const [filters, setFilters] = useState<MarketplaceFilters>(defaultFilters);
 
-  // Selection
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-
   // Purchase modal
-  const [confirmLeads, setConfirmLeads] = useState<any[] | null>(null);
+  const [confirmLead, setConfirmLead] = useState<any | null>(null);
   const [purchasing, setPurchasing] = useState(false);
 
   useEffect(() => {
@@ -169,11 +165,6 @@ const Marketplace = () => {
       result = result.filter((l) => l.created_at > dayAgo);
     }
 
-    if (gradeFilter !== "all") {
-      result = result.filter((l) => l.quality_grade === gradeFilter);
-    }
-
-    // Apply advanced filters
     result = applyFilters(result, filters);
 
     if (search) {
@@ -183,7 +174,9 @@ const Marketplace = () => {
           l.reference_code?.toLowerCase().includes(q) ||
           l.city?.toLowerCase().includes(q) ||
           l.province?.toLowerCase().includes(q) ||
-          l.vehicle_preference?.toLowerCase().includes(q)
+          l.vehicle_preference?.toLowerCase().includes(q) ||
+          l.first_name?.toLowerCase().includes(q) ||
+          l.last_name?.toLowerCase().includes(q)
       );
     }
 
@@ -193,7 +186,7 @@ const Marketplace = () => {
     else if (sortBy === "score") result.sort((a, b) => (b.ai_score ?? 0) - (a.ai_score ?? 0));
 
     return result;
-  }, [leads, search, sortBy, gradeFilter, tab, filters]);
+  }, [leads, search, sortBy, tab, filters]);
 
   const paged = filtered.slice(page * perPage, (page + 1) * perPage);
   const totalPages = Math.ceil(filtered.length / perPage);
@@ -203,47 +196,17 @@ const Marketplace = () => {
     return {
       total: available.length,
       newToday: available.filter((l) => l.created_at > new Date(Date.now() - 86400000).toISOString()).length,
-      avgPrice: available.length ? available.reduce((s, l) => s + l.price, 0) / available.length : 0,
+      avgIncome: available.length ? available.reduce((s, l) => s + (l.income ?? 0), 0) / available.length : 0,
+      trustedPct: available.length
+        ? Math.round((available.filter((l) => (l.ai_score ?? 0) >= 70).length / available.length) * 100)
+        : 0,
     };
   }, [leads]);
 
-  const toggleSelect = (id: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const selectAllOnPage = () => {
-    const unlocked = paged.filter((l) => !isLocked(l));
-    const allSelected = unlocked.every((l) => selected.has(l.id));
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (allSelected) {
-        unlocked.forEach((l) => next.delete(l.id));
-      } else {
-        unlocked.forEach((l) => next.add(l.id));
-      }
-      return next;
-    });
-  };
-
-  const selectedLeads = useMemo(
-    () => leads.filter((l) => selected.has(l.id) && l.sold_status === "available" && !isLocked(l)),
-    [leads, selected, isLocked]
-  );
-
-  const selectedTotal = selectedLeads.reduce((s, l) => s + Number(l.price), 0);
-
-  const openConfirm = (leadsList: any[]) => setConfirmLeads(leadsList);
-
   const executePurchase = async () => {
-    if (!confirmLeads?.length) return;
+    if (!confirmLead) return;
     setPurchasing(true);
 
-    const leadIds = confirmLeads.map((l) => l.id);
     const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
     const { data: { session } } = await supabase.auth.getSession();
 
@@ -257,7 +220,7 @@ const Marketplace = () => {
             Authorization: `Bearer ${session?.access_token}`,
             apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
           },
-          body: JSON.stringify({ lead_ids: leadIds }),
+          body: JSON.stringify({ lead_ids: [confirmLead.id] }),
         }
       );
 
@@ -272,24 +235,25 @@ const Marketplace = () => {
       if (data.purchased > 0) {
         toast({
           title: "Purchase Successful!",
-          description: `${data.purchased} lead(s) purchased. New balance: $${Number(data.new_balance).toFixed(2)}`,
+          description: `Lead purchased. New balance: $${Number(data.new_balance).toFixed(2)}`,
         });
         setWalletBalance(data.new_balance);
-        setSelected(new Set());
       }
 
       if (data.failed > 0) {
         const errors = data.results.filter((r: any) => !r.success).map((r: any) => r.error).join("; ");
-        toast({ title: `${data.failed} lead(s) failed`, description: errors, variant: "destructive" });
+        toast({ title: "Purchase failed", description: errors, variant: "destructive" });
       }
 
-      setConfirmLeads(null);
+      setConfirmLead(null);
       fetchLeads();
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     }
     setPurchasing(false);
   };
+
+  const activeFilterCount = countActiveFilters(filters);
 
   const maskPII = (val: string | null) => {
     if (!val) return "•••••";
@@ -298,7 +262,20 @@ const Marketplace = () => {
     return val;
   };
 
-  const activeFilterCount = countActiveFilters(filters);
+  // Pagination helpers
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    if (totalPages <= 7) {
+      for (let i = 0; i < totalPages; i++) pages.push(i);
+    } else {
+      pages.push(0, 1, 2);
+      if (page > 3) pages.push("...");
+      if (page > 2 && page < totalPages - 3) pages.push(page);
+      if (page < totalPages - 4) pages.push("...");
+      pages.push(totalPages - 1);
+    }
+    return [...new Set(pages)];
+  };
 
   if (loading) {
     return (
@@ -313,88 +290,85 @@ const Marketplace = () => {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-foreground mb-1">Lead Marketplace</h1>
-          <p className="text-muted-foreground text-sm">Browse and purchase AI-verified buyer leads</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Leads Marketplace</h1>
+          <p className="text-muted-foreground">
+            Instantly buy AI-verified auto leads. Real buyers with real intent, delivered directly to your CRM.
+          </p>
         </div>
 
-        {/* Stats Bar */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-          <div className="glass-card p-4 flex items-center gap-3">
-            <Users className="h-5 w-5 text-primary" />
-            <div>
-              <p className="text-xs text-muted-foreground">Available Leads</p>
-              <p className="text-xl font-bold text-foreground">{stats.total}</p>
-            </div>
-          </div>
-          <div className="glass-card p-4 flex items-center gap-3">
-            <TrendingUp className="h-5 w-5 text-success" />
-            <div>
-              <p className="text-xs text-muted-foreground">New Today</p>
-              <p className="text-xl font-bold text-foreground">{stats.newToday}</p>
-            </div>
-          </div>
-          <div className="glass-card p-4 flex items-center gap-3">
-            <Clock className="h-5 w-5 text-cyan" />
-            <div>
-              <p className="text-xs text-muted-foreground">Avg. Price</p>
-              <p className="text-xl font-bold text-foreground">${stats.avgPrice.toFixed(2)}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Search + Tabs + Filters */}
-        <div className="flex flex-col md:flex-row gap-3 mb-4">
-          <div className="relative flex-1">
+        {/* Search + Tabs + Sort */}
+        <div className="flex flex-col md:flex-row gap-3 mb-5 items-start md:items-center">
+          <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search by code, city, province, vehicle..."
+              placeholder="Search leads..."
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(0); }}
               className="pl-10 bg-card border-border"
             />
           </div>
-          <div className="flex gap-2 flex-wrap">
-            {(["all", "new"] as const).map((t) => (
+          <div className="flex gap-2 items-center flex-wrap">
+            {([
+              { key: "all", label: "All Leads", icon: <Users className="h-3.5 w-3.5" /> },
+              { key: "new", label: "New Leads", icon: <Zap className="h-3.5 w-3.5" /> },
+            ] as const).map((t) => (
               <Button
-                key={t}
-                variant={tab === t ? "default" : "outline"}
+                key={t.key}
+                variant={tab === t.key ? "default" : "outline"}
                 size="sm"
-                onClick={() => { setTab(t); setPage(0); }}
-                className={tab === t ? "gradient-blue-cyan text-foreground" : ""}
+                onClick={() => { setTab(t.key); setPage(0); }}
+                className={cn(
+                  "gap-1.5",
+                  tab === t.key ? "gradient-blue-cyan text-foreground" : ""
+                )}
               >
-                {t === "all" ? "All" : "New"}
+                {t.icon} {t.label}
               </Button>
             ))}
-            <Select value={gradeFilter} onValueChange={(v) => { setGradeFilter(v); setPage(0); }}>
-              <SelectTrigger className="w-[120px] bg-card border-border h-9">
-                <SelectValue placeholder="Grade" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Grades</SelectItem>
-                <SelectItem value="A+">A+</SelectItem>
-                <SelectItem value="A">A</SelectItem>
-                <SelectItem value="B">B</SelectItem>
-                <SelectItem value="C">C</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={sortBy} onValueChange={(v) => { setSortBy(v); setPage(0); }}>
-              <SelectTrigger className="w-[130px] bg-card border-border h-9">
-                <SlidersHorizontal className="h-3 w-3 mr-1" />
-                <SelectValue placeholder="Sort" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="newest">Newest</SelectItem>
-                <SelectItem value="price_low">Price: Low</SelectItem>
-                <SelectItem value="price_high">Price: High</SelectItem>
-                <SelectItem value="score">AI Score</SelectItem>
-              </SelectContent>
-            </Select>
             <MarketplaceFilterDrawer
               filters={filters}
               onChange={(f) => { setFilters(f); setPage(0); }}
               onReset={() => { setFilters(defaultFilters); setPage(0); }}
               activeCount={activeFilterCount}
             />
+            <div className="ml-auto flex items-center gap-2">
+              <span className="text-xs text-muted-foreground whitespace-nowrap">Sort by</span>
+              <Select value={sortBy} onValueChange={(v) => { setSortBy(v); setPage(0); }}>
+                <SelectTrigger className="w-[120px] bg-card border-border h-9 text-primary">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="newest">Newest</SelectItem>
+                  <SelectItem value="price_low">Price: Low</SelectItem>
+                  <SelectItem value="price_high">Price: High</SelectItem>
+                  <SelectItem value="score">AI Score</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats Bar */}
+        <div className="glass-card mb-6 p-4 flex flex-wrap items-center gap-6 md:gap-0 md:divide-x md:divide-border">
+          <div className="flex items-center gap-2.5 flex-1 min-w-[160px] md:px-4 first:pl-0">
+            <Users className="h-5 w-5 text-primary" />
+            <span className="text-sm text-muted-foreground">Total Leads:</span>
+            <span className="text-lg font-bold text-primary">{stats.total}</span>
+          </div>
+          <div className="flex items-center gap-2.5 flex-1 min-w-[160px] md:px-4">
+            <Zap className="h-5 w-5 text-success" />
+            <span className="text-sm text-muted-foreground">New Leads:</span>
+            <span className="text-lg font-bold text-success">{stats.newToday}</span>
+          </div>
+          <div className="flex items-center gap-2.5 flex-1 min-w-[160px] md:px-4">
+            <DollarSign className="h-5 w-5 text-gold" />
+            <span className="text-sm text-muted-foreground">Average Income:</span>
+            <span className="text-lg font-bold text-gold">${stats.avgIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+          </div>
+          <div className="flex items-center gap-2.5 flex-1 min-w-[160px] md:px-4">
+            <ShieldCheck className="h-5 w-5 text-cyan" />
+            <span className="text-sm text-muted-foreground">Trusted Buyers:</span>
+            <span className="text-lg font-bold text-cyan">{stats.trustedPct}%</span>
           </div>
         </div>
 
@@ -410,21 +384,12 @@ const Marketplace = () => {
                 <Table>
                   <TableHeader>
                     <TableRow className="border-border hover:bg-transparent">
-                      <TableHead className="w-10">
-                        <Checkbox
-                          checked={paged.filter((l) => !isLocked(l)).length > 0 && paged.filter((l) => !isLocked(l)).every((l) => selected.has(l.id))}
-                          onCheckedChange={selectAllOnPage}
-                        />
-                      </TableHead>
-                      <TableHead className="text-muted-foreground w-[100px]">Code</TableHead>
-                      <TableHead className="text-muted-foreground">Name</TableHead>
-                      <TableHead className="text-muted-foreground hidden md:table-cell">Contact</TableHead>
-                      <TableHead className="text-muted-foreground hidden lg:table-cell">Location</TableHead>
-                      <TableHead className="text-muted-foreground hidden lg:table-cell">Vehicle</TableHead>
-                      <TableHead className="text-muted-foreground">Grade</TableHead>
-                      <TableHead className="text-muted-foreground hidden sm:table-cell">Score</TableHead>
+                      <TableHead className="text-muted-foreground">Type of Lead</TableHead>
+                      <TableHead className="text-muted-foreground">Contact Information</TableHead>
+                      <TableHead className="text-muted-foreground hidden md:table-cell">Vehicle</TableHead>
                       <TableHead className="text-muted-foreground text-right">Price</TableHead>
-                      <TableHead className="text-muted-foreground text-right w-[120px]">Action</TableHead>
+                      <TableHead className="text-muted-foreground hidden sm:table-cell">Time</TableHead>
+                      <TableHead className="text-muted-foreground text-right">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -434,58 +399,82 @@ const Marketplace = () => {
                         <TableRow
                           key={lead.id}
                           className={cn(
-                            "border-border border-l-4",
-                            gradeColors[lead.quality_grade] || "border-l-muted",
-                            locked && "opacity-60"
+                            "border-border",
+                            locked && "opacity-50"
                           )}
                         >
+                          {/* Type of Lead */}
                           <TableCell>
-                            {locked ? (
-                              <Lock className="h-4 w-4 text-muted-foreground" />
-                            ) : (
-                              <Checkbox
-                                checked={selected.has(lead.id)}
-                                onCheckedChange={() => toggleSelect(lead.id)}
-                              />
-                            )}
-                          </TableCell>
-                          <TableCell className="font-mono text-xs text-cyan">
-                            {lead.reference_code}
-                          </TableCell>
-                          <TableCell className="text-sm text-foreground">
-                            {lead.first_name} {lead.last_name?.charAt(0)}.
-                          </TableCell>
-                          <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
-                            <div>{maskPII(lead.email)}</div>
-                            <div className="text-xs">{maskPII(lead.phone)}</div>
-                          </TableCell>
-                          <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
-                            {lead.city}, {lead.province}
-                          </TableCell>
-                          <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
-                            {lead.vehicle_preference || "—"}
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={cn("text-xs border-0", gradeBadgeColors[lead.quality_grade] || "bg-muted text-muted-foreground")}>
-                              {lead.quality_grade}
+                            <Badge className="bg-success/20 text-success border-0 gap-1 text-xs">
+                              <CheckCircle className="h-3 w-3" />
+                              Verified · {lead.buyer_type === "walk-in" ? "Walk-in" : "Auto Loan"}
                             </Badge>
                           </TableCell>
-                          <TableCell className="hidden sm:table-cell">
-                            <span className="font-mono text-sm text-foreground">{lead.ai_score ?? 0}</span>
+
+                          {/* Contact Information */}
+                          <TableCell>
+                            <div className="space-y-0.5">
+                              <p className="text-sm font-medium text-foreground">
+                                {lead.first_name} {lead.last_name}
+                              </p>
+                              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                <Phone className="h-3 w-3" /> {maskPII(lead.phone)}
+                              </p>
+                              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                <Mail className="h-3 w-3" /> {maskPII(lead.email)}
+                              </p>
+                            </div>
                           </TableCell>
-                          <TableCell className="text-right font-semibold text-foreground">
-                            ${Number(lead.price).toFixed(2)}
+
+                          {/* Vehicle */}
+                          <TableCell className="hidden md:table-cell">
+                            <div className="space-y-0.5">
+                              <p className="text-sm text-foreground">{lead.vehicle_preference || "—"}</p>
+                              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                {lead.vehicle_mileage != null && (
+                                  <span className="flex items-center gap-0.5">
+                                    <Car className="h-3 w-3" /> {lead.vehicle_mileage.toLocaleString()}
+                                  </span>
+                                )}
+                                {lead.vehicle_price != null && (
+                                  <span>${Number(lead.vehicle_price).toLocaleString()}</span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                {lead.ai_score != null && (
+                                  <span>Score: {lead.ai_score}</span>
+                                )}
+                                {lead.credit_range_min != null && (
+                                  <span>Credit: {lead.credit_range_min}</span>
+                                )}
+                              </div>
+                            </div>
                           </TableCell>
+
+                          {/* Price */}
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <span className="font-semibold text-foreground">${Number(lead.price).toFixed(2)}</span>
+                              <CheckCircle className="h-3.5 w-3.5 text-success" />
+                            </div>
+                          </TableCell>
+
+                          {/* Time */}
+                          <TableCell className="hidden sm:table-cell text-xs text-muted-foreground whitespace-nowrap">
+                            {timeAgo(lead.created_at)}
+                          </TableCell>
+
+                          {/* Action */}
                           <TableCell className="text-right">
                             {locked ? (
                               <CountdownBadge unlockAt={getUnlockAt(lead)} />
                             ) : (
                               <Button
                                 size="sm"
-                                onClick={() => openConfirm([lead])}
+                                onClick={() => setConfirmLead(lead)}
                                 className="gradient-blue-cyan text-foreground gap-1 text-xs"
                               >
-                                <ShoppingCart className="h-3 w-3" /> Buy
+                                Buy Lead <ShoppingCart className="h-3 w-3" />
                               </Button>
                             )}
                           </TableCell>
@@ -498,92 +487,88 @@ const Marketplace = () => {
 
               {/* Pagination */}
               <div className="flex items-center justify-between p-4 border-t border-border">
-                <p className="text-xs text-muted-foreground">
-                  Showing {page * perPage + 1}–{Math.min((page + 1) * perPage, filtered.length)} of {filtered.length} leads
-                </p>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
-                  <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage((p) => p + 1)}>
+                  {getPageNumbers().map((p, i) =>
+                    p === "..." ? (
+                      <span key={`ellipsis-${i}`} className="text-muted-foreground text-sm px-1">…</span>
+                    ) : (
+                      <Button
+                        key={p}
+                        variant={page === p ? "default" : "outline"}
+                        size="sm"
+                        className={cn("h-8 w-8 p-0", page === p && "gradient-blue-cyan")}
+                        onClick={() => setPage(p as number)}
+                      >
+                        {(p as number) + 1}
+                      </Button>
+                    )
+                  )}
+                  <Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= totalPages - 1} onClick={() => setPage((p) => p + 1)}>
                     <ChevronRight className="h-4 w-4" />
                   </Button>
+                  <span className="text-xs text-muted-foreground ml-2">
+                    {page * perPage + 1}-{Math.min((page + 1) * perPage, filtered.length)} of {filtered.length}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Filter : page:</span>
+                  <Select value={String(perPage)} onValueChange={(v) => { setPerPage(Number(v)); setPage(0); }}>
+                    <SelectTrigger className="w-[70px] bg-card border-border h-8 text-xs">
+                      <SlidersHorizontal className="h-3 w-3 mr-1" />
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="25">25</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </>
           )}
         </div>
-
-        {/* Batch Purchase Sticky Bar */}
-        {selected.size > 0 && (
-          <div className="fixed bottom-0 left-0 right-0 z-40 bg-card/95 backdrop-blur-md border-t border-border p-4">
-            <div className="max-w-7xl mx-auto flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <CheckSquare className="h-5 w-5 text-primary" />
-                <div>
-                  <span className="text-foreground font-semibold">{selectedLeads.length} lead(s) selected</span>
-                  <span className="text-muted-foreground ml-2">Total: <span className="text-foreground font-bold">${selectedTotal.toFixed(2)}</span></span>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => setSelected(new Set())}>
-                  Clear
-                </Button>
-                <Button
-                  size="sm"
-                  className="gradient-blue-cyan text-foreground gap-1"
-                  onClick={() => openConfirm(selectedLeads)}
-                  disabled={selectedLeads.length === 0}
-                >
-                  <ShoppingCart className="h-4 w-4" /> Buy {selectedLeads.length} Lead(s)
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Confirm Purchase Dialog */}
-      <Dialog open={!!confirmLeads} onOpenChange={() => setConfirmLeads(null)}>
+      <Dialog open={!!confirmLead} onOpenChange={() => setConfirmLead(null)}>
         <DialogContent className="glass border-border max-w-md">
           <DialogHeader>
             <DialogTitle className="text-foreground">Confirm Purchase</DialogTitle>
           </DialogHeader>
-          {confirmLeads && (
+          {confirmLead && (
             <div className="space-y-3">
-              <div className="max-h-48 overflow-y-auto space-y-2">
-                {confirmLeads.map((l) => (
-                  <div key={l.id} className="flex justify-between items-center text-sm p-2 rounded-lg bg-muted/30">
-                    <div>
-                      <span className="font-mono text-cyan text-xs">{l.reference_code}</span>
-                      <span className="text-foreground ml-2">{l.first_name} {l.last_name?.charAt(0)}.</span>
-                    </div>
-                    <span className="font-semibold text-foreground">${Number(l.price).toFixed(2)}</span>
-                  </div>
-                ))}
+              <div className="flex justify-between items-center text-sm p-3 rounded-lg bg-muted/30">
+                <div>
+                  <span className="font-mono text-cyan text-xs">{confirmLead.reference_code}</span>
+                  <span className="text-foreground ml-2">{confirmLead.first_name} {confirmLead.last_name?.charAt(0)}.</span>
+                </div>
+                <span className="font-semibold text-foreground">${Number(confirmLead.price).toFixed(2)}</span>
               </div>
               <div className="border-t border-border pt-3 flex justify-between">
                 <span className="text-muted-foreground">Total</span>
-                <span className="text-lg font-bold text-foreground">
-                  ${confirmLeads.reduce((s, l) => s + Number(l.price), 0).toFixed(2)}
-                </span>
+                <span className="text-lg font-bold text-foreground">${Number(confirmLead.price).toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Wallet Balance</span>
-                <span className={cn("font-semibold", walletBalance >= confirmLeads.reduce((s, l) => s + Number(l.price), 0) ? "text-success" : "text-destructive")}>
+                <span className={cn("font-semibold", walletBalance >= confirmLead.price ? "text-success" : "text-destructive")}>
                   ${walletBalance.toFixed(2)}
                 </span>
               </div>
-              {walletBalance < confirmLeads.reduce((s, l) => s + Number(l.price), 0) && (
+              {walletBalance < confirmLead.price && (
                 <p className="text-destructive text-xs">Insufficient funds. Please add more funds to your wallet.</p>
               )}
             </div>
           )}
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setConfirmLeads(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setConfirmLead(null)}>Cancel</Button>
             <Button
               className="gradient-blue-cyan text-foreground"
-              disabled={purchasing || !confirmLeads || walletBalance < confirmLeads.reduce((s, l) => s + Number(l.price), 0)}
+              disabled={purchasing || !confirmLead || walletBalance < confirmLead.price}
               onClick={executePurchase}
             >
               {purchasing ? "Processing..." : "Confirm Purchase"}
