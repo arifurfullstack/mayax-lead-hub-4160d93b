@@ -9,6 +9,7 @@ interface LeadCardProps {
   onBuy: (lead: any) => void;
   selected?: boolean;
   onSelect?: (lead: any) => void;
+  index?: number;
 }
 
 function getLeadType(lead: any): { label: string; icon: React.ReactNode } {
