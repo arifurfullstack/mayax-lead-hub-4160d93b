@@ -541,20 +541,32 @@ const AdminDashboard = () => {
             <DialogTitle className="text-foreground font-mono">{selectedLead?.reference_code}</DialogTitle>
           </DialogHeader>
           {selectedLead && (
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div><span className="text-muted-foreground text-xs">Name</span><p className="text-foreground">{selectedLead.first_name} {selectedLead.last_name}</p></div>
-              <div><span className="text-muted-foreground text-xs">Email</span><p className="text-foreground">{selectedLead.email ?? "—"}</p></div>
-              <div><span className="text-muted-foreground text-xs">Phone</span><p className="text-foreground">{selectedLead.phone ?? "—"}</p></div>
-              <div><span className="text-muted-foreground text-xs">Location</span><p className="text-foreground">{selectedLead.city && selectedLead.province ? `${selectedLead.city}, ${selectedLead.province}` : "—"}</p></div>
-              <div><span className="text-muted-foreground text-xs">Grade</span>
-                <Badge className={cn("border-0 text-[10px] mt-1", gradeColors[selectedLead.quality_grade ?? ""] ?? "bg-muted text-muted-foreground")}>
-                  {selectedLead.quality_grade ?? "—"}
-                </Badge>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div><span className="text-muted-foreground text-xs">Name</span><p className="text-foreground">{selectedLead.first_name} {selectedLead.last_name}</p></div>
+                <div><span className="text-muted-foreground text-xs">Email</span><p className="text-foreground">{selectedLead.email ?? "—"}</p></div>
+                <div><span className="text-muted-foreground text-xs">Phone</span><p className="text-foreground">{selectedLead.phone ?? "—"}</p></div>
+                <div><span className="text-muted-foreground text-xs">Location</span><p className="text-foreground">{selectedLead.city && selectedLead.province ? `${selectedLead.city}, ${selectedLead.province}` : "—"}</p></div>
+                <div><span className="text-muted-foreground text-xs">Grade</span>
+                  <Badge className={cn("border-0 text-[10px] mt-1", gradeColors[selectedLead.quality_grade ?? ""] ?? "bg-muted text-muted-foreground")}>
+                    {selectedLead.quality_grade ?? "—"}
+                  </Badge>
+                </div>
+                <div><span className="text-muted-foreground text-xs">AI Score</span><p className="text-foreground">{selectedLead.ai_score ?? "—"}</p></div>
+                <div><span className="text-muted-foreground text-xs">Price</span><p className="text-foreground font-mono">${Number(selectedLead.price).toFixed(2)}</p></div>
+                <div><span className="text-muted-foreground text-xs">Status</span><p className="text-foreground capitalize">{selectedLead.sold_status}</p></div>
+                <div className="col-span-2"><span className="text-muted-foreground text-xs">Created</span><p className="text-foreground">{new Date(selectedLead.created_at).toLocaleString()}</p></div>
               </div>
-              <div><span className="text-muted-foreground text-xs">AI Score</span><p className="text-foreground">{selectedLead.ai_score ?? "—"}</p></div>
-              <div><span className="text-muted-foreground text-xs">Price</span><p className="text-foreground font-mono">${Number(selectedLead.price).toFixed(2)}</p></div>
-              <div><span className="text-muted-foreground text-xs">Status</span><p className="text-foreground capitalize">{selectedLead.sold_status}</p></div>
-              <div className="col-span-2"><span className="text-muted-foreground text-xs">Created</span><p className="text-foreground">{new Date(selectedLead.created_at).toLocaleString()}</p></div>
+              <div className="border-t border-border pt-4">
+                <LeadFileUploader
+                  leadId={selectedLead.id}
+                  files={selectedLead.document_files ?? []}
+                  onFilesChange={(files) => {
+                    setSelectedLead({ ...selectedLead, document_files: files });
+                    setLeads((prev) => prev.map((l) => l.id === selectedLead.id ? { ...l, document_files: files } : l));
+                  }}
+                />
+              </div>
             </div>
           )}
         </DialogContent>
