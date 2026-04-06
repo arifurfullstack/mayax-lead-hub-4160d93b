@@ -36,7 +36,6 @@ const Marketplace = () => {
   const [walletBalance, setWalletBalance] = useState(0);
   const [filters, setFilters] = useState<MarketplaceFilters>(defaultFilters);
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
-
   const [confirmLead, setConfirmLead] = useState<any | null>(null);
   const [purchasing, setPurchasing] = useState(false);
 
@@ -160,15 +159,15 @@ const Marketplace = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center starfield">
         <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen pb-20">
-      <div className="max-w-[1400px] mx-auto px-4 py-6">
+    <div className="min-h-screen pb-20 starfield">
+      <div className="max-w-[1400px] mx-auto px-4 py-6 relative z-10">
         <div className="flex gap-6">
           {/* Left sidebar filters */}
           <MarketplaceFilterSidebar
@@ -225,16 +224,16 @@ const Marketplace = () => {
         <div className="max-w-[1400px] mx-auto flex items-center justify-between">
           <button
             onClick={() => setFilters(defaultFilters)}
-            className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground font-medium transition-colors"
+            className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground font-medium transition-colors border border-border/60 px-4 py-2 rounded-lg hover:border-foreground/20"
           >
             Clear Filters <ChevronRight className="h-4 w-4" />
           </button>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-5">
             <span className="text-muted-foreground font-medium">
-              Total: <span className="font-bold text-foreground font-mono-timer">${selectedTotal.toFixed(0)}</span>
+              Total: <span className="font-bold text-foreground font-mono-timer text-lg">${selectedTotal.toFixed(0)}</span>
             </span>
             <button
-              className="px-6 py-2.5 rounded-lg border border-emerald-500/50 text-emerald-400 font-semibold text-sm hover:bg-emerald-500/10 transition-colors disabled:opacity-50"
+              className="gradient-cta-green text-foreground px-6 py-2.5 rounded-lg font-semibold text-sm tracking-wide hover:opacity-90 transition-opacity disabled:opacity-40"
               disabled={selectedLeads.size === 0}
               onClick={() => {
                 const firstSelected = filtered.find((l) => selectedLeads.has(l.id));
@@ -249,26 +248,26 @@ const Marketplace = () => {
 
       {/* Confirm Purchase Dialog */}
       <Dialog open={!!confirmLead} onOpenChange={() => setConfirmLead(null)}>
-        <DialogContent className="bg-card border-border max-w-md">
+        <DialogContent className="glass border-border max-w-md">
           <DialogHeader>
             <DialogTitle className="text-foreground">Confirm Purchase</DialogTitle>
           </DialogHeader>
           {confirmLead && (
             <div className="space-y-3">
-              <div className="flex justify-between items-center text-sm p-3 rounded-lg bg-muted">
+              <div className="flex justify-between items-center text-sm p-3 rounded-lg bg-muted/50 border border-border/50">
                 <div>
-                  <span className="font-mono text-primary text-xs">{confirmLead.reference_code}</span>
+                  <span className="font-mono-timer text-primary text-xs">{confirmLead.reference_code}</span>
                   <span className="text-foreground ml-2">{confirmLead.first_name} {confirmLead.last_name?.charAt(0)}.</span>
                 </div>
-                <span className="font-semibold text-foreground">${Number(confirmLead.price).toFixed(2)}</span>
+                <span className="font-bold text-foreground font-mono-timer">${Number(confirmLead.price).toFixed(2)}</span>
               </div>
-              <div className="border-t border-border pt-3 flex justify-between">
+              <div className="border-t border-border/50 pt-3 flex justify-between">
                 <span className="text-muted-foreground">Total</span>
-                <span className="text-lg font-bold text-foreground">${Number(confirmLead.price).toFixed(2)}</span>
+                <span className="text-lg font-bold text-foreground font-mono-timer">${Number(confirmLead.price).toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Wallet Balance</span>
-                <span className={cn("font-semibold", walletBalance >= confirmLead.price ? "text-emerald-400" : "text-destructive")}>
+                <span className={cn("font-semibold font-mono-timer", walletBalance >= confirmLead.price ? "text-[#22c55e]" : "text-destructive")}>
                   ${walletBalance.toFixed(2)}
                 </span>
               </div>
@@ -278,9 +277,9 @@ const Marketplace = () => {
             </div>
           )}
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setConfirmLead(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setConfirmLead(null)} className="border-border/60">Cancel</Button>
             <button
-              className="px-4 py-2 rounded-lg border border-emerald-500/50 text-emerald-400 font-semibold text-sm hover:bg-emerald-500/10 transition-colors disabled:opacity-50"
+              className="gradient-cta-buy text-foreground px-5 py-2 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-40"
               disabled={purchasing || !confirmLead || walletBalance < confirmLead.price}
               onClick={executePurchase}
             >
