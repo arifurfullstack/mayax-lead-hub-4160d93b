@@ -9,6 +9,7 @@ interface LeadCardProps {
   onBuy: (lead: any) => void;
   selected?: boolean;
   onSelect?: (lead: any) => void;
+  index?: number;
 }
 
 function getLeadType(lead: any): { label: string; icon: React.ReactNode } {
@@ -40,7 +41,7 @@ const docIcons: Record<string, React.ReactNode> = {
   pre_approval: <Shield className="h-3.5 w-3.5" />,
 };
 
-export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect }: LeadCardProps) {
+export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, index = 0 }: LeadCardProps) {
   const { remaining, display } = useCountdown(unlockAt);
   const leadType = getLeadType(lead);
   const buyerLabel = lead.buyer_type === "walk-in" ? "In-Store Buyer" : "Online Buyer";
@@ -51,16 +52,19 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect }: 
   const location = [lead.city, lead.province].filter(Boolean).join(", ");
   const isLocked = locked && remaining > 0;
 
+  const staggerDelay = `${index * 80}ms`;
+
   return (
     <div
       className={cn(
         "glass-card p-5 cursor-pointer relative z-10",
         selected && "glass-card-selected"
       )}
+      style={{ animationDelay: staggerDelay }}
       onClick={() => onSelect?.(lead)}
     >
       {/* Shimmer sweep on entrance */}
-      <div className="shimmer-sweep" />
+      <div className="shimmer-sweep" style={{ animationDelay: `${index * 80 + 300}ms` }} />
 
       {/* Lead type label */}
       <div className="flex items-center gap-2 mb-3">
