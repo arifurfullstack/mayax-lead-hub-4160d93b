@@ -152,7 +152,24 @@ const AdminDashboard = () => {
     toast({ title: "Saved", description: "Platform settings updated." });
   };
 
-  /* ─── Filtered Data ─── */
+  /* ─── Delete Lead ─── */
+  const [deletingLead, setDeletingLead] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const deleteLead = async (leadId: string) => {
+    setDeletingLead(true);
+    const { error } = await supabase.from("leads").delete().eq("id", leadId);
+    setDeletingLead(false);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Deleted", description: "Lead has been removed." });
+      setLeads((prev) => prev.filter((l) => l.id !== leadId));
+      setSelectedLead(null);
+      setConfirmDelete(false);
+    }
+  };
+
   const filteredDealers = dealers.filter((d) => {
     const matchSearch =
       d.dealership_name.toLowerCase().includes(dealerSearch.toLowerCase()) ||
