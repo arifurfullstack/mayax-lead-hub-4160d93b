@@ -148,6 +148,31 @@ const OrderDetailModal = ({ order, open, onOpenChange }: Props) => {
               <Row icon={Package} label="Tier" value={order.dealer_tier_at_purchase} iconColor="text-primary" />
             )}
           </Section>
+
+          {/* Downloadable Files */}
+          {files.length > 0 && (
+            <Section title="Attached Files">
+              <div className="space-y-1.5">
+                {files.map((f, i) => (
+                  <Button
+                    key={i}
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start gap-2 text-sm h-auto py-1.5 px-2"
+                    onClick={() => handleDownload(f)}
+                    disabled={downloading === f.path}
+                  >
+                    {downloading === f.path ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                    ) : (
+                      <Download className="h-3.5 w-3.5 text-primary" />
+                    )}
+                    <span className="text-foreground truncate">{f.name}</span>
+                  </Button>
+                ))}
+              </div>
+            </Section>
+          )}
         </div>
       </DialogContent>
     </Dialog>
