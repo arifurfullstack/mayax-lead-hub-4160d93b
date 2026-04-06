@@ -1,8 +1,9 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -21,7 +22,6 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // User client to get the user
     const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -33,7 +33,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Service client for atomic operations
     const admin = createClient(supabaseUrl, serviceKey);
 
     const body = await req.json();
@@ -60,20 +59,51 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check tier access delay
-    const tierDelays: Record<string, number> = {
-      vip: 0,
-      elite: 6,
-      pro: 12,
-      basic: 24,
-    };
-    const delayHours = tierDelays[dealer.subscription_tier] ?? 24;
+    // Get active subscription for dynamic delay and limits
+    const { data: activeSub } = await admin
+      .from("subscriptions")
+      .select("delay_hours, leads_per_month, plan_id")
+      .eq("dealer_id", dealer.id)
+      .eq("status", "active")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    // Fallback to hardcoded delays if no subscription record
+    const fallbackDelays: Record<string, number> = { vip: 0, elite: 6, pro: 12, basic: 24 };
+    const delayHours = activeSub?.delay_hours ?? fallbackDelays[dealer.subscription_tier] ?? 24;
+    const leadsLimit = activeSub?.leads_per_month ?? null;
+
+    // Check monthly usage if we have a limit
+    const now = new Date();
+    const periodStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+
+    let currentUsage = 0;
+    if (leadsLimit !== null) {
+      const { data: usageRow } = await admin
+        .from("dealer_subscription_usage")
+        .select("leads_used")
+        .eq("dealer_id", dealer.id)
+        .eq("period_start", periodStart)
+        .maybeSingle();
+
+      currentUsage = usageRow?.leads_used ?? 0;
+
+      if (currentUsage + leadIds.length > leadsLimit) {
+        return new Response(JSON.stringify({
+          error: `Monthly lead limit reached (${currentUsage}/${leadsLimit}). Upgrade your plan for more leads.`,
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
 
     const results: Array<{ lead_id: string; success: boolean; error?: string }> = [];
     let currentBalance = Number(dealer.wallet_balance);
+    let purchasedCount = 0;
 
     for (const leadId of leadIds) {
-      // Get lead with availability check
       const { data: lead, error: leadErr } = await admin
         .from("leads")
         .select("*")
@@ -101,7 +131,13 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Atomic: mark lead as sold
+      // Check if adding this purchase would exceed limit
+      if (leadsLimit !== null && currentUsage + purchasedCount + 1 > leadsLimit) {
+        results.push({ lead_id: leadId, success: false, error: "Monthly lead limit reached" });
+        continue;
+      }
+
+      // Mark lead as sold
       const { error: updateErr } = await admin
         .from("leads")
         .update({
@@ -110,7 +146,7 @@ Deno.serve(async (req) => {
           sold_at: new Date().toISOString(),
         })
         .eq("id", leadId)
-        .eq("sold_status", "available"); // Optimistic lock
+        .eq("sold_status", "available");
 
       if (updateErr) {
         results.push({ lead_id: leadId, success: false, error: "Failed to lock lead" });
@@ -144,7 +180,32 @@ Deno.serve(async (req) => {
         delivery_method: "email",
       });
 
+      purchasedCount++;
       results.push({ lead_id: leadId, success: true });
+    }
+
+    // Update monthly usage
+    if (purchasedCount > 0 && leadsLimit !== null) {
+      const { data: existingUsage } = await admin
+        .from("dealer_subscription_usage")
+        .select("id, leads_used")
+        .eq("dealer_id", dealer.id)
+        .eq("period_start", periodStart)
+        .maybeSingle();
+
+      if (existingUsage) {
+        await admin
+          .from("dealer_subscription_usage")
+          .update({ leads_used: existingUsage.leads_used + purchasedCount })
+          .eq("id", existingUsage.id);
+      } else {
+        await admin.from("dealer_subscription_usage").insert({
+          dealer_id: dealer.id,
+          period_start: periodStart,
+          leads_used: purchasedCount,
+          leads_limit: leadsLimit,
+        });
+      }
     }
 
     return new Response(
@@ -153,6 +214,10 @@ Deno.serve(async (req) => {
         new_balance: currentBalance,
         purchased: results.filter((r) => r.success).length,
         failed: results.filter((r) => !r.success).length,
+        usage: leadsLimit !== null ? {
+          leads_used: currentUsage + purchasedCount,
+          leads_limit: leadsLimit,
+        } : null,
       }),
       {
         status: 200,
@@ -160,7 +225,7 @@ Deno.serve(async (req) => {
       }
     );
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
+    return new Response(JSON.stringify({ error: (err as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

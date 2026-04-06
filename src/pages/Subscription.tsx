@@ -1,9 +1,10 @@
-import { Check, Clock, Zap, BadgeCheck, Users, ShieldCheck, Loader2 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { Check, Clock, Zap, BadgeCheck, ShieldCheck, Loader2, Wallet, AlertCircle } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import carLotBg from "@/assets/car-lot-bg.jpg";
 
 interface PlanFeature {
@@ -25,9 +26,18 @@ interface SubscriptionPlan {
   plan_features: PlanFeature[];
 }
 
+interface DealerInfo {
+  id: string;
+  subscription_tier: string;
+  wallet_balance: number;
+}
+
 const Subscription = () => {
-  const [currentTier, setCurrentTier] = useState<string | null>(null);
+  const [dealer, setDealer] = useState<DealerInfo | null>(null);
   const [subscribing, setSubscribing] = useState<string | null>(null);
+  const [usage, setUsage] = useState<{ leads_used: number; leads_limit: number } | null>(null);
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: plans, isLoading } = useQuery({
     queryKey: ["subscription-plans"],
@@ -45,41 +55,71 @@ const Subscription = () => {
     },
   });
 
-  // Fetch dealer's current tier
   useEffect(() => {
-    const fetchTier = async () => {
+    const fetchDealer = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       const { data } = await supabase
         .from("dealers")
-        .select("subscription_tier")
+        .select("id, subscription_tier, wallet_balance")
         .eq("user_id", user.id)
         .single();
-      if (data) setCurrentTier(data.subscription_tier);
+      if (data) {
+        setDealer(data);
+        // Fetch current month usage
+        const periodStart = new Date();
+        periodStart.setDate(1);
+        const periodStr = periodStart.toISOString().split("T")[0];
+        const { data: usageData } = await supabase
+          .from("dealer_subscription_usage")
+          .select("leads_used, leads_limit")
+          .eq("dealer_id", data.id)
+          .eq("period_start", periodStr)
+          .maybeSingle();
+        if (usageData) setUsage(usageData);
+      }
     };
-    fetchTier();
+    fetchDealer();
   }, []);
 
   const handleSubscribe = async (plan: SubscriptionPlan) => {
+    if (!dealer) return;
     setSubscribing(plan.id);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      // Check wallet balance
+      if (dealer.wallet_balance < plan.price) {
+        toast({
+          title: "Insufficient Balance",
+          description: `You need $${plan.price.toFixed(2)} but have $${dealer.wallet_balance.toFixed(2)}. Add funds first.`,
+          variant: "destructive",
+        });
+        return;
+      }
 
-      const { data: dealer } = await supabase
-        .from("dealers")
-        .select("id")
-        .eq("user_id", user.id)
-        .single();
-      if (!dealer) throw new Error("Dealer not found");
+      const newBalance = dealer.wallet_balance - plan.price;
+      const now = new Date();
+      const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-      // Update dealer tier
+      // Deduct from wallet
       await supabase
         .from("dealers")
-        .update({ subscription_tier: plan.name.toLowerCase() })
+        .update({
+          wallet_balance: newBalance,
+          subscription_tier: plan.name.toLowerCase(),
+        })
         .eq("id", dealer.id);
 
-      // Upsert subscription record
+      // Record wallet transaction
+      await supabase.from("wallet_transactions").insert({
+        dealer_id: dealer.id,
+        type: "purchase",
+        amount: -plan.price,
+        balance_after: newBalance,
+        description: `Subscription: ${plan.name} plan ($${plan.price}/mo)`,
+      });
+
+      // Upsert subscription record with plan snapshot
       const { data: existingSub } = await supabase
         .from("subscriptions")
         .select("id")
@@ -87,28 +127,62 @@ const Subscription = () => {
         .eq("status", "active")
         .maybeSingle();
 
+      const subData = {
+        tier: plan.name.toLowerCase(),
+        price: plan.price,
+        plan_id: plan.id,
+        leads_per_month: plan.leads_per_month,
+        delay_hours: plan.delay_hours,
+        start_date: periodStart.toISOString().split("T")[0],
+        end_date: periodEnd.toISOString().split("T")[0],
+      };
+
       if (existingSub) {
-        await supabase
-          .from("subscriptions")
-          .update({ tier: plan.name.toLowerCase(), price: plan.price })
-          .eq("id", existingSub.id);
+        await supabase.from("subscriptions").update(subData).eq("id", existingSub.id);
       } else {
         await supabase.from("subscriptions").insert({
           dealer_id: dealer.id,
-          tier: plan.name.toLowerCase(),
-          price: plan.price,
           status: "active",
+          ...subData,
         });
       }
 
-      setCurrentTier(plan.name.toLowerCase());
-      toast({ title: "Subscribed!", description: `You are now on the ${plan.name} plan.` });
+      // Upsert usage tracking for current month
+      const periodStr = periodStart.toISOString().split("T")[0];
+      const { data: existingUsage } = await supabase
+        .from("dealer_subscription_usage")
+        .select("id")
+        .eq("dealer_id", dealer.id)
+        .eq("period_start", periodStr)
+        .maybeSingle();
+
+      if (existingUsage) {
+        await supabase
+          .from("dealer_subscription_usage")
+          .update({ leads_limit: plan.leads_per_month })
+          .eq("id", existingUsage.id);
+      } else {
+        await supabase.from("dealer_subscription_usage").insert({
+          dealer_id: dealer.id,
+          period_start: periodStr,
+          leads_used: 0,
+          leads_limit: plan.leads_per_month,
+        });
+      }
+
+      setDealer({ ...dealer, subscription_tier: plan.name.toLowerCase(), wallet_balance: newBalance });
+      setUsage({ leads_used: usage?.leads_used ?? 0, leads_limit: plan.leads_per_month });
+      queryClient.invalidateQueries({ queryKey: ["subscription-plans"] });
+
+      toast({ title: "Subscribed!", description: `You are now on the ${plan.name} plan. $${plan.price.toFixed(2)} deducted from your wallet.` });
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
       setSubscribing(null);
     }
   };
+
+  const currentTier = dealer?.subscription_tier ?? null;
 
   return (
     <div
@@ -150,9 +224,34 @@ const Subscription = () => {
           <h1 className="text-[26px] md:text-[36px] font-bold text-foreground mb-3">
             Choose Your Subscription
           </h1>
-          <p className="text-[15px] font-light max-w-2xl mx-auto mb-8" style={{ color: "rgba(255,255,255,0.55)" }}>
+          <p className="text-[15px] font-light max-w-2xl mx-auto mb-6" style={{ color: "rgba(255,255,255,0.55)" }}>
             Select a plan that suits your needs and unlock access to verified auto leads
           </p>
+
+          {/* Wallet Balance & Usage Info */}
+          {dealer && (
+            <div className="flex items-center justify-center gap-6 flex-wrap mb-6">
+              <div
+                className="flex items-center gap-2 px-4 py-2 rounded-xl"
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
+              >
+                <Wallet className="h-4 w-4 text-primary" />
+                <span className="text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>Wallet:</span>
+                <span className="text-sm font-bold text-foreground">${dealer.wallet_balance.toFixed(2)}</span>
+              </div>
+              {usage && (
+                <div
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl"
+                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
+                >
+                  <AlertCircle className="h-4 w-4 text-cyan" />
+                  <span className="text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>Leads:</span>
+                  <span className="text-sm font-bold text-foreground">{usage.leads_used}/{usage.leads_limit} used</span>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="flex items-center justify-center gap-9 flex-wrap">
             <div className="flex items-center gap-2 text-sm" style={{ color: "rgba(255,255,255,0.8)" }}>
               <ShieldCheck className="h-6 w-6 text-success" />
@@ -185,6 +284,7 @@ const Subscription = () => {
                 : `Access leads\nafter ${tier.delay_hours} hours`;
               const borderColor = `rgba(${tier.glow_color}, 0.6)`;
               const isCurrentPlan = currentTier === tier.name.toLowerCase();
+              const canAfford = dealer ? dealer.wallet_balance >= tier.price : false;
 
               return (
                 <div
@@ -303,14 +403,26 @@ const Subscription = () => {
                     onMouseLeave={(e) => {
                       e.currentTarget.style.background = `linear-gradient(135deg, rgba(${tier.glow_color}, 0.25), rgba(${tier.glow_color}, 0.12))`;
                     }}
-                    onClick={() => handleSubscribe(tier)}
+                    onClick={() => {
+                      if (!canAfford && !isCurrentPlan) {
+                        toast({
+                          title: "Insufficient Balance",
+                          description: `You need $${tier.price.toFixed(2)} but have $${dealer?.wallet_balance.toFixed(2) ?? "0.00"}. Add funds to your wallet first.`,
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      handleSubscribe(tier);
+                    }}
                   >
                     {subscribing === tier.id ? (
                       <Loader2 className="h-4 w-4 animate-spin mx-auto" />
                     ) : isCurrentPlan ? (
                       "CURRENT PLAN"
+                    ) : !canAfford ? (
+                      "INSUFFICIENT FUNDS"
                     ) : (
-                      `CHOOSE ${tier.name}`
+                      `CHOOSE ${tier.name} — $${tier.price}`
                     )}
                   </button>
                 </div>
@@ -320,7 +432,7 @@ const Subscription = () => {
         )}
 
         <p className="text-center text-sm font-light" style={{ color: "rgba(255,255,255,0.4)" }}>
-          Renew, upgrade, or downgrade anytime. Month-to-month, cancel anytime.
+          Pay from your wallet balance. Upgrade or downgrade anytime.
         </p>
       </div>
     </div>

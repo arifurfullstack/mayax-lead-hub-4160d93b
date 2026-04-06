@@ -91,6 +91,33 @@ export type Database = {
           },
         ]
       }
+      dealer_subscription_usage: {
+        Row: {
+          created_at: string
+          dealer_id: string
+          id: string
+          leads_limit: number
+          leads_used: number
+          period_start: string
+        }
+        Insert: {
+          created_at?: string
+          dealer_id: string
+          id?: string
+          leads_limit: number
+          leads_used?: number
+          period_start: string
+        }
+        Update: {
+          created_at?: string
+          dealer_id?: string
+          id?: string
+          leads_limit?: number
+          leads_used?: number
+          period_start?: string
+        }
+        Relationships: []
+      }
       dealers: {
         Row: {
           address: string | null
@@ -493,8 +520,11 @@ export type Database = {
           billing_cycle: string | null
           created_at: string
           dealer_id: string
+          delay_hours: number | null
           end_date: string | null
           id: string
+          leads_per_month: number | null
+          plan_id: string | null
           price: number
           start_date: string
           status: string
@@ -506,8 +536,11 @@ export type Database = {
           billing_cycle?: string | null
           created_at?: string
           dealer_id: string
+          delay_hours?: number | null
           end_date?: string | null
           id?: string
+          leads_per_month?: number | null
+          plan_id?: string | null
           price: number
           start_date?: string
           status?: string
@@ -519,8 +552,11 @@ export type Database = {
           billing_cycle?: string | null
           created_at?: string
           dealer_id?: string
+          delay_hours?: number | null
           end_date?: string | null
           id?: string
+          leads_per_month?: number | null
+          plan_id?: string | null
           price?: number
           start_date?: string
           status?: string
