@@ -55,6 +55,17 @@ export function AppSidebar({ walletBalance = 0, onLogout }: AppSidebarProps) {
   const { data: settings } = usePlatformSettings();
   const logoSrc = settings?.theme_logo_url || fallbackLogo;
   const siteName = settings?.theme_website_name || "MayaX";
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const checkAdmin = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", session.user.id);
+      if (roles?.some((r: any) => r.role === "admin")) setIsAdmin(true);
+    };
+    checkAdmin();
+  }, []);
 
   const isActive = (path: string) => location.pathname === path;
 
