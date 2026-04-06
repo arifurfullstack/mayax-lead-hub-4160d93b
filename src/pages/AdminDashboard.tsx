@@ -208,6 +208,8 @@ const AdminDashboard = () => {
     }
   };
 
+  /* ─── Filtered Data ─── */
+  const filteredDealers = dealers.filter((d) => {
     const matchSearch =
       d.dealership_name.toLowerCase().includes(dealerSearch.toLowerCase()) ||
       d.email.toLowerCase().includes(dealerSearch.toLowerCase()) ||
