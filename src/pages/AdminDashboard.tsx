@@ -467,6 +467,11 @@ const AdminDashboard = () => {
             </Button>
           </div>
         </TabsContent>
+
+        {/* ─── Plans Tab ─── */}
+        <TabsContent value="plans" className="space-y-4">
+          <AdminPlanManager />
+        </TabsContent>
       </Tabs>
 
       {/* ─── Dealer Detail Dialog ─── */}
