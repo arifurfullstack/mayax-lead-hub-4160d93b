@@ -605,6 +605,33 @@ const AutoPay = () => {
         </div>
       </div>
 
+      {/* Recent AutoPay Activity */}
+      {recentPurchases.length > 0 && (
+        <div className="glass-card overflow-hidden">
+          <div className="p-4 border-b border-border">
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <Clock className="h-4 w-4 text-primary" />
+              Recent AutoPay Activity
+            </h3>
+          </div>
+          <div className="divide-y divide-border">
+            {recentPurchases.map((txn, i) => (
+              <div key={i} className="px-4 py-3 flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-foreground">{txn.description}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {new Date(txn.created_at).toLocaleString()}
+                  </p>
+                </div>
+                <span className="text-sm font-mono text-destructive">
+                  -${Math.abs(Number(txn.amount)).toFixed(2)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Save */}
       <div className="flex justify-end">
         <Button onClick={save} disabled={saving} className="gradient-blue-cyan text-foreground gap-2">
