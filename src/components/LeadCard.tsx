@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Shield, MapPin, Clock, FileText, BarChart3 } from "lucide-react";
+import { Shield, MapPin, Clock, FileText, User, Home, Monitor, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface LeadCardProps {
@@ -11,11 +11,11 @@ interface LeadCardProps {
   onSelect?: (lead: any) => void;
 }
 
-function getLeadType(lead: any): { label: string; color: string } {
+function getLeadType(lead: any): { label: string; icon: React.ReactNode } {
   const grade = lead.quality_grade?.toLowerCase?.() ?? "";
-  if (grade === "a+" || grade === "a") return { label: "Credit/Finance Lead", color: "text-emerald-400" };
-  if (grade === "b") return { label: "Marketplace Lead", color: "text-blue-400" };
-  return { label: "Referral Lead", color: "text-amber-400" };
+  if (grade === "a+" || grade === "a") return { label: "Credit/Finance Lead", icon: <Building2 className="h-4 w-4" /> };
+  if (grade === "b") return { label: "Marketplace Lead", icon: <Home className="h-4 w-4" /> };
+  return { label: "Referral Lead", icon: <User className="h-4 w-4" /> };
 }
 
 function useCountdown(targetMs: number) {
@@ -28,101 +28,110 @@ function useCountdown(targetMs: number) {
   const diff = Math.max(0, targetMs - now);
   const h = Math.floor(diff / 3600000);
   const m = Math.floor((diff % 3600000) / 60000);
-  return { remaining: diff, display: `${h}h ${String(m).padStart(2, "0")}m` };
+  if (h > 0) return { remaining: diff, display: `${h}h ${String(m).padStart(2, "0")}m` };
+  return { remaining: diff, display: `${m}m` };
 }
 
-const docIcons: Record<string, string> = {
-  license: "🪪",
-  paystub: "📊",
-  bank_statement: "🏦",
-  credit_report: "📋",
-  pre_approval: "✅",
+const docIcons: Record<string, React.ReactNode> = {
+  license: <FileText className="h-3.5 w-3.5" />,
+  paystub: <Monitor className="h-3.5 w-3.5" />,
+  bank_statement: <Building2 className="h-3.5 w-3.5" />,
+  credit_report: <FileText className="h-3.5 w-3.5" />,
+  pre_approval: <Shield className="h-3.5 w-3.5" />,
 };
 
 export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect }: LeadCardProps) {
   const { remaining, display } = useCountdown(unlockAt);
   const leadType = getLeadType(lead);
-  const initials = `${(lead.first_name?.[0] ?? "").toUpperCase()}${(lead.last_name?.[0] ?? "").toUpperCase()}`;
   const buyerLabel = lead.buyer_type === "walk-in" ? "In-Store Buyer" : "Online Buyer";
+  const buyerIcon = lead.buyer_type === "walk-in" ? <Home className="h-3.5 w-3.5" /> : <User className="h-3.5 w-3.5" />;
   const creditRange = lead.credit_range_min != null && lead.credit_range_max != null
     ? `${lead.credit_range_min}-${lead.credit_range_max}`
     : "N/A";
   const location = [lead.city, lead.province].filter(Boolean).join(", ");
+  const isLocked = locked && remaining > 0;
 
   return (
     <div
       className={cn(
-        "glass-card p-5 cursor-pointer transition-all duration-200 hover:border-white/20",
-        selected && "ring-2 ring-primary"
+        "glass-card p-5 cursor-pointer relative z-10",
+        selected && "glass-card-selected"
       )}
       onClick={() => onSelect?.(lead)}
     >
       {/* Lead type label */}
-      <p className={cn("text-xs font-semibold uppercase tracking-wider mb-3", leadType.color)}>
-        {leadType.label}
-      </p>
-
-      {/* Avatar + Name */}
-      <div className="flex items-center gap-3 mb-4">
-        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-foreground text-sm font-bold">
-          {initials}
-        </div>
-        <div>
-          <p className="font-semibold text-foreground text-sm">{initials}</p>
-          <p className="text-xs text-muted-foreground">{buyerLabel}</p>
-        </div>
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-muted-foreground">{leadType.icon}</span>
+        <span className="text-sm font-semibold text-foreground">{leadType.label}</span>
       </div>
 
-      {/* Credit + Location */}
-      <div className="space-y-2 mb-4">
-        <div className="flex items-center gap-2 text-sm text-foreground">
-          <Shield className="h-4 w-4 text-muted-foreground" />
-          <span className="font-medium">{creditRange}</span>
-        </div>
-        {location && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <MapPin className="h-4 w-4 text-emerald-400" />
-            <span>{location}</span>
-          </div>
-        )}
+      {/* Buyer type */}
+      <div className="flex items-center gap-2 mb-4 text-muted-foreground">
+        {buyerIcon}
+        <span className="text-sm">{buyerLabel}</span>
       </div>
 
-      {/* Documents + AI Score */}
-      <div className="flex items-center justify-between mb-4">
+      {/* Credit score — large & bold */}
+      <div className="flex items-center gap-2 mb-2">
+        <Shield className="h-4 w-4 text-destructive" />
+        <span className="text-xl font-bold text-foreground font-mono-timer">{creditRange}</span>
+      </div>
+
+      {/* Location */}
+      {location && (
+        <div className="flex items-center gap-2 mb-4 text-muted-foreground">
+          <MapPin className="h-4 w-4" />
+          <span className="text-sm">{location}</span>
+        </div>
+      )}
+
+      {/* Bottom section: docs + action */}
+      <div className="flex items-end justify-between mt-auto pt-3 border-t border-border/50">
+        {/* Documents row */}
         <div className="flex items-center gap-1.5">
-          {(lead.documents ?? []).slice(0, 4).map((d: string, i: number) => (
-            <span key={i} className="w-6 h-6 rounded bg-muted flex items-center justify-center text-xs" title={d}>
-              {docIcons[d] ?? <FileText className="h-3 w-3 text-muted-foreground" />}
+          {(lead.documents ?? []).slice(0, 5).map((d: string, i: number) => (
+            <span
+              key={i}
+              className="w-7 h-7 rounded border border-border/60 flex items-center justify-center text-muted-foreground"
+              title={d}
+            >
+              {docIcons[d] ?? <FileText className="h-3.5 w-3.5" />}
             </span>
           ))}
         </div>
-        {lead.ai_score != null && (
-          <span className="text-xs text-muted-foreground font-mono-timer">
-            AI SCORE <span className="text-foreground font-semibold">{lead.ai_score}</span> &gt;
-          </span>
-        )}
+
+        {/* Right side: price + action */}
+        <div className="flex flex-col items-end gap-1.5">
+          {isLocked ? (
+            <>
+              <span className="badge-amber text-xs font-medium px-2.5 py-1 rounded-md flex items-center gap-1.5 font-mono-timer">
+                <Clock className="h-3 w-3" /> Unlocks in {display}
+              </span>
+              <span className="text-lg font-bold text-foreground font-mono-timer">${Number(lead.price).toFixed(0)}</span>
+            </>
+          ) : (
+            <>
+              {lead.ai_score != null && (
+                <span className="badge-blue text-xs font-medium px-2.5 py-1 rounded-md font-mono-timer">
+                  AI SCORE {lead.ai_score}
+                </span>
+              )}
+              <span className="badge-green text-xs font-medium px-2 py-0.5 rounded-md mb-1">Available Now</span>
+              <button
+                className="gradient-cta-buy text-foreground px-5 py-2 rounded-lg text-xs font-semibold tracking-wide hover:opacity-90 transition-opacity"
+                onClick={(e) => { e.stopPropagation(); onBuy(lead); }}
+              >
+                BUY LEAD &nbsp;&rsaquo;
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
-      {/* Price + Action */}
-      {locked && remaining > 0 ? (
-        <div className="flex items-center justify-between pt-3 border-t border-border">
-          <span className="text-xs text-muted-foreground flex items-center gap-1.5">
-            <Clock className="h-3.5 w-3.5" /> Unlocks in {display}
-          </span>
+      {/* Price shown large for available leads without AI score */}
+      {!isLocked && lead.ai_score == null && (
+        <div className="absolute bottom-5 right-5">
           <span className="text-lg font-bold text-foreground font-mono-timer">${Number(lead.price).toFixed(0)}</span>
-        </div>
-      ) : (
-        <div className="flex items-center justify-between pt-3 border-t border-border">
-          <span className="text-xs text-emerald-400 font-medium">Available Now</span>
-          <div className="flex items-center gap-3">
-            <span className="text-lg font-bold text-foreground font-mono-timer">${Number(lead.price).toFixed(0)}</span>
-            <button
-              className="px-4 py-1.5 rounded-lg text-xs font-semibold border border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/10 transition-colors"
-              onClick={(e) => { e.stopPropagation(); onBuy(lead); }}
-            >
-              BUY LEAD &gt;
-            </button>
-          </div>
         </div>
       )}
     </div>
