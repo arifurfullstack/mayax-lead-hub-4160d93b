@@ -38,6 +38,7 @@ const Marketplace = () => {
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
   const [confirmLead, setConfirmLead] = useState<any | null>(null);
   const [purchasing, setPurchasing] = useState(false);
+  const [usage, setUsage] = useState<{ leads_used: number; leads_limit: number } | null>(null);
 
   useEffect(() => {
     fetchLeads();
@@ -57,6 +58,17 @@ const Marketplace = () => {
       setDealerId(dealer.id);
       setDealerTier(dealer.subscription_tier);
       setWalletBalance(dealer.wallet_balance);
+
+      // Fetch current month usage
+      const now = new Date();
+      const periodStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+      const { data: usageData } = await supabase
+        .from("dealer_subscription_usage")
+        .select("leads_used, leads_limit")
+        .eq("dealer_id", dealer.id)
+        .eq("period_start", periodStr)
+        .maybeSingle();
+      if (usageData) setUsage(usageData);
     }
 
     const { data } = await supabase.rpc("get_marketplace_leads", {
@@ -190,9 +202,25 @@ const Marketplace = () => {
           {/* Main content */}
           <div className="flex-1 min-w-0">
             {/* Header */}
-            <div className="flex items-center gap-2 mb-5">
-              <h2 className="text-lg font-semibold text-foreground">Leads</h2>
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-semibold text-foreground">Leads</h2>
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              </div>
+              {usage && (
+                <div
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium"
+                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
+                >
+                  <span style={{ color: "rgba(255,255,255,0.5)" }}>Leads Used:</span>
+                  <span className={`font-mono font-bold ${usage.leads_used >= usage.leads_limit ? "text-destructive" : "text-foreground"}`}>
+                    {usage.leads_used}/{usage.leads_limit}
+                  </span>
+                  {usage.leads_used >= usage.leads_limit && (
+                    <span className="text-destructive text-[10px] uppercase tracking-wider font-bold">Limit Reached</span>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Card grid */}
