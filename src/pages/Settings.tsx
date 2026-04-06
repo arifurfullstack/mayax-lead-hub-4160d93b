@@ -65,6 +65,9 @@ const Settings = () => {
   const [saving, setSaving] = useState(false);
   const [showWebhookSecret, setShowWebhookSecret] = useState(false);
   const [copiedSecret, setCopiedSecret] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form state
   const [form, setForm] = useState({
