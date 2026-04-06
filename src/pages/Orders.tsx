@@ -200,7 +200,7 @@ const Orders = () => {
                 const StatusIcon = status.icon;
 
                 return (
-                  <TableRow key={order.id} className="border-border transition-colors">
+                  <TableRow key={order.id} className="border-border transition-colors cursor-pointer hover:bg-muted/30" onClick={() => setSelectedOrder(order)}>
                     <TableCell>
                       <span className="font-mono text-sm text-foreground">{lead?.reference_code ?? "—"}</span>
                     </TableCell>
@@ -236,14 +236,7 @@ const Orders = () => {
                       </span>
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => setSelectedOrder(order)}
-                      >
-                        <Eye className="h-4 w-4 text-muted-foreground" />
-                      </Button>
+                      <Eye className="h-4 w-4 text-muted-foreground" />
                     </TableCell>
                   </TableRow>
                 );

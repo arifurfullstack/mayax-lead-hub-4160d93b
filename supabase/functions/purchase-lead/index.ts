@@ -176,7 +176,7 @@ Deno.serve(async (req) => {
         lead_id: leadId,
         price_paid: price,
         dealer_tier_at_purchase: dealer.subscription_tier,
-        delivery_status: "pending",
+        delivery_status: "delivered",
         delivery_method: "email",
       });
 
