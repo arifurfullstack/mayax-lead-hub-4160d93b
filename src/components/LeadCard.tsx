@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Shield, MapPin, Clock, FileText, User, Home, Monitor, Building2, CheckCircle2, Coins, Lock } from "lucide-react";
+import { Shield, MapPin, Clock, FileText, User, Home, Monitor, Building2, CheckCircle2, Coins, Lock, Car, Gauge } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
