@@ -85,6 +85,7 @@ const AppLayout = () => {
             tier={dealer?.subscription_tier}
             walletBalance={dealer?.wallet_balance ?? 0}
             onLogout={handleLogout}
+            profilePictureUrl={dealer?.profile_picture_url}
           />
           <main className="flex-1 overflow-auto">
             <Outlet />

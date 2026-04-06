@@ -278,6 +278,33 @@ const Settings = () => {
 
         {/* Profile Tab */}
         <TabsContent value="profile" className="space-y-6">
+          {/* Avatar Upload */}
+          <div className="glass-card p-6 flex items-center gap-6">
+            <div className="relative group">
+              <div className="h-20 w-20 rounded-full overflow-hidden bg-muted ring-2 ring-border">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="Profile" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="h-full w-full flex items-center justify-center bg-primary/20 text-primary text-2xl font-bold">
+                    {(dealer?.dealership_name || "D").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingAvatar}
+                className="absolute inset-0 rounded-full bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+              >
+                {uploadingAvatar ? <Loader2 className="h-5 w-5 animate-spin text-foreground" /> : <Camera className="h-5 w-5 text-foreground" />}
+              </button>
+              <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-foreground">{dealer?.dealership_name}</p>
+              <p className="text-xs text-muted-foreground mt-1">Click the avatar to upload a new photo (max 2MB)</p>
+            </div>
+          </div>
+
           {/* Business Info */}
           <div className="glass-card p-6 space-y-5">
             <div className="flex items-center gap-2 mb-1">
