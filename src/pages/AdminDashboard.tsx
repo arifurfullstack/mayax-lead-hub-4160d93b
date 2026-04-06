@@ -477,6 +477,17 @@ const AdminDashboard = () => {
         <TabsContent value="payments" className="space-y-4">
           <AdminPaymentManager />
         </TabsContent>
+
+        {/* ─── Branding Tab ─── */}
+        <TabsContent value="branding" className="space-y-4">
+          <AdminBrandingSettings
+            settingsForm={settingsForm}
+            setSettingsForm={setSettingsForm}
+            platformSettings={platformSettings}
+            onSave={savePlatformSettings}
+            saving={savingSettings}
+          />
+        </TabsContent>
       </Tabs>
 
       {/* ─── Dealer Detail Dialog ─── */}
