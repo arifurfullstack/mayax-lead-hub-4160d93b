@@ -91,7 +91,7 @@ const Settings = () => {
 
       const { data } = await supabase
         .from("dealers")
-        .select("id, dealership_name, contact_person, email, phone, address, province, website, business_type, notification_email, webhook_url, webhook_secret, autopay_enabled")
+        .select("id, user_id, dealership_name, contact_person, email, phone, address, province, website, business_type, notification_email, webhook_url, webhook_secret, autopay_enabled, profile_picture_url")
         .eq("user_id", session.user.id)
         .single();
 
