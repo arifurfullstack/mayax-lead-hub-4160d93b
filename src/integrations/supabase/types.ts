@@ -320,6 +320,36 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          created_at: string
+          dealer_id: string
+          id: string
+          link: string | null
+          message: string | null
+          read: boolean
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          dealer_id: string
+          id?: string
+          link?: string | null
+          message?: string | null
+          read?: boolean
+          title: string
+        }
+        Update: {
+          created_at?: string
+          dealer_id?: string
+          id?: string
+          link?: string | null
+          message?: string | null
+          read?: boolean
+          title?: string
+        }
+        Relationships: []
+      }
       payment_gateways: {
         Row: {
           config: Json

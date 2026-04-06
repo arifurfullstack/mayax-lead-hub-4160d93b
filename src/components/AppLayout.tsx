@@ -6,6 +6,7 @@ import TopNavbar from "@/components/TopNavbar";
 import { supabase } from "@/integrations/supabase/client";
 
 interface DealerInfo {
+  id: string;
   dealership_name: string;
   subscription_tier: string;
   wallet_balance: number;
@@ -86,6 +87,7 @@ const AppLayout = () => {
             walletBalance={dealer?.wallet_balance ?? 0}
             onLogout={handleLogout}
             profilePictureUrl={dealer?.profile_picture_url}
+            dealerId={dealer?.id ?? null}
           />
           <main className="flex-1 overflow-auto">
             <Outlet />
