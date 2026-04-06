@@ -7,10 +7,12 @@ import {
   ArrowDown,
   ChevronLeft,
   ChevronRight,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -19,6 +21,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 import AdminAddLeadDialog from "@/components/AdminAddLeadDialog";
 
 interface LeadFileEntry {
@@ -70,6 +74,11 @@ export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
+
+  // Bulk selection
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
 
   const provinces = useMemo(
     () => [...new Set(leads.map((l) => l.province).filter(Boolean))].sort() as string[],
@@ -140,8 +149,44 @@ export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props
     );
   };
 
-  // Reset page when filters change
   const resetPage = () => setPage(0);
+
+  // Bulk select helpers
+  const allPageSelected = paged.length > 0 && paged.every((l) => selected.has(l.id));
+  const somePageSelected = paged.some((l) => selected.has(l.id));
+
+  const toggleAll = () => {
+    const next = new Set(selected);
+    if (allPageSelected) {
+      paged.forEach((l) => next.delete(l.id));
+    } else {
+      paged.forEach((l) => next.add(l.id));
+    }
+    setSelected(next);
+  };
+
+  const toggleOne = (id: string) => {
+    const next = new Set(selected);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelected(next);
+  };
+
+  const bulkDelete = async () => {
+    if (selected.size === 0) return;
+    setBulkDeleting(true);
+    const ids = Array.from(selected);
+    const { error } = await supabase.from("leads").delete().in("id", ids);
+    setBulkDeleting(false);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Deleted", description: `${ids.length} lead(s) removed.` });
+      setSelected(new Set());
+      setConfirmBulkDelete(false);
+      onRefresh();
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -191,12 +236,43 @@ export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props
         </Select>
       </div>
 
+      {/* Bulk action bar */}
+      {selected.size > 0 && (
+        <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-destructive/10 border border-destructive/20">
+          <span className="text-sm text-foreground font-medium">{selected.size} lead(s) selected</span>
+          {!confirmBulkDelete ? (
+            <Button variant="destructive" size="sm" className="gap-1.5" onClick={() => setConfirmBulkDelete(true)}>
+              <Trash2 className="h-3.5 w-3.5" /> Delete Selected
+            </Button>
+          ) : (
+            <>
+              <span className="text-sm text-destructive">Are you sure?</span>
+              <Button variant="destructive" size="sm" disabled={bulkDeleting} onClick={bulkDelete}>
+                {bulkDeleting ? "Deleting…" : "Yes, Delete"}
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setConfirmBulkDelete(false)}>Cancel</Button>
+            </>
+          )}
+          <Button variant="ghost" size="sm" className="ml-auto text-muted-foreground" onClick={() => { setSelected(new Set()); setConfirmBulkDelete(false); }}>
+            Clear Selection
+          </Button>
+        </div>
+      )}
+
       {/* Table */}
       <div className="glass-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border">
+                <th className="p-3 w-10">
+                  <Checkbox
+                    checked={allPageSelected}
+                    onCheckedChange={toggleAll}
+                    className="border-muted-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                    aria-label="Select all on page"
+                  />
+                </th>
                 {([
                   ["reference_code", "Reference"],
                   ["first_name", "Name"],
@@ -226,7 +302,15 @@ export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props
             </thead>
             <tbody className="divide-y divide-border">
               {paged.map((l) => (
-                <tr key={l.id} className="hover:bg-muted/20 transition-colors">
+                <tr key={l.id} className={cn("hover:bg-muted/20 transition-colors", selected.has(l.id) && "bg-primary/5")}>
+                  <td className="p-3">
+                    <Checkbox
+                      checked={selected.has(l.id)}
+                      onCheckedChange={() => toggleOne(l.id)}
+                      className="border-muted-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                      aria-label={`Select ${l.reference_code}`}
+                    />
+                  </td>
                   <td className="p-3 font-mono text-foreground text-xs">{l.reference_code}</td>
                   <td className="p-3 text-foreground">{l.first_name} {l.last_name}</td>
                   <td className="p-3 text-muted-foreground">
@@ -256,7 +340,7 @@ export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props
               ))}
               {paged.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="p-8 text-center text-muted-foreground">No leads found.</td>
+                  <td colSpan={10} className="p-8 text-center text-muted-foreground">No leads found.</td>
                 </tr>
               )}
             </tbody>
