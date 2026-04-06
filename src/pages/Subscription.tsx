@@ -413,7 +413,7 @@ const Subscription = () => {
                         });
                         return;
                       }
-                      handleSubscribe(tier);
+                      setConfirmPlan(tier);
                     }}
                   >
                     {subscribing === tier.id ? (
