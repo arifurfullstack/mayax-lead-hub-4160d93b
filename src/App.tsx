@@ -20,6 +20,7 @@ import AppLayout from "./components/AppLayout";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
+import AdminDashboard from "./pages/AdminDashboard";
 import DynamicHead from "./components/DynamicHead";
 
 const queryClient = new QueryClient();
@@ -54,6 +55,7 @@ const App = () => (
             <Route path="/orders" element={<Orders />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/autopay" element={<AutoPay />} />
+            <Route path="/admin" element={<ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute>} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

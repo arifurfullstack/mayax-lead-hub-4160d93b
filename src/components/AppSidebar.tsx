@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   Store,
@@ -8,9 +9,11 @@ import {
   Zap,
   LogOut,
   DollarSign,
+  Shield,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Sidebar,
   SidebarContent,
@@ -52,6 +55,17 @@ export function AppSidebar({ walletBalance = 0, onLogout }: AppSidebarProps) {
   const { data: settings } = usePlatformSettings();
   const logoSrc = settings?.theme_logo_url || fallbackLogo;
   const siteName = settings?.theme_website_name || "MayaX";
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const checkAdmin = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", session.user.id);
+      if (roles?.some((r: any) => r.role === "admin")) setIsAdmin(true);
+    };
+    checkAdmin();
+  }, []);
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -92,6 +106,35 @@ export function AppSidebar({ walletBalance = 0, onLogout }: AppSidebarProps) {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {isAdmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-muted-foreground text-xs uppercase tracking-wider">
+              Admin
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isActive("/admin")}
+                    tooltip="Admin Dashboard"
+                  >
+                    <NavLink
+                      to="/admin"
+                      end
+                      className="flex items-center gap-3 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors"
+                      activeClassName="bg-sidebar-accent text-gold font-medium"
+                    >
+                      <Shield className="h-4 w-4 shrink-0" />
+                      {!collapsed && <span>Admin Panel</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         <SidebarGroup>
           <SidebarGroupLabel className="text-muted-foreground text-xs uppercase tracking-wider">
