@@ -134,16 +134,21 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
         {/* Action row */}
         {isLocked ? (
           <div className="flex items-center justify-between">
-            <span className="badge-amber text-xs font-medium px-2.5 py-1.5 rounded-md flex items-center gap-1.5 font-mono-timer">
+            <span className="badge-amber text-xs font-medium px-2.5 py-1.5 rounded flex items-center gap-1.5 font-mono-timer">
               <Clock className="h-3 w-3" /> Unlocks in {display}
             </span>
-            <span className="text-lg font-bold text-foreground font-mono-timer">${Number(lead.price).toFixed(0)}</span>
+            <button
+              className="gradient-cta-buy text-foreground px-5 py-2 rounded text-xs font-semibold tracking-wide hover:opacity-90 transition-opacity"
+              onClick={(e) => { e.stopPropagation(); onBuy(lead); }}
+            >
+              BUY LEAD &nbsp;&rsaquo;
+            </button>
           </div>
         ) : (
-          <div className="flex items-center gap-2">
-            <span className="badge-green text-xs font-medium px-2 py-1 rounded-md whitespace-nowrap">Available Now</span>
+          <div className="flex items-center justify-between">
+            <span className="badge-green text-xs font-medium px-2 py-1 rounded whitespace-nowrap">Available Now</span>
             <button
-              className="gradient-cta-buy text-foreground flex-1 py-2.5 rounded-lg text-xs font-semibold tracking-wide hover:opacity-90 transition-opacity text-center"
+              className="gradient-cta-buy text-foreground px-5 py-2 rounded text-xs font-semibold tracking-wide hover:opacity-90 transition-opacity"
               onClick={(e) => { e.stopPropagation(); onBuy(lead); }}
             >
               BUY LEAD &nbsp;&rsaquo;
