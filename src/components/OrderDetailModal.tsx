@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -6,9 +7,16 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import {
-  Mail, Phone, User, MapPin, CreditCard, Car, FileText, DollarSign, Package,
+  Mail, Phone, User, MapPin, CreditCard, Car, FileText, DollarSign, Package, Download, Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+
+interface LeadFileEntry {
+  name: string;
+  path: string;
+}
 
 interface LeadDetail {
   reference_code: string;
@@ -26,6 +34,7 @@ interface LeadDetail {
   vehicle_mileage: number | null;
   vehicle_price: number | null;
   documents: string[] | null;
+  document_files: LeadFileEntry[] | null;
   ai_score: number | null;
   quality_grade: string | null;
   price: number;
@@ -55,8 +64,26 @@ interface Props {
 }
 
 const OrderDetailModal = ({ order, open, onOpenChange }: Props) => {
+  const [downloading, setDownloading] = useState<string | null>(null);
+
   if (!order || !order.leads) return null;
   const lead = order.leads;
+  const files = (lead.document_files ?? []) as LeadFileEntry[];
+
+  const handleDownload = async (file: LeadFileEntry) => {
+    setDownloading(file.path);
+    const { data, error } = await supabase.storage
+      .from("lead-documents")
+      .download(file.path);
+    setDownloading(null);
+    if (error || !data) return;
+    const url = URL.createObjectURL(data);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = file.name;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -121,6 +148,31 @@ const OrderDetailModal = ({ order, open, onOpenChange }: Props) => {
               <Row icon={Package} label="Tier" value={order.dealer_tier_at_purchase} iconColor="text-primary" />
             )}
           </Section>
+
+          {/* Downloadable Files */}
+          {files.length > 0 && (
+            <Section title="Attached Files">
+              <div className="space-y-1.5">
+                {files.map((f, i) => (
+                  <Button
+                    key={i}
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start gap-2 text-sm h-auto py-1.5 px-2"
+                    onClick={() => handleDownload(f)}
+                    disabled={downloading === f.path}
+                  >
+                    {downloading === f.path ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                    ) : (
+                      <Download className="h-3.5 w-3.5 text-primary" />
+                    )}
+                    <span className="text-foreground truncate">{f.name}</span>
+                  </Button>
+                ))}
+              </div>
+            </Section>
+          )}
         </div>
       </DialogContent>
     </Dialog>
