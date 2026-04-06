@@ -106,4 +106,14 @@
   .font-mono-timer {
     font-family: 'JetBrains Mono', monospace;
   }
+
+  /* Marketplace light theme scoping */
+  .marketplace-light {
+    background: linear-gradient(135deg, #e8edf5 0%, #dde4f0 50%, #d5dce8 100%);
+    color: #1e293b;
+  }
+
+  .marketplace-light *::selection {
+    background: rgba(59, 130, 246, 0.3);
+  }
 }
