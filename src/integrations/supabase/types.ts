@@ -287,6 +287,69 @@ export type Database = {
           },
         ]
       }
+      payment_gateways: {
+        Row: {
+          config: Json
+          display_name: string
+          enabled: boolean
+          id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          config?: Json
+          display_name: string
+          enabled?: boolean
+          id: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          config?: Json
+          display_name?: string
+          enabled?: boolean
+          id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      payment_requests: {
+        Row: {
+          admin_notes: string | null
+          amount: number
+          completed_at: string | null
+          created_at: string
+          dealer_id: string
+          gateway: string
+          gateway_reference: string | null
+          id: string
+          status: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          amount: number
+          completed_at?: string | null
+          created_at?: string
+          dealer_id: string
+          gateway: string
+          gateway_reference?: string | null
+          id?: string
+          status?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          amount?: number
+          completed_at?: string | null
+          created_at?: string
+          dealer_id?: string
+          gateway?: string
+          gateway_reference?: string | null
+          id?: string
+          status?: string
+        }
+        Relationships: []
+      }
       plan_features: {
         Row: {
           feature_text: string

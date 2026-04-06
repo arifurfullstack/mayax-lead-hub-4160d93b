@@ -39,6 +39,7 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import AdminPlanManager from "@/components/AdminPlanManager";
+import AdminPaymentManager from "@/components/AdminPaymentManager";
 
 /* ─── Types ─── */
 interface Dealer {
@@ -269,6 +270,9 @@ const AdminDashboard = () => {
           <TabsTrigger value="plans" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
             <CreditCard className="h-4 w-4" /> Plans
           </TabsTrigger>
+          <TabsTrigger value="payments" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
+            <DollarSign className="h-4 w-4" /> Payments
+          </TabsTrigger>
         </TabsList>
 
         {/* ─── Dealers Tab ─── */}
@@ -471,6 +475,11 @@ const AdminDashboard = () => {
         {/* ─── Plans Tab ─── */}
         <TabsContent value="plans" className="space-y-4">
           <AdminPlanManager />
+        </TabsContent>
+
+        {/* ─── Payments Tab ─── */}
+        <TabsContent value="payments" className="space-y-4">
+          <AdminPaymentManager />
         </TabsContent>
       </Tabs>
 
