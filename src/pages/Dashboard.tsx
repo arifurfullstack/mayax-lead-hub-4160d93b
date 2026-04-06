@@ -292,7 +292,81 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Analytics Charts */}
+      {/* Subscription Status Card */}
+      {subInfo && (
+        <div className="glass-card p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <Crown className="h-4 w-4 text-secondary" />
+              Subscription Status
+            </h2>
+            <Button variant="link" className="p-0 h-auto text-xs text-secondary" onClick={() => navigate("/subscription")}>
+              Manage <ArrowRight className="h-3 w-3 ml-1" />
+            </Button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Current Plan */}
+            <div className="rounded-xl p-4" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Current Plan</p>
+              <p className={cn("text-xl font-bold capitalize", tierConfig[subInfo.tier]?.color ?? "text-foreground")}>
+                {tierConfig[subInfo.tier]?.icon} {tierConfig[subInfo.tier]?.label ?? subInfo.tier}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">${subInfo.price}/mo</p>
+            </div>
+
+            {/* Leads Remaining */}
+            <div className="rounded-xl p-4" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Leads Remaining</p>
+              <p className="text-xl font-bold text-foreground">
+                {subInfo.leads_limit - subInfo.leads_used}
+                <span className="text-sm font-normal text-muted-foreground">/{subInfo.leads_limit}</span>
+              </p>
+              <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{
+                    width: `${Math.min(100, (subInfo.leads_used / Math.max(1, subInfo.leads_limit)) * 100)}%`,
+                    background: subInfo.leads_used >= subInfo.leads_limit ? "hsl(var(--destructive))" : "hsl(var(--primary))",
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Renewal Date */}
+            <div className="rounded-xl p-4" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Renewal Date</p>
+              <p className="text-xl font-bold text-foreground">
+                {subInfo.end_date ? new Date(subInfo.end_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—"}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {subInfo.end_date ? `${Math.max(0, Math.ceil((new Date(subInfo.end_date + "T00:00:00").getTime() - Date.now()) / 86400000))} days left` : ""}
+              </p>
+            </div>
+
+            {/* Auto-Renew */}
+            <div className="rounded-xl p-4" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Auto-Renew</p>
+              <div className="flex items-center gap-2 mt-1">
+                {subInfo.auto_renew ? (
+                  <>
+                    <CheckCircle2 className="h-5 w-5 text-success" />
+                    <span className="text-lg font-bold text-success">Active</span>
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="h-5 w-5 text-muted-foreground" />
+                    <span className="text-lg font-bold text-muted-foreground">Off</span>
+                  </>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {subInfo.auto_renew ? "Wallet will be charged" : "Plan will expire"}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {allPurchases.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Spending Over Time */}
