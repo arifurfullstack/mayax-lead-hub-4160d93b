@@ -66,6 +66,13 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
       {/* Shimmer sweep on entrance */}
       <div className="shimmer-sweep" style={{ animationDelay: `${index * 80 + 300}ms` }} />
 
+      {/* Selected checkmark */}
+      {selected && (
+        <div className="absolute top-3 right-3 z-10 w-6 h-6 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/30">
+          <CheckCircle2 className="h-4 w-4 text-primary-foreground" />
+        </div>
+      )}
+
       {/* Lead type label */}
       <div className="flex items-center gap-2 mb-3">
         <span className="text-muted-foreground">{leadType.icon}</span>
