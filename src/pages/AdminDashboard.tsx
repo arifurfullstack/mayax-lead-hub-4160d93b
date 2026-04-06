@@ -16,6 +16,7 @@ import {
   DollarSign,
   Package,
   CreditCard,
+  Trash2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -151,7 +152,24 @@ const AdminDashboard = () => {
     toast({ title: "Saved", description: "Platform settings updated." });
   };
 
-  /* ─── Filtered Data ─── */
+  /* ─── Delete Lead ─── */
+  const [deletingLead, setDeletingLead] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const deleteLead = async (leadId: string) => {
+    setDeletingLead(true);
+    const { error } = await supabase.from("leads").delete().eq("id", leadId);
+    setDeletingLead(false);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Deleted", description: "Lead has been removed." });
+      setLeads((prev) => prev.filter((l) => l.id !== leadId));
+      setSelectedLead(null);
+      setConfirmDelete(false);
+    }
+  };
+
   const filteredDealers = dealers.filter((d) => {
     const matchSearch =
       d.dealership_name.toLowerCase().includes(dealerSearch.toLowerCase()) ||
@@ -462,7 +480,7 @@ const AdminDashboard = () => {
       </Dialog>
 
       {/* ─── Lead Detail Dialog ─── */}
-      <Dialog open={!!selectedLead} onOpenChange={() => setSelectedLead(null)}>
+      <Dialog open={!!selectedLead} onOpenChange={() => { setSelectedLead(null); setConfirmDelete(false); }}>
         <DialogContent className="bg-card border-border max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-foreground font-mono">{selectedLead?.reference_code}</DialogTitle>
@@ -493,6 +511,33 @@ const AdminDashboard = () => {
                     setLeads((prev) => prev.map((l) => l.id === selectedLead.id ? { ...l, document_files: files } : l));
                   }}
                 />
+              </div>
+              <div className="border-t border-border pt-4">
+                {!confirmDelete ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10"
+                    onClick={() => setConfirmDelete(true)}
+                  >
+                    <Trash2 className="h-4 w-4" /> Delete Lead
+                  </Button>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <p className="text-sm text-destructive">Are you sure?</p>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      disabled={deletingLead}
+                      onClick={() => deleteLead(selectedLead.id)}
+                    >
+                      {deletingLead ? "Deleting…" : "Yes, Delete"}
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => setConfirmDelete(false)}>
+                      Cancel
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           )}
