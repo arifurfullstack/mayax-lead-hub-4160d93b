@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Shield, MapPin, Clock, FileText, User, Home, Monitor, Building2, CheckCircle2 } from "lucide-react";
+import { Shield, MapPin, Clock, FileText, User, Home, Monitor, Building2, CheckCircle2, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface LeadCardProps {
@@ -85,17 +85,21 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
         <span className="text-sm">{buyerLabel}</span>
       </div>
 
-      {/* Credit score — large & bold */}
-      <div className="flex items-center gap-2 mb-2">
+      {/* Credit score — blurred */}
+      <div className="flex items-center gap-2 mb-2 relative">
         <Shield className="h-4 w-4 text-destructive" />
-        <span className="text-xl font-bold text-foreground font-mono-timer">{creditRange}</span>
+        <span className="text-xl font-bold text-foreground font-mono-timer select-none" style={{ filter: "blur(6px)" }}>
+          {creditRange}
+        </span>
+        <Lock className="h-3 w-3 text-muted-foreground ml-1" />
       </div>
 
-      {/* Location */}
+      {/* Location — blurred */}
       {location && (
         <div className="flex items-center gap-2 mb-4 text-muted-foreground">
           <MapPin className="h-4 w-4" />
-          <span className="text-sm">{location}</span>
+          <span className="text-sm select-none" style={{ filter: "blur(5px)" }}>{location}</span>
+          <Lock className="h-3 w-3 text-muted-foreground/60" />
         </div>
       )}
 
