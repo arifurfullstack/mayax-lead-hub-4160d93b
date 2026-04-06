@@ -257,3 +257,24 @@
     border-radius: 3px;
   }
 }
+
+@keyframes drift-particles {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.6;
+  }
+  25% {
+    opacity: 0.9;
+  }
+  50% {
+    transform: translate(15px, -20px) scale(1.05);
+    opacity: 0.5;
+  }
+  75% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translate(-10px, 12px) scale(0.98);
+    opacity: 0.65;
+  }
+}
