@@ -39,6 +39,7 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import AdminPlanManager from "@/components/AdminPlanManager";
+import AdminPaymentManager from "@/components/AdminPaymentManager";
 
 /* ─── Types ─── */
 interface Dealer {
