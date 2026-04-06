@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Shield, MapPin, Clock, FileText, User, Home, Monitor, Building2, CheckCircle2, Coins, Lock } from "lucide-react";
+import { Shield, MapPin, Clock, FileText, User, Home, Monitor, Building2, CheckCircle2, Coins, Lock, Car, Gauge } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -108,6 +108,24 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
         <div className="flex items-center gap-2 mb-3 text-muted-foreground">
           <Coins className="h-4 w-4 text-[hsl(var(--gold))]" />
           <span className="text-sm font-medium font-mono-timer select-none" style={{ filter: "blur(5px)" }}>{incomeDisplay}</span>
+          <Tooltip><TooltipTrigger asChild><Lock className="h-3 w-3 text-muted-foreground/60 cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Purchase to reveal</TooltipContent></Tooltip>
+        </div>
+      )}
+
+      {/* Vehicle preference — blurred */}
+      {lead.vehicle_preference && (
+        <div className="flex items-center gap-2 mb-2 text-muted-foreground">
+          <Car className="h-4 w-4" />
+          <span className="text-sm select-none" style={{ filter: "blur(5px)" }}>{lead.vehicle_preference}</span>
+          <Tooltip><TooltipTrigger asChild><Lock className="h-3 w-3 text-muted-foreground/60 cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Purchase to reveal</TooltipContent></Tooltip>
+        </div>
+      )}
+
+      {/* Vehicle mileage — blurred */}
+      {lead.vehicle_mileage != null && (
+        <div className="flex items-center gap-2 mb-3 text-muted-foreground">
+          <Gauge className="h-4 w-4" />
+          <span className="text-sm font-mono-timer select-none" style={{ filter: "blur(5px)" }}>{Number(lead.vehicle_mileage).toLocaleString()} km</span>
           <Tooltip><TooltipTrigger asChild><Lock className="h-3 w-3 text-muted-foreground/60 cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Purchase to reveal</TooltipContent></Tooltip>
         </div>
       )}
