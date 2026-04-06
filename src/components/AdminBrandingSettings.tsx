@@ -30,6 +30,7 @@ const BRAND_SETTINGS_KEYS = [
   "theme_meta_description",
   "theme_logo_url",
   "theme_favicon_url",
+  "theme_og_image_url",
 ];
 
 const AdminBrandingSettings = ({
@@ -41,8 +42,10 @@ const AdminBrandingSettings = ({
 }: AdminBrandingSettingsProps) => {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingFavicon, setUploadingFavicon] = useState(false);
+  const [uploadingOgImage, setUploadingOgImage] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const faviconInputRef = useRef<HTMLInputElement>(null);
+  const ogImageInputRef = useRef<HTMLInputElement>(null);
 
   const uploadFile = async (
     file: File,
@@ -119,6 +122,19 @@ const AdminBrandingSettings = ({
     }
     setUploadingFavicon(false);
     if (faviconInputRef.current) faviconInputRef.current.value = "";
+  };
+
+  const handleOgImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingOgImage(true);
+    const url = await uploadFile(file, "logo");
+    if (url) {
+      setSettingsForm((prev) => ({ ...prev, theme_og_image_url: url }));
+      toast({ title: "Social share image uploaded", description: "Don't forget to save settings." });
+    }
+    setUploadingOgImage(false);
+    if (ogImageInputRef.current) ogImageInputRef.current.value = "";
   };
 
   const clearImage = (key: string) => {
@@ -256,6 +272,67 @@ const AdminBrandingSettings = ({
             </div>
           </div>
         </div>
+
+        {/* OG / Social Share Image */}
+        <div className="space-y-3 mt-6">
+          <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+            <ImageIcon className="h-3.5 w-3.5" />
+            Social Share Image (OG Image)
+          </Label>
+          <p className="text-[10px] text-muted-foreground/60">
+            This image appears when you share your website link on WhatsApp, Facebook, Twitter, etc.
+            Recommended size: 1200×630px.
+          </p>
+          <div className="flex items-center gap-4">
+            <div className="h-20 w-36 rounded-lg border border-border bg-card flex items-center justify-center overflow-hidden shrink-0">
+              {settingsForm.theme_og_image_url ? (
+                <img
+                  src={settingsForm.theme_og_image_url}
+                  alt="OG Image"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <ImageIcon className="h-8 w-8 text-muted-foreground/30" />
+              )}
+            </div>
+            <div className="space-y-2 flex-1">
+              <input
+                ref={ogImageInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                onChange={handleOgImageUpload}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 w-full"
+                disabled={uploadingOgImage}
+                onClick={() => ogImageInputRef.current?.click()}
+              >
+                {uploadingOgImage ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="h-4 w-4" />
+                )}
+                {uploadingOgImage ? "Uploading…" : "Upload OG Image"}
+              </Button>
+              {settingsForm.theme_og_image_url && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 text-destructive hover:text-destructive w-full"
+                  onClick={() => clearImage("theme_og_image_url")}
+                >
+                  <X className="h-3.5 w-3.5" /> Remove
+                </Button>
+              )}
+              <p className="text-[10px] text-muted-foreground/60">
+                PNG, JPG, or WEBP. Max 5MB. Ideal: 1200×630px.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Text Settings Section */}
@@ -334,9 +411,37 @@ const AdminBrandingSettings = ({
         </div>
       </div>
 
-      {/* Live Preview */}
+      {/* Live Preview — Social Share Card */}
       <div className="glass-card p-6 space-y-3">
-        <h2 className="text-sm font-semibold text-foreground">Live Preview</h2>
+        <h2 className="text-sm font-semibold text-foreground">Social Share Preview</h2>
+        <p className="text-[10px] text-muted-foreground/60">How your link appears on WhatsApp, Facebook, etc.</p>
+        <div className="rounded-lg border border-border bg-background overflow-hidden max-w-sm">
+          {settingsForm.theme_og_image_url ? (
+            <img
+              src={settingsForm.theme_og_image_url}
+              alt="OG preview"
+              className="w-full h-40 object-cover"
+            />
+          ) : (
+            <div className="w-full h-40 bg-muted flex items-center justify-center">
+              <ImageIcon className="h-10 w-10 text-muted-foreground/30" />
+            </div>
+          )}
+          <div className="p-3 space-y-1">
+            <p className="text-sm font-semibold text-foreground truncate">
+              {settingsForm.theme_website_name || "MayaX"}
+            </p>
+            <p className="text-xs text-muted-foreground line-clamp-2">
+              {settingsForm.theme_meta_description || "Your platform description"}
+            </p>
+            <p className="text-[10px] text-muted-foreground/60">mayax.ca</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Browser Tab Preview */}
+      <div className="glass-card p-6 space-y-3">
+        <h2 className="text-sm font-semibold text-foreground">Browser Tab Preview</h2>
         <div className="rounded-lg border border-border bg-background p-4 space-y-2">
           <div className="flex items-center gap-3">
             {settingsForm.theme_favicon_url && (
@@ -364,11 +469,6 @@ const AdminBrandingSettings = ({
               {settingsForm.theme_website_name || "MayaX"}
             </span>
           </div>
-          {settingsForm.theme_meta_description && (
-            <p className="text-xs text-muted-foreground mt-1">
-              {settingsForm.theme_meta_description}
-            </p>
-          )}
         </div>
       </div>
 

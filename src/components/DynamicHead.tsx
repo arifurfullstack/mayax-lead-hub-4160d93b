@@ -12,6 +12,7 @@ const DynamicHead = () => {
     const description = settings.theme_meta_description || "";
     const favicon = settings.theme_favicon_url;
     const logo = settings.theme_logo_url;
+    const ogImage = settings.theme_og_image_url;
 
     // Title
     document.title = tagline ? `${name} — ${tagline}` : name;
@@ -38,7 +39,19 @@ const DynamicHead = () => {
 
     ensureOg("og:title", name);
     ensureOg("og:description", description);
-    if (logo) ensureOg("og:image", logo);
+    if (ogImage || logo) ensureOg("og:image", ogImage || logo || "");
+
+    // Twitter image
+    const ensureMeta = (name: string, content: string) => {
+      let el = document.querySelector(`meta[name="${name}"]`);
+      if (!el) {
+        el = document.createElement("meta");
+        el.setAttribute("name", name);
+        document.head.appendChild(el);
+      }
+      el.setAttribute("content", content);
+    };
+    if (ogImage || logo) ensureMeta("twitter:image", ogImage || logo || "");
 
     // Favicon
     if (favicon) {
