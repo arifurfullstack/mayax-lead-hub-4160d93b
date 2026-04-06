@@ -88,6 +88,7 @@ const Dashboard = () => {
   const [purchases, setPurchases] = useState<PurchaseRow[]>([]);
   const [allPurchases, setAllPurchases] = useState<PurchaseRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [subInfo, setSubInfo] = useState<{ tier: string; leads_used: number; leads_limit: number; end_date: string; auto_renew: boolean; price: number } | null>(null);
 
   useEffect(() => {
     const load = async () => {
