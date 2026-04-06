@@ -168,7 +168,7 @@ export function AppSidebar({ walletBalance = 0, onLogout }: AppSidebarProps) {
 
       <SidebarFooter className="bg-sidebar p-3 border-t border-border">
         {!collapsed && (
-          <div className="glass-card p-3 mb-2">
+          <Link to="/wallet" className="block glass-card p-3 mb-2 cursor-pointer hover:ring-1 hover:ring-primary/40 transition-all">
             <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
               <DollarSign className="h-3 w-3" />
               <span>Wallet Balance</span>
@@ -176,7 +176,7 @@ export function AppSidebar({ walletBalance = 0, onLogout }: AppSidebarProps) {
             <p className="text-lg font-bold text-foreground">
               ${walletBalance.toFixed(2)}
             </p>
-          </div>
+          </Link>
         )}
         <SidebarMenu>
           <SidebarMenuItem>
