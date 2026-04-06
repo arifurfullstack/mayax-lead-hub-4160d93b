@@ -72,7 +72,7 @@ const AppLayout = () => {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background">
+      <div className="min-h-screen flex w-full starfield">
         <AppSidebar
           walletBalance={dealer?.wallet_balance ?? 0}
           onLogout={handleLogout}
