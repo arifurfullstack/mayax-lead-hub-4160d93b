@@ -96,7 +96,8 @@ const Settings = () => {
         .single();
 
       if (data) {
-        setDealer(data);
+        setDealer(data as DealerProfile);
+        setAvatarUrl(data.profile_picture_url || null);
         setForm({
           dealership_name: data.dealership_name || "",
           contact_person: data.contact_person || "",
