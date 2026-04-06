@@ -38,6 +38,7 @@ const Marketplace = () => {
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
   const [confirmLead, setConfirmLead] = useState<any | null>(null);
   const [purchasing, setPurchasing] = useState(false);
+  const [usage, setUsage] = useState<{ leads_used: number; leads_limit: number } | null>(null);
 
   useEffect(() => {
     fetchLeads();
