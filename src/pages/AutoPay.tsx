@@ -378,6 +378,16 @@ const AutoPay = () => {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={runNow}
+            disabled={running || !settings.enabled}
+            className="gap-1.5 text-xs border-primary/30 text-primary hover:bg-primary/10"
+          >
+            <Play className="h-3.5 w-3.5" />
+            {running ? "Running…" : "Run Now"}
+          </Button>
           <span className="text-sm text-muted-foreground">
             {settings.enabled ? "Active" : "Paused"}
           </span>
