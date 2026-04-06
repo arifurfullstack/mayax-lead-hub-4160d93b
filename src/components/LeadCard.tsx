@@ -41,7 +41,7 @@ const docIcons: Record<string, React.ReactNode> = {
   pre_approval: <Shield className="h-3.5 w-3.5" />,
 };
 
-export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect }: LeadCardProps) {
+export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, index = 0 }: LeadCardProps) {
   const { remaining, display } = useCountdown(unlockAt);
   const leadType = getLeadType(lead);
   const buyerLabel = lead.buyer_type === "walk-in" ? "In-Store Buyer" : "Online Buyer";
