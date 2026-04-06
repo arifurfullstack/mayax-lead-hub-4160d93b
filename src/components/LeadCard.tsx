@@ -20,6 +20,13 @@ function getLeadType(lead: any): { label: string; icon: React.ReactNode } {
   return { label: "Referral Lead", icon: <User className="h-4 w-4" /> };
 }
 
+const gradeColors: Record<string, string> = {
+  "a+": "border-[hsl(var(--gold))] text-[hsl(var(--gold))] bg-[hsl(var(--gold))/0.1]",
+  a: "border-emerald-500 text-emerald-400 bg-emerald-500/10",
+  b: "border-sky-500 text-sky-400 bg-sky-500/10",
+  c: "border-muted-foreground text-muted-foreground bg-muted/30",
+};
+
 function useCountdown(targetMs: number) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
@@ -73,10 +80,18 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
         </div>
       )}
 
-      {/* Lead type */}
+      {/* Lead type + grade badge */}
       <div className="flex items-center gap-2 mb-1.5">
         <span className="text-muted-foreground">{leadType.icon}</span>
         <span className="text-sm font-semibold text-foreground">{leadType.label}</span>
+        {lead.quality_grade && (
+          <span className={cn(
+            "ml-auto text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider font-mono-timer",
+            gradeColors[lead.quality_grade.toLowerCase()] ?? gradeColors.c
+          )}>
+            {lead.quality_grade}
+          </span>
+        )}
       </div>
 
       {/* Buyer type */}
