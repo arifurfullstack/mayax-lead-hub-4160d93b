@@ -62,22 +62,7 @@ interface LeadFileEntry {
   path: string;
 }
 
-interface Lead {
-  id: string;
-  reference_code: string;
-  first_name: string;
-  last_name: string;
-  email: string | null;
-  phone: string | null;
-  city: string | null;
-  province: string | null;
-  quality_grade: string | null;
-  ai_score: number | null;
-  price: number;
-  sold_status: string;
-  created_at: string;
-  document_files: LeadFileEntry[];
-}
+interface Lead extends AdminLead {}
 
 /* ─── Helpers ─── */
 const statusConfig: Record<string, { color: string; icon: typeof CheckCircle2 }> = {
