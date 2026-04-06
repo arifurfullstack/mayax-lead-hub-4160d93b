@@ -63,6 +63,8 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
 
   const incomeDisplay = lead.income != null ? `${Number(lead.income).toLocaleString()} LD` : null;
 
+  const isNew = Date.now() - new Date(lead.created_at).getTime() < 86400000;
+
   return (
     <div
       className={cn(
