@@ -287,6 +287,35 @@ export type Database = {
           },
         ]
       }
+      plan_features: {
+        Row: {
+          feature_text: string
+          id: string
+          plan_id: string
+          sort_order: number
+        }
+        Insert: {
+          feature_text: string
+          id?: string
+          plan_id: string
+          sort_order?: number
+        }
+        Update: {
+          feature_text?: string
+          id?: string
+          plan_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_features_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       platform_settings: {
         Row: {
           key: string
@@ -349,6 +378,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      subscription_plans: {
+        Row: {
+          accent_color: string
+          created_at: string
+          delay_hours: number
+          glow_color: string
+          id: string
+          is_active: boolean
+          is_popular: boolean
+          leads_per_month: number
+          name: string
+          price: number
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          accent_color?: string
+          created_at?: string
+          delay_hours?: number
+          glow_color?: string
+          id?: string
+          is_active?: boolean
+          is_popular?: boolean
+          leads_per_month?: number
+          name: string
+          price: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          accent_color?: string
+          created_at?: string
+          delay_hours?: number
+          glow_color?: string
+          id?: string
+          is_active?: boolean
+          is_popular?: boolean
+          leads_per_month?: number
+          name?: string
+          price?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       subscriptions: {
         Row: {
