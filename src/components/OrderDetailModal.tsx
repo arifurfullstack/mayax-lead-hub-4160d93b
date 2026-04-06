@@ -95,7 +95,19 @@ const OrderDetailModal = ({ order, open, onOpenChange }: Props) => {
             <Row icon={Car} label="Budget" value={lead.vehicle_price ? `$${Number(lead.vehicle_price).toLocaleString()}` : "—"} iconColor="text-secondary" />
             <Row icon={Car} label="Max Mileage" value={lead.vehicle_mileage ? `${lead.vehicle_mileage.toLocaleString()} km` : "—"} iconColor="text-secondary" />
             {lead.documents && lead.documents.length > 0 && (
-              <Row icon={FileText} label="Documents" value={`${lead.documents.length} attached`} iconColor="text-secondary" />
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-sm">
+                  <FileText className="h-3.5 w-3.5 text-secondary" />
+                  <span className="text-muted-foreground">Documents:</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5 ml-5">
+                  {lead.documents.map((doc, i) => (
+                    <Badge key={i} variant="outline" className="text-[10px] capitalize border-border text-foreground">
+                      {doc.replace(/_/g, " ")}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
             )}
           </Section>
 
