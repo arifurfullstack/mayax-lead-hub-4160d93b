@@ -112,7 +112,9 @@
 
   .glass-card {
     position: relative;
-    background: rgba(13, 18, 32, 0.85);
+    background:
+      linear-gradient(135deg, rgba(80, 140, 255, 0.06) 0%, transparent 40%, transparent 60%, rgba(60, 110, 220, 0.04) 100%),
+      rgba(13, 18, 32, 0.85);
     backdrop-filter: blur(12px);
     border: 1px solid transparent;
     border-radius: 12px;
