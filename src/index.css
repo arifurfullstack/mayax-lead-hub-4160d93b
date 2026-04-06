@@ -136,6 +136,26 @@
     border-radius: 12px;
     box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
     transition: all 0.3s ease;
+    animation: card-enter 0.5s ease-out both;
+    overflow: hidden;
+  }
+
+  .glass-card > .shimmer-sweep {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    background: linear-gradient(
+      105deg,
+      transparent 40%,
+      rgba(150, 190, 255, 0.08) 45%,
+      rgba(200, 220, 255, 0.12) 50%,
+      rgba(150, 190, 255, 0.08) 55%,
+      transparent 60%
+    );
+    background-size: 200% 100%;
+    animation: shimmer-scan 1.2s 0.3s ease-out forwards;
+    border-radius: 12px;
   }
 
   .glass-card::before {
@@ -276,5 +296,26 @@
   100% {
     transform: translate(-10px, 12px) scale(0.98);
     opacity: 0.65;
+  }
+}
+
+@keyframes card-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer-scan {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+    opacity: 0;
   }
 }
