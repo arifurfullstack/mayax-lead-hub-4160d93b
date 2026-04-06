@@ -332,6 +332,46 @@ const AutoPay = () => {
         </div>
       </div>
 
+      {/* Stats Dashboard */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="glass-card p-4 space-y-1">
+          <div className="flex items-center gap-2 text-muted-foreground text-xs">
+            <DollarSign className="h-3.5 w-3.5" />
+            Wallet Balance
+          </div>
+          <p className="text-lg font-bold text-foreground">${walletBalance.toFixed(2)}</p>
+        </div>
+        <div className="glass-card p-4 space-y-1">
+          <div className="flex items-center gap-2 text-muted-foreground text-xs">
+            <Zap className="h-3.5 w-3.5" />
+            Today's Purchases
+          </div>
+          <p className="text-lg font-bold text-foreground">
+            {todayPurchases}
+            <span className="text-xs font-normal text-muted-foreground">/{settings.leads_per_day}</span>
+          </p>
+        </div>
+        <div className="glass-card p-4 space-y-1">
+          <div className="flex items-center gap-2 text-muted-foreground text-xs">
+            <DollarSign className="h-3.5 w-3.5" />
+            Spent Today
+          </div>
+          <p className="text-lg font-bold text-foreground">${todaySpent.toFixed(2)}</p>
+        </div>
+        <div className="glass-card p-4 space-y-1">
+          <div className="flex items-center gap-2 text-muted-foreground text-xs">
+            <Users className="h-3.5 w-3.5" />
+            Monthly Usage
+          </div>
+          <p className="text-lg font-bold text-foreground">
+            {monthUsage.used}
+            {monthUsage.limit !== null && (
+              <span className="text-xs font-normal text-muted-foreground">/{monthUsage.limit}</span>
+            )}
+          </p>
+        </div>
+      </div>
+
       <div className={cn("space-y-6 transition-opacity", !settings.enabled && "opacity-50 pointer-events-none")}>
         {/* Schedule */}
         <div className="glass-card p-6 space-y-5">
