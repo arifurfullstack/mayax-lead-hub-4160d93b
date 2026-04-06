@@ -36,6 +36,7 @@ import { toast } from "@/hooks/use-toast";
 
 interface DealerProfile {
   id: string;
+  user_id: string;
   dealership_name: string;
   contact_person: string;
   email: string;
@@ -48,6 +49,7 @@ interface DealerProfile {
   webhook_url: string | null;
   webhook_secret: string | null;
   autopay_enabled: boolean | null;
+  profile_picture_url: string | null;
 }
 
 const provinces = [
