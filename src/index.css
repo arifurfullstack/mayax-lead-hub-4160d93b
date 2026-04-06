@@ -206,7 +206,8 @@
   }
 
   .glass-card-selected {
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4), 0 0 20px rgba(59, 107, 220, 0.15);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4), 0 0 25px rgba(59, 130, 246, 0.2), inset 0 0 30px rgba(59, 130, 246, 0.04);
   }
 
   /* CTA Gradients */
