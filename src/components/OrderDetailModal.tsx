@@ -13,6 +13,11 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 
+interface LeadFileEntry {
+  name: string;
+  path: string;
+}
+
 interface LeadDetail {
   reference_code: string;
   first_name: string;
@@ -29,6 +34,7 @@ interface LeadDetail {
   vehicle_mileage: number | null;
   vehicle_price: number | null;
   documents: string[] | null;
+  document_files: LeadFileEntry[] | null;
   ai_score: number | null;
   quality_grade: string | null;
   price: number;
