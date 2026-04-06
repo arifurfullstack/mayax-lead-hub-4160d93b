@@ -200,9 +200,9 @@ const Marketplace = () => {
           </div>
 
           {/* Main content */}
-          <div className="flex-1 min-w-0">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-5">
+          <div className="flex-1 min-w-0 flex flex-col" style={{ height: "calc(100vh - 120px)" }}>
+            {/* Sticky Header */}
+            <div className="flex items-center justify-between mb-5 flex-shrink-0">
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-semibold text-foreground">Leads</h2>
                 <ChevronDown className="h-4 w-4 text-muted-foreground" />
@@ -223,27 +223,29 @@ const Marketplace = () => {
               )}
             </div>
 
-            {/* Card grid */}
-            {filtered.length === 0 ? (
-              <div className="text-center py-20 text-muted-foreground">
-                No leads match your criteria.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {filtered.map((lead, i) => (
-                  <LeadCard
-                    key={lead.id}
-                    lead={lead}
-                    locked={isLocked(lead)}
-                    unlockAt={getUnlockAt(lead)}
-                    onBuy={(l) => setConfirmLead(l)}
-                    selected={selectedLeads.has(lead.id)}
-                    onSelect={toggleSelect}
-                    index={i}
-                  />
-                ))}
-              </div>
-            )}
+            {/* Scrollable Card grid */}
+            <div className="flex-1 overflow-y-auto min-h-0 pr-1">
+              {filtered.length === 0 ? (
+                <div className="text-center py-20 text-muted-foreground">
+                  No leads match your criteria.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 pb-4">
+                  {filtered.map((lead, i) => (
+                    <LeadCard
+                      key={lead.id}
+                      lead={lead}
+                      locked={isLocked(lead)}
+                      unlockAt={getUnlockAt(lead)}
+                      onBuy={(l) => setConfirmLead(l)}
+                      selected={selectedLeads.has(lead.id)}
+                      onSelect={toggleSelect}
+                      index={i}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
