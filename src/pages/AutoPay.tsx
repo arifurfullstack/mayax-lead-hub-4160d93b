@@ -13,6 +13,7 @@ import {
   Lock,
   Crown,
   ArrowRight,
+  Play,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -106,6 +107,7 @@ const AutoPay = () => {
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState<AutoPayData>(defaultSettings);
   const [existingId, setExistingId] = useState<string | null>(null);
+  const [running, setRunning] = useState(false);
   const [walletBalance, setWalletBalance] = useState(0);
   const [todayPurchases, setTodayPurchases] = useState(0);
   const [todaySpent, setTodaySpent] = useState(0);
@@ -265,6 +267,61 @@ const AutoPay = () => {
     }
   };
 
+  const runNow = async () => {
+    if (!dealerId) return;
+    setRunning(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("process-autopay", {
+        body: { time: new Date().toISOString() },
+      });
+      if (error) throw error;
+      const purchased = data?.total_purchased ?? 0;
+      const myResult = data?.results?.find((r: any) => r.dealer_id === dealerId);
+      const myPurchased = myResult?.purchased ?? 0;
+      const skipped = myResult?.skipped || "";
+
+      if (myPurchased > 0) {
+        toast({ title: "AutoPay Complete", description: `Purchased ${myPurchased} lead${myPurchased > 1 ? "s" : ""} matching your criteria.` });
+        // Refresh stats
+        const { data: dealer } = await supabase
+          .from("dealers")
+          .select("wallet_balance")
+          .eq("id", dealerId)
+          .single();
+        if (dealer) setWalletBalance(Number(dealer.wallet_balance));
+
+        const todayStr = new Date().toISOString().split("T")[0];
+        const { data: todayTxns } = await supabase
+          .from("wallet_transactions")
+          .select("amount, created_at, description")
+          .eq("dealer_id", dealerId)
+          .eq("type", "autopay")
+          .gte("created_at", `${todayStr}T00:00:00.000Z`)
+          .order("created_at", { ascending: false });
+        if (todayTxns) {
+          setTodayPurchases(todayTxns.length);
+          setTodaySpent(todayTxns.reduce((s, t) => s + Math.abs(Number(t.amount)), 0));
+        }
+
+        const { data: recent } = await supabase
+          .from("wallet_transactions")
+          .select("amount, created_at, description")
+          .eq("dealer_id", dealerId)
+          .eq("type", "autopay")
+          .order("created_at", { ascending: false })
+          .limit(10);
+        setRecentPurchases(recent ?? []);
+      } else if (skipped) {
+        toast({ title: "No Purchases", description: skipped });
+      } else {
+        toast({ title: "No Purchases", description: "No matching leads found right now." });
+      }
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to run AutoPay.", variant: "destructive" });
+    }
+    setRunning(false);
+  };
+
   if (loading) {
     return (
       <div className="p-6 space-y-6 animate-pulse">
@@ -321,6 +378,16 @@ const AutoPay = () => {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={runNow}
+            disabled={running || !settings.enabled}
+            className="gap-1.5 text-xs border-primary/30 text-primary hover:bg-primary/10"
+          >
+            <Play className="h-3.5 w-3.5" />
+            {running ? "Running…" : "Run Now"}
+          </Button>
           <span className="text-sm text-muted-foreground">
             {settings.enabled ? "Active" : "Paused"}
           </span>
