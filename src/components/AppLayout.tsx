@@ -27,7 +27,7 @@ const AppLayout = () => {
 
       const { data } = await supabase
         .from("dealers")
-        .select("id, dealership_name, subscription_tier, wallet_balance")
+        .select("id, dealership_name, subscription_tier, wallet_balance, profile_picture_url")
         .eq("user_id", session.user.id)
         .single();
 
