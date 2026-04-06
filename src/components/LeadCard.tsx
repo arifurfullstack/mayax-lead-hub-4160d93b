@@ -52,12 +52,15 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
   const location = [lead.city, lead.province].filter(Boolean).join(", ");
   const isLocked = locked && remaining > 0;
 
+  const staggerDelay = `${index * 80}ms`;
+
   return (
     <div
       className={cn(
         "glass-card p-5 cursor-pointer relative z-10",
         selected && "glass-card-selected"
       )}
+      style={{ animationDelay: staggerDelay }}
       onClick={() => onSelect?.(lead)}
     >
       {/* Shimmer sweep on entrance */}
