@@ -325,6 +325,9 @@ const AdminDashboard = () => {
           <TabsTrigger value="payments" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
             <DollarSign className="h-4 w-4" /> Payments
           </TabsTrigger>
+          <TabsTrigger value="branding" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
+            <Palette className="h-4 w-4" /> Branding
+          </TabsTrigger>
         </TabsList>
 
         {/* ─── Dealers Tab ─── */}
