@@ -85,7 +85,7 @@ const AdminDashboard = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [dealerSearch, setDealerSearch] = useState("");
-  const [leadSearch, setLeadSearch] = useState("");
+  const [leadSearch, setLeadSearch] = useState(""); // kept for backwards compat
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedDealer, setSelectedDealer] = useState<Dealer | null>(null);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
