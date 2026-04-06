@@ -223,12 +223,31 @@ const Marketplace = () => {
       {/* Bottom sticky bar */}
       <div className="fixed bottom-0 left-0 right-0 glass border-t border-border py-3 px-6 z-50">
         <div className="max-w-[1400px] mx-auto flex items-center justify-between">
-          <button
-            onClick={() => setFilters(defaultFilters)}
-            className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground font-medium transition-colors border border-border/60 px-4 py-2 rounded-lg hover:border-foreground/20"
-          >
-            Clear Filters <ChevronRight className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setFilters(defaultFilters)}
+              className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground font-medium transition-colors border border-border/60 px-4 py-2 rounded-lg hover:border-foreground/20"
+            >
+              Clear Filters <ChevronRight className="h-4 w-4" />
+            </button>
+            {selectedLeads.size > 0 && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span className="text-foreground font-medium">{selectedLeads.size} lead{selectedLeads.size > 1 ? "s" : ""} selected</span>
+                <span className="text-muted-foreground/60">—</span>
+                <span className="truncate max-w-[300px]">
+                  {filtered
+                    .filter((l) => selectedLeads.has(l.id))
+                    .map((l) => {
+                      const grade = l.quality_grade?.toLowerCase?.() ?? "";
+                      if (grade === "a+" || grade === "a") return "Credit/Finance Lead";
+                      if (grade === "b") return "Marketplace Lead";
+                      return "Referral Lead";
+                    })
+                    .join(", ")}
+                </span>
+              </div>
+            )}
+          </div>
           <div className="flex items-center gap-5">
             <span className="text-muted-foreground font-medium">
               Total: <span className="font-bold text-foreground font-mono-timer text-lg">${selectedTotal.toFixed(0)}</span>
