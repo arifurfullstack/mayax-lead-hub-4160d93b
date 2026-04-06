@@ -40,6 +40,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import AdminPlanManager from "@/components/AdminPlanManager";
 import AdminPaymentManager from "@/components/AdminPaymentManager";
+import LeadFileUploader from "@/components/LeadFileUploader";
 
 /* ─── Types ─── */
 interface Dealer {
