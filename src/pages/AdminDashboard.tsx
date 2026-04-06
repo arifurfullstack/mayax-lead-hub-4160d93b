@@ -359,67 +359,8 @@ const AdminDashboard = () => {
           </div>
         </TabsContent>
 
-        {/* ─── Leads Tab ─── */}
         <TabsContent value="leads" className="space-y-4">
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search leads by reference, name..."
-              value={leadSearch}
-              onChange={(e) => setLeadSearch(e.target.value)}
-              className="pl-9 bg-card border-border"
-            />
-          </div>
-
-          <div className="glass-card overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left p-3 text-xs text-muted-foreground font-medium">Reference</th>
-                    <th className="text-left p-3 text-xs text-muted-foreground font-medium">Name</th>
-                    <th className="text-left p-3 text-xs text-muted-foreground font-medium">Location</th>
-                    <th className="text-left p-3 text-xs text-muted-foreground font-medium">Grade</th>
-                    <th className="text-left p-3 text-xs text-muted-foreground font-medium">AI Score</th>
-                    <th className="text-right p-3 text-xs text-muted-foreground font-medium">Price</th>
-                    <th className="text-left p-3 text-xs text-muted-foreground font-medium">Status</th>
-                    <th className="text-right p-3 text-xs text-muted-foreground font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {filteredLeads.map((l) => (
-                    <tr key={l.id} className="hover:bg-muted/20 transition-colors">
-                      <td className="p-3 font-mono text-foreground text-xs">{l.reference_code}</td>
-                      <td className="p-3 text-foreground">{l.first_name} {l.last_name}</td>
-                      <td className="p-3 text-muted-foreground">{l.city && l.province ? `${l.city}, ${l.province}` : "—"}</td>
-                      <td className="p-3">
-                        <Badge className={cn("border-0 text-[10px]", gradeColors[l.quality_grade ?? ""] ?? "bg-muted text-muted-foreground")}>
-                          {l.quality_grade ?? "—"}
-                        </Badge>
-                      </td>
-                      <td className="p-3 text-foreground">{l.ai_score ?? "—"}</td>
-                      <td className="p-3 text-right font-mono text-foreground">${Number(l.price).toFixed(2)}</td>
-                      <td className="p-3">
-                        <Badge variant={l.sold_status === "available" ? "outline" : "secondary"} className="text-[10px]">
-                          {l.sold_status}
-                        </Badge>
-                      </td>
-                      <td className="p-3 text-right">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelectedLead(l)}>
-                          <Eye className="h-4 w-4 text-muted-foreground" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                  {filteredLeads.length === 0 && (
-                    <tr>
-                      <td colSpan={8} className="p-8 text-center text-muted-foreground">No leads found.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <AdminLeadTable leads={leads} onSelectLead={(l) => setSelectedLead(l)} />
         </TabsContent>
 
         {/* ─── Platform Settings Tab ─── */}
