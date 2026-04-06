@@ -64,7 +64,7 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
       onClick={() => onSelect?.(lead)}
     >
       {/* Shimmer sweep on entrance */}
-      <div className="shimmer-sweep" />
+      <div className="shimmer-sweep" style={{ animationDelay: `${index * 80 + 300}ms` }} />
 
       {/* Lead type label */}
       <div className="flex items-center gap-2 mb-3">
