@@ -107,6 +107,7 @@ const AutoPay = () => {
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState<AutoPayData>(defaultSettings);
   const [existingId, setExistingId] = useState<string | null>(null);
+  const [running, setRunning] = useState(false);
   const [walletBalance, setWalletBalance] = useState(0);
   const [todayPurchases, setTodayPurchases] = useState(0);
   const [todaySpent, setTodaySpent] = useState(0);
