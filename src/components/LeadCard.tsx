@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Shield, MapPin, Clock, FileText, User, Home, Monitor, Building2, CheckCircle2, Coins } from "lucide-react";
+import { Shield, MapPin, Clock, FileText, User, Home, Monitor, Building2, CheckCircle2, Coins, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface LeadCardProps {
