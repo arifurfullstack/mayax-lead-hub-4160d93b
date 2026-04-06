@@ -41,6 +41,7 @@ import { toast } from "@/hooks/use-toast";
 import AdminPlanManager from "@/components/AdminPlanManager";
 import AdminPaymentManager from "@/components/AdminPaymentManager";
 import LeadFileUploader from "@/components/LeadFileUploader";
+import AdminLeadTable, { type AdminLead } from "@/components/AdminLeadTable";
 
 /* ─── Types ─── */
 interface Dealer {
