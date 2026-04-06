@@ -12,6 +12,7 @@ const DynamicHead = () => {
     const description = settings.theme_meta_description || "";
     const favicon = settings.theme_favicon_url;
     const logo = settings.theme_logo_url;
+    const ogImage = settings.theme_og_image_url;
 
     // Title
     document.title = tagline ? `${name} — ${tagline}` : name;
