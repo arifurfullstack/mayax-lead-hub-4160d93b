@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { DollarSign, ArrowUpRight, ArrowDownLeft, Plus, TrendingUp } from "lucide-react";
+import { DollarSign, ArrowUpRight, ArrowDownLeft, Plus, TrendingUp, CreditCard, Building2, Clock, Copy, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +23,12 @@ import { toast } from "@/hooks/use-toast";
 
 const presetAmounts = [100, 250, 500, 1000];
 
+const gatewayIcons: Record<string, typeof CreditCard> = {
+  stripe: CreditCard,
+  paypal: DollarSign,
+  bank_transfer: Building2,
+};
+
 const WalletPage = () => {
   const [balance, setBalance] = useState(0);
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -30,15 +36,17 @@ const WalletPage = () => {
   const [dealerId, setDealerId] = useState<string | null>(null);
   const [addFundsOpen, setAddFundsOpen] = useState(false);
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
-  const [adding, setAdding] = useState(false);
+  const [selectedGateway, setSelectedGateway] = useState<string | null>(null);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [processing, setProcessing] = useState(false);
+  const [gateways, setGateways] = useState<any[]>([]);
+  const [bankDetails, setBankDetails] = useState<any>(null);
+  const [pendingDeposits, setPendingDeposits] = useState<any[]>([]);
 
-  // Pagination
   const [page, setPage] = useState(0);
   const perPage = 10;
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
   const fetchData = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -54,51 +62,125 @@ const WalletPage = () => {
       setDealerId(dealer.id);
       setBalance(dealer.wallet_balance);
 
-      const { data: txns } = await supabase
-        .from("wallet_transactions")
-        .select("*")
-        .eq("dealer_id", dealer.id)
-        .order("created_at", { ascending: false });
+      const [{ data: txns }, { data: gws }, { data: deposits }] = await Promise.all([
+        supabase.from("wallet_transactions").select("*").eq("dealer_id", dealer.id).order("created_at", { ascending: false }),
+        supabase.from("payment_gateways").select("*").eq("enabled", true).order("sort_order"),
+        supabase.from("payment_requests").select("*").eq("dealer_id", dealer.id).eq("status", "pending").order("created_at", { ascending: false }),
+      ]);
 
       setTransactions(txns || []);
+      setGateways(gws || []);
+      setPendingDeposits(deposits || []);
     }
     setLoading(false);
   };
 
-  const handleAddFunds = async () => {
+  const resetDialog = () => {
+    setStep(1);
+    setSelectedAmount(null);
+    setSelectedGateway(null);
+    setBankDetails(null);
+    setProcessing(false);
+  };
+
+  const handleOpenChange = (open: boolean) => {
+    setAddFundsOpen(open);
+    if (!open) resetDialog();
+  };
+
+  const handleProceedToGateway = () => {
+    if (!selectedAmount) return;
+    if (gateways.length === 0) {
+      toast({ title: "No Payment Methods", description: "No payment methods are currently available. Please contact support.", variant: "destructive" });
+      return;
+    }
+    if (gateways.length === 1) {
+      setSelectedGateway(gateways[0].id);
+      setStep(3);
+      if (gateways[0].id === "bank_transfer") {
+        handleBankTransfer(gateways[0]);
+      }
+    } else {
+      setStep(2);
+    }
+  };
+
+  const handleSelectGateway = (gwId: string) => {
+    setSelectedGateway(gwId);
+    setStep(3);
+    if (gwId === "bank_transfer") {
+      const gw = gateways.find((g) => g.id === "bank_transfer");
+      handleBankTransfer(gw);
+    }
+  };
+
+  const handleBankTransfer = async (gw?: any) => {
     if (!selectedAmount || !dealerId) return;
-    setAdding(true);
+    setProcessing(true);
 
-    const newBalance = balance + selectedAmount;
+    const { data, error } = await supabase.functions.invoke("create-checkout", {
+      body: { gateway: "bank_transfer", amount: selectedAmount },
+    });
 
-    const { error: txError } = await supabase
-      .from("wallet_transactions")
-      .insert({
-        dealer_id: dealerId,
-        type: "deposit",
-        amount: selectedAmount,
-        balance_after: newBalance,
-        description: `Added $${selectedAmount} to wallet`,
-      });
-
-    if (txError) {
-      toast({ title: "Error", description: "Failed to add funds.", variant: "destructive" });
-      setAdding(false);
+    if (error || !data) {
+      toast({ title: "Error", description: "Failed to create bank transfer request.", variant: "destructive" });
+      setProcessing(false);
       return;
     }
 
-    // Update dealer balance
-    await supabase
-      .from("dealers")
-      .update({ wallet_balance: newBalance })
-      .eq("id", dealerId);
+    setBankDetails({ ...data.bank_details, reference_code: data.reference_code });
+    setProcessing(false);
+  };
 
-    setBalance(newBalance);
-    setAddFundsOpen(false);
-    setSelectedAmount(null);
-    setAdding(false);
-    toast({ title: "Funds Added", description: `$${selectedAmount.toFixed(2)} has been added to your wallet.` });
-    fetchData();
+  const handleStripeCheckout = async () => {
+    if (!selectedAmount || !dealerId) return;
+    setProcessing(true);
+
+    const origin = window.location.origin;
+    const { data, error } = await supabase.functions.invoke("create-checkout", {
+      body: {
+        gateway: "stripe",
+        amount: selectedAmount,
+        success_url: `${origin}/wallet?payment=success`,
+        cancel_url: `${origin}/wallet?payment=cancelled`,
+      },
+    });
+
+    if (error || !data?.url) {
+      toast({ title: "Error", description: data?.error || "Failed to create checkout session.", variant: "destructive" });
+      setProcessing(false);
+      return;
+    }
+
+    window.location.href = data.url;
+  };
+
+  const handlePayPalCheckout = async () => {
+    if (!selectedAmount || !dealerId) return;
+    setProcessing(true);
+
+    const origin = window.location.origin;
+    const { data, error } = await supabase.functions.invoke("create-checkout", {
+      body: {
+        gateway: "paypal",
+        amount: selectedAmount,
+        success_url: `${origin}/wallet?payment=success`,
+        cancel_url: `${origin}/wallet?payment=cancelled`,
+      },
+    });
+
+    if (error || !data?.url) {
+      toast({ title: "Error", description: data?.error || "Failed to create PayPal order.", variant: "destructive" });
+      setProcessing(false);
+      return;
+    }
+
+    window.location.href = data.url;
+  };
+
+  const copyRef = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: "Copied", description: "Reference code copied to clipboard." });
   };
 
   const paginatedTxns = transactions.slice(page * perPage, (page + 1) * perPage);
@@ -122,7 +204,7 @@ const WalletPage = () => {
           </p>
           <p className="text-4xl font-extrabold text-foreground">${balance.toFixed(2)}</p>
         </div>
-        <Dialog open={addFundsOpen} onOpenChange={setAddFundsOpen}>
+        <Dialog open={addFundsOpen} onOpenChange={handleOpenChange}>
           <DialogTrigger asChild>
             <Button className="gradient-blue-cyan text-foreground gap-2">
               <Plus className="h-4 w-4" /> Add Funds
@@ -130,34 +212,184 @@ const WalletPage = () => {
           </DialogTrigger>
           <DialogContent className="glass border-border">
             <DialogHeader>
-              <DialogTitle className="text-foreground">Add Funds to Wallet</DialogTitle>
+              <DialogTitle className="text-foreground">
+                {step === 1 && "Select Amount"}
+                {step === 2 && "Choose Payment Method"}
+                {step === 3 && selectedGateway === "bank_transfer" && "Bank Transfer Details"}
+                {step === 3 && selectedGateway === "stripe" && "Card Payment"}
+                {step === 3 && selectedGateway === "paypal" && "PayPal Payment"}
+              </DialogTitle>
             </DialogHeader>
-            <div className="grid grid-cols-2 gap-3 mt-4">
-              {presetAmounts.map((amt) => (
-                <button
-                  key={amt}
-                  onClick={() => setSelectedAmount(amt)}
-                  className={cn(
-                    "glass-card p-4 text-center rounded-lg transition-all cursor-pointer",
-                    selectedAmount === amt
-                      ? "border-primary glow-blue text-primary"
-                      : "text-muted-foreground hover:text-foreground hover:border-primary/30"
-                  )}
+
+            {/* Step 1: Amount */}
+            {step === 1 && (
+              <div className="space-y-4 mt-2">
+                <div className="grid grid-cols-2 gap-3">
+                  {presetAmounts.map((amt) => (
+                    <button
+                      key={amt}
+                      onClick={() => setSelectedAmount(amt)}
+                      className={cn(
+                        "glass-card p-4 text-center rounded-lg transition-all cursor-pointer",
+                        selectedAmount === amt
+                          ? "border-primary glow-blue text-primary"
+                          : "text-muted-foreground hover:text-foreground hover:border-primary/30"
+                      )}
+                    >
+                      <p className="text-2xl font-bold">${amt}</p>
+                    </button>
+                  ))}
+                </div>
+                <Button
+                  className="w-full gradient-blue-cyan text-foreground"
+                  disabled={!selectedAmount}
+                  onClick={handleProceedToGateway}
                 >
-                  <p className="text-2xl font-bold">${amt}</p>
-                </button>
-              ))}
-            </div>
-            <Button
-              className="w-full mt-4 gradient-blue-cyan text-foreground"
-              disabled={!selectedAmount || adding}
-              onClick={handleAddFunds}
-            >
-              {adding ? "Processing..." : `Add $${selectedAmount ?? 0}`}
-            </Button>
+                  Continue — ${selectedAmount ?? 0}
+                </Button>
+              </div>
+            )}
+
+            {/* Step 2: Gateway Selection */}
+            {step === 2 && (
+              <div className="space-y-3 mt-2">
+                <p className="text-sm text-muted-foreground">Deposit: <span className="text-foreground font-semibold">${selectedAmount}</span></p>
+                {gateways.map((gw) => {
+                  const Icon = gatewayIcons[gw.id] || CreditCard;
+                  return (
+                    <button
+                      key={gw.id}
+                      onClick={() => handleSelectGateway(gw.id)}
+                      className={cn(
+                        "w-full glass-card p-4 rounded-lg flex items-center gap-4 transition-all cursor-pointer",
+                        selectedGateway === gw.id
+                          ? "border-primary glow-blue"
+                          : "hover:border-primary/30"
+                      )}
+                    >
+                      <div className="h-10 w-10 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
+                        <Icon className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="text-left">
+                        <p className="font-medium text-foreground">{gw.display_name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {gw.id === "stripe" && "Pay with credit or debit card"}
+                          {gw.id === "paypal" && "Pay with your PayPal account"}
+                          {gw.id === "bank_transfer" && "Manual bank transfer"}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+                <Button variant="outline" className="w-full" onClick={() => setStep(1)}>
+                  Back
+                </Button>
+              </div>
+            )}
+
+            {/* Step 3: Payment */}
+            {step === 3 && selectedGateway === "stripe" && (
+              <div className="space-y-4 mt-2">
+                <p className="text-sm text-muted-foreground">Amount: <span className="text-foreground font-semibold">${selectedAmount}</span></p>
+                <p className="text-sm text-muted-foreground">You'll be redirected to Stripe's secure checkout to complete your payment.</p>
+                <Button
+                  className="w-full gradient-blue-cyan text-foreground"
+                  disabled={processing}
+                  onClick={handleStripeCheckout}
+                >
+                  {processing ? "Redirecting..." : `Pay $${selectedAmount} with Card`}
+                </Button>
+                <Button variant="outline" className="w-full" onClick={() => setStep(gateways.length > 1 ? 2 : 1)}>
+                  Back
+                </Button>
+              </div>
+            )}
+
+            {step === 3 && selectedGateway === "paypal" && (
+              <div className="space-y-4 mt-2">
+                <p className="text-sm text-muted-foreground">Amount: <span className="text-foreground font-semibold">${selectedAmount}</span></p>
+                <p className="text-sm text-muted-foreground">You'll be redirected to PayPal to complete your payment.</p>
+                <Button
+                  className="w-full gradient-blue-cyan text-foreground"
+                  disabled={processing}
+                  onClick={handlePayPalCheckout}
+                >
+                  {processing ? "Redirecting..." : `Pay $${selectedAmount} with PayPal`}
+                </Button>
+                <Button variant="outline" className="w-full" onClick={() => setStep(gateways.length > 1 ? 2 : 1)}>
+                  Back
+                </Button>
+              </div>
+            )}
+
+            {step === 3 && selectedGateway === "bank_transfer" && (
+              <div className="space-y-4 mt-2">
+                {processing ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : bankDetails ? (
+                  <>
+                    <p className="text-sm text-muted-foreground">Transfer <span className="text-foreground font-semibold">${selectedAmount}</span> to:</p>
+                    <div className="glass-card p-4 space-y-2 text-sm">
+                      {bankDetails.bank_name && <div><span className="text-muted-foreground">Bank:</span> <span className="text-foreground">{bankDetails.bank_name}</span></div>}
+                      {bankDetails.account_name && <div><span className="text-muted-foreground">Account Name:</span> <span className="text-foreground">{bankDetails.account_name}</span></div>}
+                      {bankDetails.account_number && <div><span className="text-muted-foreground">Account #:</span> <span className="text-foreground font-mono">{bankDetails.account_number}</span></div>}
+                      {bankDetails.routing_number && <div><span className="text-muted-foreground">Routing #:</span> <span className="text-foreground font-mono">{bankDetails.routing_number}</span></div>}
+                    </div>
+                    <div className="glass-card p-3 flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Reference Code</p>
+                        <p className="font-mono text-sm text-foreground">{bankDetails.reference_code}</p>
+                      </div>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => copyRef(bankDetails.reference_code)}>
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    {bankDetails.instructions && (
+                      <p className="text-xs text-muted-foreground">{bankDetails.instructions}</p>
+                    )}
+                    <p className="text-xs text-warning flex items-center gap-1">
+                      <Clock className="h-3 w-3" /> Include the reference code in your transfer memo. Funds will be credited after admin approval.
+                    </p>
+                    <Button className="w-full" onClick={() => { handleOpenChange(false); fetchData(); }}>
+                      Done
+                    </Button>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Loading bank details...</p>
+                )}
+                {!processing && !bankDetails && (
+                  <Button variant="outline" className="w-full" onClick={() => setStep(gateways.length > 1 ? 2 : 1)}>
+                    Back
+                  </Button>
+                )}
+              </div>
+            )}
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Pending Deposits */}
+      {pendingDeposits.length > 0 && (
+        <div className="glass-card p-4 mb-8">
+          <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+            <Clock className="h-4 w-4 text-warning" /> Pending Deposits
+          </h3>
+          <div className="space-y-2">
+            {pendingDeposits.map((dep) => (
+              <div key={dep.id} className="flex items-center justify-between p-3 bg-warning/5 rounded-lg border border-warning/20">
+                <div className="flex items-center gap-3">
+                  <Badge className="bg-warning/20 text-warning border-0 text-[10px]">{dep.gateway.replace("_", " ")}</Badge>
+                  <span className="text-sm text-foreground font-mono">${Number(dep.amount).toFixed(2)}</span>
+                  {dep.gateway_reference && <span className="text-xs text-muted-foreground font-mono">{dep.gateway_reference}</span>}
+                </div>
+                <span className="text-xs text-muted-foreground">{new Date(dep.created_at).toLocaleDateString()}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Stats Row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
