@@ -1,4 +1,4 @@
-import { Check, Clock, Zap, BadgeCheck, ShieldCheck, Loader2, Wallet, AlertCircle } from "lucide-react";
+import { Check, Clock, Zap, BadgeCheck, ShieldCheck, Loader2, Wallet, AlertCircle, ArrowRight } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -36,6 +36,7 @@ const Subscription = () => {
   const [dealer, setDealer] = useState<DealerInfo | null>(null);
   const [subscribing, setSubscribing] = useState<string | null>(null);
   const [usage, setUsage] = useState<{ leads_used: number; leads_limit: number } | null>(null);
+  const [confirmPlan, setConfirmPlan] = useState<SubscriptionPlan | null>(null);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
@@ -412,7 +413,7 @@ const Subscription = () => {
                         });
                         return;
                       }
-                      handleSubscribe(tier);
+                      setConfirmPlan(tier);
                     }}
                   >
                     {subscribing === tier.id ? (
@@ -435,6 +436,101 @@ const Subscription = () => {
           Pay from your wallet balance. Upgrade or downgrade anytime.
         </p>
       </div>
+
+      {/* Confirmation Dialog */}
+      {confirmPlan && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => !subscribing && setConfirmPlan(null)} />
+          <div
+            className="relative w-full max-w-md mx-4 rounded-2xl p-6 space-y-5"
+            style={{
+              background: "rgba(15, 20, 50, 0.95)",
+              backdropFilter: "blur(20px)",
+              border: `1.5px solid rgba(${confirmPlan.glow_color}, 0.5)`,
+              boxShadow: `0 0 40px rgba(${confirmPlan.glow_color}, 0.2), 0 25px 50px rgba(0,0,0,0.5)`,
+            }}
+          >
+            <div className="text-center">
+              <h3 className="text-xl font-bold text-foreground mb-1">Confirm Subscription</h3>
+              <p className="text-sm" style={{ color: "rgba(255,255,255,0.5)" }}>
+                {currentTier ? `Switching from ${currentTier.toUpperCase()} to ${confirmPlan.name}` : `Subscribe to ${confirmPlan.name}`}
+              </p>
+            </div>
+
+            {/* Plan details */}
+            <div className="rounded-xl p-4 space-y-3" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-bold uppercase tracking-wider" style={{ color: confirmPlan.accent_color }}>{confirmPlan.name}</span>
+                <span className="text-lg font-bold text-foreground">${confirmPlan.price}<span className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>/mo</span></span>
+              </div>
+              <div className="border-t" style={{ borderColor: "rgba(255,255,255,0.08)" }} />
+              <ul className="space-y-2">
+                <li className="flex items-center gap-2 text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>
+                  <Clock className="w-3.5 h-3.5 shrink-0" style={{ color: confirmPlan.accent_color }} />
+                  {confirmPlan.delay_hours === 0 ? "Instant lead access" : `Access leads after ${confirmPlan.delay_hours}h`}
+                </li>
+                <li className="flex items-center gap-2 text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>
+                  <Check className="w-3.5 h-3.5 shrink-0" style={{ color: confirmPlan.accent_color }} />
+                  <span><strong className="text-foreground">{confirmPlan.leads_per_month}</strong> leads per month</span>
+                </li>
+                {confirmPlan.plan_features.map((f) => (
+                  <li key={f.id} className="flex items-center gap-2 text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>
+                    <Check className="w-3.5 h-3.5 shrink-0" style={{ color: confirmPlan.accent_color }} />
+                    {f.feature_text}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Wallet summary */}
+            <div className="rounded-xl p-4 space-y-2" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <div className="flex justify-between text-sm">
+                <span style={{ color: "rgba(255,255,255,0.6)" }}>Current Balance</span>
+                <span className="font-mono font-semibold text-foreground">${dealer?.wallet_balance.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span style={{ color: "rgba(255,255,255,0.6)" }}>Plan Cost</span>
+                <span className="font-mono font-semibold text-destructive">-${confirmPlan.price.toFixed(2)}</span>
+              </div>
+              <div className="border-t pt-2" style={{ borderColor: "rgba(255,255,255,0.1)" }}>
+                <div className="flex justify-between text-sm">
+                  <span className="font-medium text-foreground">Balance After</span>
+                  <span className="font-mono font-bold text-[#22c55e]">
+                    ${((dealer?.wallet_balance ?? 0) - confirmPlan.price).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3">
+              <button
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold transition-colors"
+                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.7)" }}
+                onClick={() => setConfirmPlan(null)}
+                disabled={!!subscribing}
+              >
+                Cancel
+              </button>
+              <button
+                className="flex-1 py-2.5 rounded-lg text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                style={{
+                  background: `linear-gradient(135deg, rgba(${confirmPlan.glow_color}, 0.35), rgba(${confirmPlan.glow_color}, 0.18))`,
+                  border: `1px solid rgba(${confirmPlan.glow_color}, 0.6)`,
+                  color: confirmPlan.accent_color,
+                }}
+                disabled={!!subscribing}
+                onClick={async () => {
+                  await handleSubscribe(confirmPlan);
+                  setConfirmPlan(null);
+                }}
+              >
+                {subscribing ? <Loader2 className="h-4 w-4 animate-spin" /> : <><span>Confirm</span><ArrowRight className="h-4 w-4" /></>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
