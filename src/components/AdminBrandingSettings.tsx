@@ -411,9 +411,37 @@ const AdminBrandingSettings = ({
         </div>
       </div>
 
-      {/* Live Preview */}
+      {/* Live Preview — Social Share Card */}
       <div className="glass-card p-6 space-y-3">
-        <h2 className="text-sm font-semibold text-foreground">Live Preview</h2>
+        <h2 className="text-sm font-semibold text-foreground">Social Share Preview</h2>
+        <p className="text-[10px] text-muted-foreground/60">How your link appears on WhatsApp, Facebook, etc.</p>
+        <div className="rounded-lg border border-border bg-background overflow-hidden max-w-sm">
+          {settingsForm.theme_og_image_url ? (
+            <img
+              src={settingsForm.theme_og_image_url}
+              alt="OG preview"
+              className="w-full h-40 object-cover"
+            />
+          ) : (
+            <div className="w-full h-40 bg-muted flex items-center justify-center">
+              <ImageIcon className="h-10 w-10 text-muted-foreground/30" />
+            </div>
+          )}
+          <div className="p-3 space-y-1">
+            <p className="text-sm font-semibold text-foreground truncate">
+              {settingsForm.theme_website_name || "MayaX"}
+            </p>
+            <p className="text-xs text-muted-foreground line-clamp-2">
+              {settingsForm.theme_meta_description || "Your platform description"}
+            </p>
+            <p className="text-[10px] text-muted-foreground/60">mayax.ca</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Browser Tab Preview */}
+      <div className="glass-card p-6 space-y-3">
+        <h2 className="text-sm font-semibold text-foreground">Browser Tab Preview</h2>
         <div className="rounded-lg border border-border bg-background p-4 space-y-2">
           <div className="flex items-center gap-3">
             {settingsForm.theme_favicon_url && (
@@ -441,11 +469,6 @@ const AdminBrandingSettings = ({
               {settingsForm.theme_website_name || "MayaX"}
             </span>
           </div>
-          {settingsForm.theme_meta_description && (
-            <p className="text-xs text-muted-foreground mt-1">
-              {settingsForm.theme_meta_description}
-            </p>
-          )}
         </div>
       </div>
 
