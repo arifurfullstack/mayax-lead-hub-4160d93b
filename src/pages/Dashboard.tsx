@@ -104,6 +104,36 @@ const Dashboard = () => {
       if (!d) return;
       setDealer(d);
 
+      // Fetch active subscription + usage
+      const { data: sub } = await supabase
+        .from("subscriptions")
+        .select("tier, end_date, auto_renew, price, leads_per_month")
+        .eq("dealer_id", d.id)
+        .eq("status", "active")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (sub) {
+        const now = new Date();
+        const periodStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+        const { data: usageData } = await supabase
+          .from("dealer_subscription_usage")
+          .select("leads_used, leads_limit")
+          .eq("dealer_id", d.id)
+          .eq("period_start", periodStr)
+          .maybeSingle();
+
+        setSubInfo({
+          tier: sub.tier,
+          leads_used: usageData?.leads_used ?? 0,
+          leads_limit: usageData?.leads_limit ?? sub.leads_per_month ?? 0,
+          end_date: sub.end_date ?? "",
+          auto_renew: sub.auto_renew ?? false,
+          price: Number(sub.price),
+        });
+      }
+
       // Fetch all purchases for charts
       const { data: all } = await supabase
         .from("purchases")
