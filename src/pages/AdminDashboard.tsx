@@ -15,6 +15,7 @@ import {
   TrendingUp,
   DollarSign,
   Package,
+  CreditCard,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import AdminPlanManager from "@/components/AdminPlanManager";
 
 /* ─── Types ─── */
 interface Dealer {
@@ -264,6 +266,9 @@ const AdminDashboard = () => {
           <TabsTrigger value="settings" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
             <Settings2 className="h-4 w-4" /> Platform Settings
           </TabsTrigger>
+          <TabsTrigger value="plans" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
+            <CreditCard className="h-4 w-4" /> Plans
+          </TabsTrigger>
         </TabsList>
 
         {/* ─── Dealers Tab ─── */}
@@ -461,6 +466,11 @@ const AdminDashboard = () => {
               {savingSettings ? "Saving…" : "Save Settings"}
             </Button>
           </div>
+        </TabsContent>
+
+        {/* ─── Plans Tab ─── */}
+        <TabsContent value="plans" className="space-y-4">
+          <AdminPlanManager />
         </TabsContent>
       </Tabs>
 
