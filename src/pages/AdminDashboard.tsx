@@ -56,6 +56,11 @@ interface Dealer {
   created_at: string;
 }
 
+interface LeadFileEntry {
+  name: string;
+  path: string;
+}
+
 interface Lead {
   id: string;
   reference_code: string;
@@ -70,6 +75,7 @@ interface Lead {
   price: number;
   sold_status: string;
   created_at: string;
+  document_files: LeadFileEntry[];
 }
 
 /* ─── Helpers ─── */
