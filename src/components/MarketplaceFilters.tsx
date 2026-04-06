@@ -213,7 +213,7 @@ function FilterContent({ filters, onChange, onReset, activeCount }: FilterSideba
 /** Persistent sidebar for desktop */
 export function MarketplaceFilterSidebar(props: FilterSidebarProps) {
   return (
-    <aside className="w-[280px] shrink-0 glass-card p-5 sticky top-[4.5rem] hidden lg:block max-h-[calc(100vh-5.5rem)] overflow-y-auto">
+    <aside className="w-[280px] shrink-0 glass-card p-5 h-fit sticky top-4 hidden lg:block">
       <h2 className="text-lg font-bold text-foreground mb-5">Filters</h2>
       <FilterContent {...props} />
     </aside>
