@@ -112,6 +112,24 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
         </div>
       )}
 
+      {/* Vehicle preference — blurred */}
+      {lead.vehicle_preference && (
+        <div className="flex items-center gap-2 mb-2 text-muted-foreground">
+          <Car className="h-4 w-4" />
+          <span className="text-sm select-none" style={{ filter: "blur(5px)" }}>{lead.vehicle_preference}</span>
+          <Tooltip><TooltipTrigger asChild><Lock className="h-3 w-3 text-muted-foreground/60 cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Purchase to reveal</TooltipContent></Tooltip>
+        </div>
+      )}
+
+      {/* Vehicle mileage — blurred */}
+      {lead.vehicle_mileage != null && (
+        <div className="flex items-center gap-2 mb-3 text-muted-foreground">
+          <Gauge className="h-4 w-4" />
+          <span className="text-sm font-mono-timer select-none" style={{ filter: "blur(5px)" }}>{Number(lead.vehicle_mileage).toLocaleString()} km</span>
+          <Tooltip><TooltipTrigger asChild><Lock className="h-3 w-3 text-muted-foreground/60 cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Purchase to reveal</TooltipContent></Tooltip>
+        </div>
+      )}
+
       {/* Spacer to push bottom section down */}
       <div className="flex-1" />
 
