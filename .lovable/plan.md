@@ -1,81 +1,43 @@
 
 
-## Marketplace Page Redesign Plan
+## Marketplace Dark Cinematic Redesign
 
-### Current vs Reference
+The current marketplace uses a **light theme** (white cards, light background). The reference shows a **dark, cinematic glassmorphism** design matching the rest of the app. Here's the plan:
 
-The current marketplace uses a **dark-themed table layout** with a filter drawer. The reference shows a completely different design:
+### Changes
 
-- **Light/soft background** with subtle gradient (not dark theme)
-- **Card grid layout** (3 columns) instead of a table
-- **Persistent left sidebar** with filters (not a drawer)
-- **Top horizontal navbar** with logo, nav links, wallet balance, "Add Funds" button, profile avatar
-- **Lead cards** with credit grade badges (A+/A/B/C), colored left borders, initials avatars, location, document icons, AI score, price, countdown timers, and action buttons
-- **Bottom sticky bar** with "Clear Filters", total price, and bulk "BUY LEAD" button
-- **Documents section** with checkboxes: Driver License, Paystubs, Bank Statements, Credit Report, Pre-Approval Cert.
+#### 1. LeadCard — dark glassmorphism cards (`src/components/LeadCard.tsx`)
+- Replace white `bg-white` cards with `glass-card` dark translucent style
+- Card layout per reference: lead type title at top ("Credit/Finance Lead", "Marketplace Lead", "Referral Lead"), buyer type icon + label below, credit score with shield icon, location with pin, document icons row at bottom-left, price at bottom-right, "BUY LEAD >" button or "Unlocks in Xm" countdown
+- Remove colored left border — reference cards have uniform rounded glassmorphism borders with subtle glow
+- Remove grade badges/pills — reference uses lead type labels instead
+- "BUY LEAD >" button styled as dark bordered pill (not green filled), "Available Now" as text label
+- AI SCORE shown inline when present
 
-### Implementation Plan
+#### 2. MarketplaceFilters — dark sidebar (`src/components/MarketplaceFilters.tsx`)
+- Switch from white bg to dark glassmorphism (`glass-card` style)
+- Text colors from gray-800 to foreground/muted-foreground
+- Checkboxes keep blue accent but on dark background
+- Credit range slider uses gradient track (red-yellow-green as in reference)
+- Collapsible sections use light text
 
-#### 1. Redesign MarketplaceFilters — persistent left sidebar
+#### 3. Marketplace page — dark layout (`src/pages/Marketplace.tsx`)
+- Remove `marketplace-light` class — use default dark `bg-background`
+- Bottom sticky bar: dark glassmorphism with "Clear Filters >" left, "Total: $X" + green-bordered "BUY LEAD" button right
+- Purchase dialog: dark themed (`bg-card` instead of `bg-white`)
+- "Leads" header with dropdown chevron
 
-**File: `src/components/MarketplaceFilters.tsx`**
-
-- Export a new `MarketplaceFilterSidebar` component (not a drawer) that renders as a fixed left panel (~280px wide)
-- Sections: Credit Range (gradient slider), Income Range (with coin icon + visual pips), Documents Uploaded (5 checkboxes including Credit Report and Pre-Approval Cert.), Location (collapsible dropdown), Vehicle (collapsible dropdown), Lead Age (collapsible dropdown), Clear Filters button at bottom
-- Light theme styling: white background, soft borders, clean typography
-- Keep the existing `MarketplaceFilterDrawer` for mobile (shown via Sheet on small screens)
-
-#### 2. Create LeadCard component
-
-**File: `src/components/LeadCard.tsx`** (new)
-
-Each card displays:
-- **Credit grade badge** (top-left): A+, A, B, C with color coding — green (A+), blue (A), gold (B), gray (C)
-- **"A+ Verified" pill badge** next to grade for A+ leads
-- **Initials avatar** (colored circle matching grade) + Name + Buyer Type ("Online Buyer" / "In-Store Buyer")
-- **Credit score range** (e.g. "684-710") with shield icon
-- **Location** (City, Province) with map pin icon
-- **Document icons** row (small icons for each uploaded doc)
-- **AI Score** display
-- **Price** prominently shown
-- **Status**: "Available Now" badge (green) or "Unlocks in Xh Xm" countdown
-- **Action button**: "BUY LEAD" (green) for available, "Upgrade to Unlock" (green outline) for locked/lower tier
-- Card has a **colored left border** matching the grade color
-- White/light card background with subtle shadow
-
-#### 3. Redesign Marketplace page layout
-
-**File: `src/pages/Marketplace.tsx`**
-
-- Remove the table layout, stats bar, search bar, and tab buttons
-- New layout: `flex` with left sidebar (filters, ~280px) + right content area
-- Content area header: "Leads" dropdown/label
-- Content area: responsive card grid (3 cols on desktop, 2 on tablet, 1 on mobile)
-- Bottom sticky bar: "Clear Filters >" button (left), "Total: $X" + "BUY LEAD" button (right) for cart/bulk purchase
-- Keep all existing data fetching, filtering logic, purchase dialog
-- Add card selection state for bulk purchases (checkbox or click-to-select)
-- Light background styling for the marketplace page specifically
-
-#### 4. Light theme for marketplace page only
-
-Apply a scoped light theme to the marketplace page wrapper using inline CSS variables or a light-mode class, overriding the global dark theme for this page only:
-- Background: soft white/light gray gradient
-- Cards: white with subtle shadows
-- Text: dark gray/navy
-- Accent colors remain (green, blue, gold for grades)
-
-#### 5. Update document filter options
-
-Add "Credit Report" and "Pre-Approval Cert." to the document options in `MarketplaceFilters.tsx` to match reference (currently only has license, paystub, bank_statement).
+#### 4. CSS cleanup (`src/index.css`)
+- Remove `.marketplace-light` utility (no longer needed)
 
 ### Files to modify
-- `src/components/MarketplaceFilters.tsx` — add sidebar variant + new doc options
-- `src/components/LeadCard.tsx` — new card component
-- `src/pages/Marketplace.tsx` — full layout redesign
+- `src/components/LeadCard.tsx` — dark card redesign matching reference layout
+- `src/components/MarketplaceFilters.tsx` — dark theme sidebar
+- `src/pages/Marketplace.tsx` — remove light theme, dark bottom bar + dialog
+- `src/index.css` — remove marketplace-light class
 
-### Technical notes
-- No database changes needed — same lead data fields are used
-- Purchase flow (dialog + edge function) remains unchanged
-- Filter logic (`applyFilters`, `countActiveFilters`) remains unchanged
-- Mobile: sidebar collapses to a Sheet drawer; cards stack single-column
+### What stays the same
+- All data fetching, filtering logic, purchase edge function
+- Mobile drawer behavior
+- Card grid (3 cols desktop, 2 tablet, 1 mobile)
 
