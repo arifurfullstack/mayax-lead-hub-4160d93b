@@ -17,6 +17,7 @@ import {
   Package,
   CreditCard,
   Trash2,
+  Pencil,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
