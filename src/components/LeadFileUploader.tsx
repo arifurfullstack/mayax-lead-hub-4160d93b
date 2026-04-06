@@ -42,7 +42,7 @@ const LeadFileUploader = ({ leadId, files, onFilesChange }: Props) => {
     // Save metadata to leads table
     const { error: updateErr } = await supabase
       .from("leads")
-      .update({ document_files: newFiles as unknown as Record<string, unknown>[] })
+      .update({ document_files: JSON.parse(JSON.stringify(newFiles)) })
       .eq("id", leadId);
 
     if (updateErr) {
