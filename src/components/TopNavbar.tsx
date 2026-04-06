@@ -25,6 +25,7 @@ interface TopNavbarProps {
   tier?: string;
   walletBalance?: number;
   onLogout?: () => void;
+  profilePictureUrl?: string | null;
 }
 
 const TopNavbar = ({
