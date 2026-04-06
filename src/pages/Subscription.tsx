@@ -209,7 +209,7 @@ const Subscription = () => {
                   </div>
 
                   {/* Most Popular tag */}
-                  {tier.is_popular && (
+                  {tier.is_popular && !isCurrentPlan && (
                     <div className="absolute -top-[1.5px] right-4 z-10">
                       <span
                         className="text-[10px] font-bold uppercase tracking-[1.2px] px-4 py-1.5 block"
