@@ -36,6 +36,7 @@ const Subscription = () => {
   const [dealer, setDealer] = useState<DealerInfo | null>(null);
   const [subscribing, setSubscribing] = useState<string | null>(null);
   const [usage, setUsage] = useState<{ leads_used: number; leads_limit: number } | null>(null);
+  const [confirmPlan, setConfirmPlan] = useState<SubscriptionPlan | null>(null);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
