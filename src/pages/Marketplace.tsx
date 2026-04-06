@@ -178,7 +178,7 @@ const Marketplace = () => {
   }
 
   return (
-    <div className="min-h-screen pb-20">
+    <div className="min-h-screen pb-20 starfield">
       <div className="max-w-[1400px] mx-auto px-4 py-6 relative z-10">
         <div className="flex gap-6">
           {/* Left sidebar filters */}
