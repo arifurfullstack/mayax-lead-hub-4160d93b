@@ -30,6 +30,7 @@ const BRAND_SETTINGS_KEYS = [
   "theme_meta_description",
   "theme_logo_url",
   "theme_favicon_url",
+  "theme_og_image_url",
 ];
 
 const AdminBrandingSettings = ({
