@@ -64,8 +64,26 @@ interface Props {
 }
 
 const OrderDetailModal = ({ order, open, onOpenChange }: Props) => {
+  const [downloading, setDownloading] = useState<string | null>(null);
+
   if (!order || !order.leads) return null;
   const lead = order.leads;
+  const files = (lead.document_files ?? []) as LeadFileEntry[];
+
+  const handleDownload = async (file: LeadFileEntry) => {
+    setDownloading(file.path);
+    const { data, error } = await supabase.storage
+      .from("lead-documents")
+      .download(file.path);
+    setDownloading(null);
+    if (error || !data) return;
+    const url = URL.createObjectURL(data);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = file.name;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
