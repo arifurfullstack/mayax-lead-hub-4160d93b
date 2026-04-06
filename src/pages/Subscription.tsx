@@ -1,4 +1,4 @@
-import { Check, Clock, Zap, BadgeCheck, ShieldCheck, Loader2, Wallet, AlertCircle } from "lucide-react";
+import { Check, Clock, Zap, BadgeCheck, ShieldCheck, Loader2, Wallet, AlertCircle, ArrowRight } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
