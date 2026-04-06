@@ -46,6 +46,7 @@ interface LeadDetail {
   vehicle_mileage: number | null;
   vehicle_price: number | null;
   documents: string[] | null;
+  document_files: { name: string; path: string }[] | null;
   ai_score: number | null;
   quality_grade: string | null;
   price: number;
