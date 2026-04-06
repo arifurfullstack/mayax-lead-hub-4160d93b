@@ -200,7 +200,7 @@ const Orders = () => {
                 const StatusIcon = status.icon;
 
                 return (
-                  <TableRow key={order.id} className="border-border transition-colors">
+                  <TableRow key={order.id} className="border-border transition-colors cursor-pointer hover:bg-muted/30" onClick={() => setSelectedOrder(order)}>
                     <TableCell>
                       <span className="font-mono text-sm text-foreground">{lead?.reference_code ?? "—"}</span>
                     </TableCell>
