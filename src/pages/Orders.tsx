@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import OrderDetailModal from "@/components/OrderDetailModal";
 
 interface LeadDetail {
   reference_code: string;
@@ -78,7 +79,7 @@ const gradeBadge: Record<string, string> = {
 const Orders = () => {
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<OrderRow | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
@@ -139,7 +140,6 @@ const Orders = () => {
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-foreground">Orders</h1>
         <p className="text-muted-foreground text-sm mt-1">
@@ -147,7 +147,6 @@ const Orders = () => {
         </p>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -172,12 +171,10 @@ const Orders = () => {
         </Select>
       </div>
 
-      {/* Table */}
       <div className="glass-card overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow className="border-border hover:bg-transparent">
-              <TableHead className="w-10" />
               <TableHead>Reference</TableHead>
               <TableHead>Lead Name</TableHead>
               <TableHead>Location</TableHead>
@@ -185,6 +182,7 @@ const Orders = () => {
               <TableHead>Price Paid</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Date</TableHead>
+              <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -197,176 +195,68 @@ const Orders = () => {
             ) : (
               filtered.map((order) => {
                 const lead = order.leads;
-                const isExpanded = expandedId === order.id;
                 const status = deliveryStatusConfig[order.delivery_status] ?? deliveryStatusConfig.pending;
                 const StatusIcon = status.icon;
 
                 return (
-                  <>
-                    <TableRow
-                      key={order.id}
-                      className={cn(
-                        "cursor-pointer border-border transition-colors",
-                        isExpanded && "bg-muted/30"
+                  <TableRow key={order.id} className="border-border transition-colors">
+                    <TableCell>
+                      <span className="font-mono text-sm text-foreground">{lead?.reference_code ?? "—"}</span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm text-foreground">
+                        {lead ? `${lead.first_name} ${lead.last_name}` : "—"}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm text-muted-foreground">
+                        {lead?.city && lead?.province ? `${lead.city}, ${lead.province}` : "—"}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      {lead?.quality_grade && (
+                        <Badge className={cn("text-[10px] px-1.5 py-0 border", gradeBadge[lead.quality_grade] ?? "bg-muted text-muted-foreground border-border")}>
+                          {lead.quality_grade}
+                        </Badge>
                       )}
-                      onClick={() => setExpandedId(isExpanded ? null : order.id)}
-                    >
-                      <TableCell className="w-10">
-                        {isExpanded ? (
-                          <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <span className="font-mono text-sm text-foreground">{lead?.reference_code ?? "—"}</span>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm text-foreground">
-                          {lead ? `${lead.first_name} ${lead.last_name}` : "—"}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm text-muted-foreground">
-                          {lead?.city && lead?.province ? `${lead.city}, ${lead.province}` : "—"}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        {lead?.quality_grade && (
-                          <Badge className={cn("text-[10px] px-1.5 py-0 border", gradeBadge[lead.quality_grade] ?? "bg-muted text-muted-foreground border-border")}>
-                            {lead.quality_grade}
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm font-semibold text-foreground">${Number(order.price_paid).toFixed(2)}</span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1.5">
-                          <StatusIcon className={cn("h-3.5 w-3.5", status.color)} />
-                          <span className={cn("text-xs", status.color)}>{status.label}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(order.purchased_at).toLocaleDateString()}
-                        </span>
-                      </TableCell>
-                    </TableRow>
-
-                    {isExpanded && lead && (
-                      <TableRow key={`${order.id}-detail`} className="bg-muted/20 border-border hover:bg-muted/20">
-                        <TableCell colSpan={8} className="p-0">
-                          <div className="p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {/* Contact Info */}
-                            <div className="space-y-3">
-                              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contact Information</h4>
-                              <div className="space-y-2">
-                                <div className="flex items-center gap-2 text-sm">
-                                  <User className="h-3.5 w-3.5 text-primary" />
-                                  <span className="text-foreground">{lead.first_name} {lead.last_name}</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-sm">
-                                  <Phone className="h-3.5 w-3.5 text-primary" />
-                                  <span className="text-foreground">{lead.phone || "Not provided"}</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-sm">
-                                  <Mail className="h-3.5 w-3.5 text-primary" />
-                                  <span className="text-foreground">{lead.email || "Not provided"}</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-sm">
-                                  <MapPin className="h-3.5 w-3.5 text-primary" />
-                                  <span className="text-foreground">
-                                    {lead.city && lead.province ? `${lead.city}, ${lead.province}` : "—"}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Financial */}
-                            <div className="space-y-3">
-                              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Financial Profile</h4>
-                              <div className="space-y-2">
-                                <div className="flex items-center gap-2 text-sm">
-                                  <CreditCard className="h-3.5 w-3.5 text-cyan" />
-                                  <span className="text-muted-foreground">Credit:</span>
-                                  <span className="text-foreground">
-                                    {lead.credit_range_min && lead.credit_range_max
-                                      ? `${lead.credit_range_min} – ${lead.credit_range_max}`
-                                      : "—"}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-2 text-sm">
-                                  <DollarSign className="h-3.5 w-3.5 text-cyan" />
-                                  <span className="text-muted-foreground">Income:</span>
-                                  <span className="text-foreground">
-                                    {lead.income ? `$${Number(lead.income).toLocaleString()}` : "—"}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-2 text-sm">
-                                  <Package className="h-3.5 w-3.5 text-cyan" />
-                                  <span className="text-muted-foreground">Buyer Type:</span>
-                                  <span className="text-foreground capitalize">{lead.buyer_type || "—"}</span>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Vehicle */}
-                            <div className="space-y-3">
-                              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Vehicle Interest</h4>
-                              <div className="space-y-2">
-                                <div className="flex items-center gap-2 text-sm">
-                                  <Car className="h-3.5 w-3.5 text-secondary" />
-                                  <span className="text-muted-foreground">Preference:</span>
-                                  <span className="text-foreground capitalize">{lead.vehicle_preference || "—"}</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-sm">
-                                  <Car className="h-3.5 w-3.5 text-secondary" />
-                                  <span className="text-muted-foreground">Budget:</span>
-                                  <span className="text-foreground">
-                                    {lead.vehicle_price ? `$${Number(lead.vehicle_price).toLocaleString()}` : "—"}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-2 text-sm">
-                                  <Car className="h-3.5 w-3.5 text-secondary" />
-                                  <span className="text-muted-foreground">Max Mileage:</span>
-                                  <span className="text-foreground">
-                                    {lead.vehicle_mileage ? `${lead.vehicle_mileage.toLocaleString()} km` : "—"}
-                                  </span>
-                                </div>
-                                {lead.documents && lead.documents.length > 0 && (
-                                  <div className="flex items-center gap-2 text-sm">
-                                    <FileText className="h-3.5 w-3.5 text-secondary" />
-                                    <span className="text-muted-foreground">Documents:</span>
-                                    <span className="text-foreground">{lead.documents.length} attached</span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Purchase Meta */}
-                            <div className="md:col-span-2 lg:col-span-3 pt-3 border-t border-border">
-                              <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-                                <span>AI Score: <strong className="text-foreground">{lead.ai_score ?? "—"}</strong></span>
-                                <span>Lead Price: <strong className="text-foreground">${Number(lead.price).toFixed(2)}</strong></span>
-                                <span>You Paid: <strong className="text-foreground">${Number(order.price_paid).toFixed(2)}</strong></span>
-                                <span>Delivery: <strong className="text-foreground capitalize">{order.delivery_method || "email"}</strong></span>
-                                {order.dealer_tier_at_purchase && (
-                                  <span>Tier at Purchase: <strong className="text-foreground capitalize">{order.dealer_tier_at_purchase}</strong></span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm font-semibold text-foreground">${Number(order.price_paid).toFixed(2)}</span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1.5">
+                        <StatusIcon className={cn("h-3.5 w-3.5", status.color)} />
+                        <span className={cn("text-xs", status.color)}>{status.label}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(order.purchased_at).toLocaleDateString()}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => setSelectedOrder(order)}
+                      >
+                        <Eye className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
                 );
               })
             )}
           </TableBody>
         </Table>
       </div>
+
+      <OrderDetailModal
+        order={selectedOrder}
+        open={!!selectedOrder}
+        onOpenChange={(open) => { if (!open) setSelectedOrder(null); }}
+      />
     </div>
   );
 };
