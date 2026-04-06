@@ -61,7 +61,7 @@ interface Props {
   onRefresh: () => void;
 }
 
-export default function AdminLeadTable({ leads, onSelectLead }: Props) {
+export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [gradeFilter, setGradeFilter] = useState("all");
