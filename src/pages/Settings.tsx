@@ -198,6 +198,49 @@ const Settings = () => {
     setTimeout(() => setCopiedSecret(false), 2000);
   };
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !dealer) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Invalid file", description: "Please upload an image file.", variant: "destructive" });
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Max file size is 2MB.", variant: "destructive" });
+      return;
+    }
+
+    setUploadingAvatar(true);
+    const ext = file.name.split(".").pop();
+    const filePath = `${dealer.user_id}/avatar.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("profile-pictures")
+      .upload(filePath, file, { upsert: true });
+
+    if (uploadError) {
+      toast({ title: "Upload failed", description: uploadError.message, variant: "destructive" });
+      setUploadingAvatar(false);
+      return;
+    }
+
+    const { data: urlData } = supabase.storage
+      .from("profile-pictures")
+      .getPublicUrl(filePath);
+
+    const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+
+    await supabase
+      .from("dealers")
+      .update({ profile_picture_url: publicUrl })
+      .eq("id", dealer.id);
+
+    setAvatarUrl(publicUrl);
+    setUploadingAvatar(false);
+    toast({ title: "Updated", description: "Profile picture updated successfully." });
+  };
+
   if (loading) {
     return (
       <div className="p-6 space-y-6 animate-pulse">
