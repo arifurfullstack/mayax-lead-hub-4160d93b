@@ -1,118 +1,42 @@
 
-# MayaX Lead Hub — Implementation Plan
 
-## Overview
-A dealer-only automotive lead marketplace where verified car dealerships browse, filter, and purchase AI-verified buyer leads. Premium dark theme with glassmorphism design.
+## Subscription Page UI Refinement Plan
 
-## Phase 1: Foundation Setup
+### Key Differences Between Current Implementation and Reference
 
-### Design System & Theme
-- Set up dark theme with CSS variables: background #0F1729, surfaces #1B2A4A, glassmorphism panels with backdrop-blur
-- Configure accent colors: primary blue #3B82F6, purple #8B5CF6, cyan #06B6D4, gold #C8A84E
-- Add Inter font (body) and JetBrains Mono (timers)
-- Create reusable glassmorphism card component with neon border glow variants
+Comparing the current code with the reference image, these are the gaps:
 
-### Database Tables (Supabase)
-- Create all 7 tables: dealers, leads, subscriptions, wallet_transactions, purchases, delivery_logs, autopay_settings
-- Set up user_roles table for admin/dealer role management
-- Configure RLS policies — critically, lead PII columns hidden until purchased
-- Seed 30-50 sample leads with varied data
+1. **Font**: Reference uses **Poppins** font family; current uses Inter. Need to import Poppins and apply it to the subscription page.
+2. **Background**: Reference shows a **cinematic car dealership lot** background image at the bottom (rain-soaked cars with neon reflections). Current only has CSS gradient blobs — no photographic background.
+3. **Card border glow intensity**: Reference shows much more vivid, saturated neon border glows — almost like bright neon tubes around each card. Current borders are too subtle.
+4. **Card top glow**: Reference cards have a more pronounced vertical neon light beam/streak at the top edge of each card.
+5. **More atmospheric neon streaks**: Reference has multiple bright horizontal neon light streaks/flares in the upper portion of the page (purple, cyan, gold).
+6. **VIP "MOST POPULAR" badge**: In reference it has a distinct rounded border/outline style, positioned at top-right corner with a capsule/pill border around it.
+7. **Card spacing and sizing**: Cards in reference appear slightly taller with more breathing room.
+8. **Bottom atmospheric car image**: The reference clearly shows a dark, moody car lot scene at the bottom of the page — this is a key visual element.
 
-### Auth & Route Guards
-- Supabase Auth with email/password
-- ProtectedRoute component checking dealer approval_status
-- Role-based routing: admin → /admin/*, approved dealer → /dashboard, pending/rejected/suspended → gate pages
+### Implementation Plan
 
-## Phase 2: Auth Pages (Tasks 1-3)
+**File: `src/pages/Subscription.tsx`**
 
-### Login Page (/login)
-- Split layout: left brand section with MayaX logo, tagline, trust badges on dark starfield background; right glassmorphism login card with neon border glow
-- Email/password inputs with icons, "Forgot password?" link, gradient login button, "Create Dealer Account" secondary button
-- Mobile: stacked vertically
+1. **Add Poppins font import** — add a Google Fonts `@import` or `<link>` for Poppins (weights 300-800), and apply `fontFamily: 'Poppins, sans-serif'` to the page wrapper.
 
-### Registration Page (/register)
-- 3-step form with progress indicator: Business Info → Dealer Details → Delivery Preferences
-- Creates auth user + dealers row with status 'pending'
-- Confirmation screen on completion
+2. **Add cinematic car lot background image** — use a dark, moody car dealership lot image as a background layer at the bottom portion of the page. Since we cannot use external images reliably, we will create a more intense atmospheric CSS effect with stronger neon streaks, multiple light flares, and a richer gradient composition to simulate the cinematic feel. Alternatively, source a free car lot image and place it in `src/assets/`.
 
-### Status Gate Pages
-- /pending, /rejected, /suspended — each with appropriate icon, message, and glassmorphism card styling
+3. **Intensify card border glows** — increase border opacity from ~0.4 to ~0.6, increase box-shadow outer glow from `0.1` to `0.2-0.25`, and add a second outer glow ring for the neon tube effect.
 
-## Phase 3: App Shell (Task 4)
+4. **Enhance top-edge card glow** — make the `::before` gradient taller and more intense (opacity from 0.12 to 0.2).
 
-### Top Navbar
-- MayaX logo, center nav links (Dashboard, Marketplace, Orders, Wallet Balance), right side tier badge + dealer dropdown
+5. **Add more neon streak lines** — add 4-5 additional rotated gradient streaks in the background at varied positions, colors (cyan, purple, gold, blue), and opacities.
 
-### Left Sidebar
-- Collapsible with menu items, wallet balance display at bottom, mobile hamburger overlay
+6. **Refine VIP "MOST POPULAR" badge** — add a rounded capsule border outline around the text to match the reference style.
 
-## Phase 4: Core Features (Tasks 5-8)
+7. **Strengthen hover effects** — increase translateY to -6px and make glow more dramatic on hover.
 
-### Subscription Plans (/subscription)
-- 4 tier cards (Basic/Pro/Elite/VIP) with tier-specific neon glow borders and pricing
-- VIP card with "Most Popular" badge and gold shimmer animation
+### Technical Details
 
-### Wallet (/wallet)
-- Balance display card, transaction history table with pagination and filters
-- Add Funds modal with preset amounts ($100/$250/$500/$1000)
+- Poppins will be imported via Google Fonts CSS import in the component or added to `index.css`
+- All visual changes are CSS-only in `src/pages/Subscription.tsx`
+- No database or backend changes needed
+- No new dependencies required
 
-### Leads Marketplace (/marketplace)
-- Search bar, tab buttons (All/New/Saved), sort dropdown
-- Stats bar with real-time counts
-- Lead table with masked PII, quality grade left-border colors, Buy Lead buttons
-- Pagination controls
-
-## Phase 5: Marketplace Logic (Tasks 9-13)
-
-### Filter Sidebar
-- Credit range, income range, quality grade, buyer type, documents, location, vehicle, lead age, price range filters
-- URL query parameter persistence, mobile drawer
-
-### Tier-Based Access & Countdowns
-- Calculate unlock times per dealer tier (VIP=instant, Elite=6h, Pro=12h, Basic=24h)
-- Live countdown timers in cyan monospace font
-- "Upgrade to Unlock" buttons on locked leads
-
-### Purchase Flow
-- Atomic transaction via Edge Function with row locking
-- Confirmation modal, success/failure handling
-- Real-time marketplace updates via Supabase Realtime — sold leads fade out for all dealers
-
-### Batch Purchase
-- Checkbox selection, sticky bottom bar with total, sequential atomic purchases
-
-## Phase 6: Supporting Pages (Tasks 14-17)
-
-### Orders (/orders)
-- Purchase history table with expandable rows showing full lead details (PII revealed post-purchase)
-
-### Dashboard (/dashboard)
-- Summary cards (wallet, tier, leads purchased), recent purchases, delivery health, quick actions
-
-### Settings (/settings)
-- Tabbed layout: Profile, Notifications, Webhook (with test button), Security (change password)
-
-### AutoPay Settings
-- Filter criteria form, leads per day, schedule, active days configuration
-
-## Phase 7: Admin Panel (Tasks 18-19)
-
-### Admin routes (/admin/*)
-- Separate sidebar, dashboard with metrics
-- Dealer management: approve/reject/suspend with reason modals
-- Lead management: CRUD + bulk CSV import
-- Transaction logs, delivery logs with retry capability
-- Wallet management: issue credits, process refunds
-
-## Phase 8: Delivery & Polish (Task 20)
-
-### Lead Delivery Engine
-- Edge Function: email via Resend + webhook delivery with retries
-- Email templates: Welcome, Purchase Confirmation, Lead Delivery, Wallet Top-Up, Subscription, Low Balance Warning
-
-### Final Polish
-- Notification bell with unread count
-- "Lead Heat" social proof indicators
-- Loading skeletons, empty states, error states with retry
-- Full mobile responsiveness
-- Copy MayaX logo image into project assets
