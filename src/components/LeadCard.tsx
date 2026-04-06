@@ -153,6 +153,12 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
           )}
         </div>
 
+        {/* Price */}
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-muted-foreground text-xs">Lead Price</span>
+          <span className="text-lg font-bold text-foreground font-mono-timer">${Number(lead.price).toFixed(0)}</span>
+        </div>
+
         {/* Action row */}
         {isLocked ? (
           <div className="flex items-center justify-between">
