@@ -476,6 +476,11 @@ const AdminDashboard = () => {
         <TabsContent value="plans" className="space-y-4">
           <AdminPlanManager />
         </TabsContent>
+
+        {/* ─── Payments Tab ─── */}
+        <TabsContent value="payments" className="space-y-4">
+          <AdminPaymentManager />
+        </TabsContent>
       </Tabs>
 
       {/* ─── Dealer Detail Dialog ─── */}
