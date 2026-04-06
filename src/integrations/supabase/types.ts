@@ -236,6 +236,7 @@ export type Database = {
           created_at: string
           credit_range_max: number | null
           credit_range_min: number | null
+          document_files: Json | null
           documents: string[] | null
           email: string | null
           first_name: string
@@ -261,6 +262,7 @@ export type Database = {
           created_at?: string
           credit_range_max?: number | null
           credit_range_min?: number | null
+          document_files?: Json | null
           documents?: string[] | null
           email?: string | null
           first_name: string
@@ -286,6 +288,7 @@ export type Database = {
           created_at?: string
           credit_range_max?: number | null
           credit_range_min?: number | null
+          document_files?: Json | null
           documents?: string[] | null
           email?: string | null
           first_name?: string
