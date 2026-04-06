@@ -63,8 +63,6 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
 
   const incomeDisplay = lead.income != null ? `${Number(lead.income).toLocaleString()} LD` : null;
 
-  const isNew = Date.now() - new Date(lead.created_at).getTime() < 86400000;
-
   return (
     <div
       className={cn(
@@ -75,12 +73,6 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
       onClick={() => onSelect?.(lead)}
     >
       <div className="shimmer-sweep" style={{ animationDelay: `${index * 80 + 300}ms` }} />
-
-      {isNew && !selected && (
-        <div className="absolute top-3 right-3 z-10 badge-green text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">
-          New
-        </div>
-      )}
 
       {selected && (
         <div className="absolute top-3 right-3 z-10 w-6 h-6 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/30">
