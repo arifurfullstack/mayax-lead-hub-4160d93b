@@ -20,6 +20,13 @@ function getLeadType(lead: any): { label: string; icon: React.ReactNode } {
   return { label: "Referral Lead", icon: <User className="h-4 w-4" /> };
 }
 
+const gradeColors: Record<string, string> = {
+  "a+": "border-[hsl(var(--gold))] text-[hsl(var(--gold))] bg-[hsl(var(--gold))/0.1]",
+  a: "border-emerald-500 text-emerald-400 bg-emerald-500/10",
+  b: "border-sky-500 text-sky-400 bg-sky-500/10",
+  c: "border-muted-foreground text-muted-foreground bg-muted/30",
+};
+
 function useCountdown(targetMs: number) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
