@@ -12,6 +12,7 @@ import {
   RefreshCw,
   Save,
   Shield,
+  Palette,
   TrendingUp,
   DollarSign,
   Package,
@@ -42,6 +43,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import AdminPlanManager from "@/components/AdminPlanManager";
 import AdminPaymentManager from "@/components/AdminPaymentManager";
+import AdminBrandingSettings from "@/components/AdminBrandingSettings";
 import LeadFileUploader from "@/components/LeadFileUploader";
 import AdminLeadTable, { type AdminLead } from "@/components/AdminLeadTable";
 
@@ -323,6 +325,9 @@ const AdminDashboard = () => {
           <TabsTrigger value="payments" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
             <DollarSign className="h-4 w-4" /> Payments
           </TabsTrigger>
+          <TabsTrigger value="branding" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
+            <Palette className="h-4 w-4" /> Branding
+          </TabsTrigger>
         </TabsList>
 
         {/* ─── Dealers Tab ─── */}
@@ -471,6 +476,17 @@ const AdminDashboard = () => {
         {/* ─── Payments Tab ─── */}
         <TabsContent value="payments" className="space-y-4">
           <AdminPaymentManager />
+        </TabsContent>
+
+        {/* ─── Branding Tab ─── */}
+        <TabsContent value="branding" className="space-y-4">
+          <AdminBrandingSettings
+            settingsForm={settingsForm}
+            setSettingsForm={setSettingsForm}
+            platformSettings={platformSettings}
+            onSave={savePlatformSettings}
+            saving={savingSettings}
+          />
         </TabsContent>
       </Tabs>
 
