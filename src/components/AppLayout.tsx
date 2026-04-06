@@ -9,6 +9,7 @@ interface DealerInfo {
   dealership_name: string;
   subscription_tier: string;
   wallet_balance: number;
+  profile_picture_url: string | null;
 }
 
 const AppLayout = () => {
