@@ -180,8 +180,7 @@ function FilterContent({ filters, onChange, onReset, activeCount, maxIncome, max
       </div>
 
       {/* Documents Uploaded */}
-      <div>
-        <p className="font-semibold text-foreground mb-3">Documents Uploaded</p>
+      <CollapsibleSection title="Documents Uploaded">
         <div className="space-y-2.5">
           {documentOptions.map((d) => (
             <label key={d.value} className="flex items-center gap-2.5 cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
@@ -194,7 +193,7 @@ function FilterContent({ filters, onChange, onReset, activeCount, maxIncome, max
             </label>
           ))}
         </div>
-      </div>
+      </CollapsibleSection>
 
       {/* Collapsible sections */}
       <div className="border-t border-border pt-3 space-y-1">
