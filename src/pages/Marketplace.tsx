@@ -99,6 +99,10 @@ const Marketplace = () => {
     return leads.reduce((max, l) => Math.max(max, Number(l.income ?? 0)), 0);
   }, [leads]);
 
+  const maxPrice = useMemo(() => {
+    return leads.reduce((max, l) => Math.max(max, Number(l.price ?? 0)), 0);
+  }, [leads]);
+
   const filtered = useMemo(() => {
     let result = leads.filter((l) => l.sold_status === "available");
     result = applyFilters(result, filters, maxIncome);
@@ -192,6 +196,7 @@ const Marketplace = () => {
             onReset={() => setFilters(defaultFilters)}
             activeCount={activeFilterCount}
             maxIncome={maxIncome}
+            maxPrice={maxPrice}
             leads={leads}
           />
 
@@ -203,6 +208,7 @@ const Marketplace = () => {
               onReset={() => setFilters(defaultFilters)}
               activeCount={activeFilterCount}
               maxIncome={maxIncome}
+              maxPrice={maxPrice}
               leads={leads}
             />
           </div>

@@ -36,15 +36,15 @@ export interface MarketplaceFilters {
   vehicleMake: string;
   vehicleModel: string;
   maxAge: string;
-  priceMin: string;
-  priceMax: string;
+  priceMin: number;
+  priceMax: number;
 }
 
 export const defaultFilters: MarketplaceFilters = {
   creditMin: 300,
   creditMax: 900,
   incomeMin: 0,
-  incomeMax: 0, // 0 means "use maxIncome"
+  incomeMax: 0,
   buyerTypes: [],
   provinces: [],
   documents: [],
@@ -52,8 +52,8 @@ export const defaultFilters: MarketplaceFilters = {
   vehicleMake: "all",
   vehicleModel: "all",
   maxAge: "all",
-  priceMin: "",
-  priceMax: "",
+  priceMin: 0,
+  priceMax: 0, // 0 means "use maxPrice"
 };
 
 const documentOptions = [
@@ -93,6 +93,7 @@ interface FilterSidebarProps {
   onReset: () => void;
   activeCount: number;
   maxIncome: number;
+  maxPrice: number;
   leads: any[];
 }
 
@@ -111,7 +112,7 @@ function CollapsibleSection({ title, children, defaultOpen = false }: { title: s
   );
 }
 
-function FilterContent({ filters, onChange, onReset, activeCount, maxIncome, leads }: FilterSidebarProps) {
+function FilterContent({ filters, onChange, onReset, activeCount, maxIncome, maxPrice, leads }: FilterSidebarProps) {
   const update = (partial: Partial<MarketplaceFilters>) =>
     onChange({ ...filters, ...partial });
 
@@ -123,6 +124,9 @@ function FilterContent({ filters, onChange, onReset, activeCount, maxIncome, lea
 
   const effectiveIncomeMax = maxIncome || 200000;
   const sliderIncomeMax = filters.incomeMax === 0 ? effectiveIncomeMax : filters.incomeMax;
+
+  const effectivePriceMax = maxPrice || 500;
+  const sliderPriceMax = filters.priceMax === 0 ? effectivePriceMax : filters.priceMax;
 
   // Derive makes/models from leads based on selected vehicle type
   const { availableMakes, availableModels } = useMemo(() => {
@@ -172,6 +176,23 @@ function FilterContent({ filters, onChange, onReset, activeCount, maxIncome, lea
         <div className="flex justify-between text-xs text-muted-foreground mt-1">
           <span>${filters.incomeMin.toLocaleString()}</span>
           <span>${sliderIncomeMax.toLocaleString()}</span>
+        </div>
+      </div>
+
+      {/* Price Range */}
+      <div>
+        <p className="font-semibold text-foreground mb-3">Lead Price</p>
+        <Slider
+          min={0}
+          max={effectivePriceMax}
+          step={5}
+          value={[filters.priceMin, sliderPriceMax]}
+          onValueChange={([min, max]) => update({ priceMin: min, priceMax: max })}
+          className="marketplace-slider"
+        />
+        <div className="flex justify-between text-xs text-muted-foreground mt-1">
+          <span>${filters.priceMin}</span>
+          <span>${sliderPriceMax}</span>
         </div>
       </div>
 
@@ -350,7 +371,7 @@ export function countActiveFilters(f: MarketplaceFilters): number {
   if (f.vehicleMake !== "all") count++;
   if (f.vehicleModel !== "all") count++;
   if (f.maxAge !== "all") count++;
-  if (f.priceMin || f.priceMax) count++;
+  if (f.priceMin > 0 || f.priceMax > 0) count++;
   return count;
 }
 
@@ -413,11 +434,11 @@ export function applyFilters(leads: any[], filters: MarketplaceFilters, maxIncom
     result = result.filter((l) => l.created_at > cutoff);
   }
 
-  if (filters.priceMin) {
-    result = result.filter((l) => l.price >= Number(filters.priceMin));
+  if (filters.priceMin > 0) {
+    result = result.filter((l) => Number(l.price) >= filters.priceMin);
   }
-  if (filters.priceMax) {
-    result = result.filter((l) => l.price <= Number(filters.priceMax));
+  if (filters.priceMax > 0) {
+    result = result.filter((l) => Number(l.price) <= filters.priceMax);
   }
 
   return result;
