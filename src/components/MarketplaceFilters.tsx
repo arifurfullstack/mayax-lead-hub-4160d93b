@@ -112,7 +112,7 @@ function CollapsibleSection({ title, children, defaultOpen = false }: { title: s
   );
 }
 
-function FilterContent({ filters, onChange, onReset, activeCount, maxIncome, leads }: FilterSidebarProps) {
+function FilterContent({ filters, onChange, onReset, activeCount, maxIncome, maxPrice, leads }: FilterSidebarProps) {
   const update = (partial: Partial<MarketplaceFilters>) =>
     onChange({ ...filters, ...partial });
 
@@ -124,6 +124,9 @@ function FilterContent({ filters, onChange, onReset, activeCount, maxIncome, lea
 
   const effectiveIncomeMax = maxIncome || 200000;
   const sliderIncomeMax = filters.incomeMax === 0 ? effectiveIncomeMax : filters.incomeMax;
+
+  const effectivePriceMax = maxPrice || 500;
+  const sliderPriceMax = filters.priceMax === 0 ? effectivePriceMax : filters.priceMax;
 
   // Derive makes/models from leads based on selected vehicle type
   const { availableMakes, availableModels } = useMemo(() => {
