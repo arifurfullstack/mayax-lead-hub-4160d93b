@@ -129,8 +129,8 @@
   .glass-card {
     position: relative;
     background:
-      linear-gradient(135deg, rgba(100, 60, 180, 0.15) 0%, rgba(60, 30, 120, 0.08) 40%, transparent 60%, rgba(80, 50, 160, 0.1) 100%),
-      rgba(20, 12, 40, 0.9);
+      linear-gradient(135deg, rgba(120, 70, 200, 0.18) 0%, rgba(80, 40, 160, 0.1) 40%, transparent 60%, rgba(100, 60, 180, 0.12) 100%),
+      rgba(28, 16, 52, 0.92);
     backdrop-filter: blur(12px);
     border: 1px solid transparent;
     border-radius: 12px;
