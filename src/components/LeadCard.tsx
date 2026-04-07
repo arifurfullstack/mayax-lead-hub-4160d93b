@@ -104,27 +104,21 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
         <span className="text-xs">{buyerLabel}</span>
       </div>
 
-      {/* Credit score — visible */}
-      <div className="flex items-center gap-2 mb-1">
-        <Shield className="h-3.5 w-3.5 text-destructive" />
-        <span className="text-lg font-bold text-foreground font-mono-timer">
-          {creditRange}
-        </span>
-      </div>
+      {/* Income — prominent */}
+      {incomeDisplay && (
+        <div className="flex items-center gap-2 mb-1">
+          <Coins className="h-3.5 w-3.5 text-[hsl(var(--gold))]" />
+          <span className="text-lg font-bold text-foreground font-mono-timer">
+            {incomeDisplay}
+          </span>
+        </div>
+      )}
 
       {/* Location — visible */}
       {location && (
         <div className="flex items-center gap-1.5 mb-1 text-muted-foreground">
           <MapPin className="h-3.5 w-3.5" />
           <span className="text-xs">{location}</span>
-        </div>
-      )}
-
-      {/* Income — visible */}
-      {incomeDisplay && (
-        <div className="flex items-center gap-1.5 mb-1 text-muted-foreground">
-          <Coins className="h-3.5 w-3.5 text-[hsl(var(--gold))]" />
-          <span className="text-xs font-medium font-mono-timer">{incomeDisplay}</span>
         </div>
       )}
 
