@@ -181,6 +181,22 @@ function FilterContent({ filters, onChange, onReset, activeCount, maxIncome, max
         </div>
       </div>
 
+      {/* Quality Grade */}
+      <CollapsibleSection title="Quality Grade" defaultOpen={filters.grades.length > 0}>
+        <div className="space-y-2.5">
+          {["A+", "A", "B", "C"].map((g) => (
+            <label key={g} className="flex items-center gap-2.5 cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
+              <Checkbox
+                checked={filters.grades.includes(g)}
+                onCheckedChange={() => toggleArray("grades", g)}
+                className="border-primary data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+              />
+              <span className="text-sm">{g}</span>
+            </label>
+          ))}
+        </div>
+      </CollapsibleSection>
+
       {/* Documents Uploaded */}
       <CollapsibleSection title="Documents Uploaded">
         <div className="space-y-2.5">
