@@ -82,9 +82,33 @@ const WalletPage = () => {
   const resetDialog = () => {
     setStep(1);
     setSelectedAmount(null);
+    setCustomAmount("");
+    setIsCustom(false);
     setSelectedGateway(null);
     setBankDetails(null);
     setProcessing(false);
+  };
+
+  const handlePresetSelect = (amt: number) => {
+    setSelectedAmount(amt);
+    setIsCustom(false);
+    setCustomAmount("");
+  };
+
+  const handleCustomToggle = () => {
+    setIsCustom(true);
+    setSelectedAmount(null);
+  };
+
+  const handleCustomChange = (val: string) => {
+    const cleaned = val.replace(/[^0-9.]/g, "");
+    setCustomAmount(cleaned);
+    const num = parseFloat(cleaned);
+    if (!isNaN(num) && num >= MIN_CUSTOM && num <= MAX_CUSTOM) {
+      setSelectedAmount(num);
+    } else {
+      setSelectedAmount(null);
+    }
   };
 
   const handleOpenChange = (open: boolean) => {
