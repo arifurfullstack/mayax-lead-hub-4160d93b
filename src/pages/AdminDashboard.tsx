@@ -492,6 +492,11 @@ const AdminDashboard = () => {
             saving={savingSettings}
           />
         </TabsContent>
+
+        {/* ─── User Management Tab ─── */}
+        <TabsContent value="users" className="space-y-4">
+          <AdminUserManager />
+        </TabsContent>
       </Tabs>
 
       {/* ─── Dealer Detail Dialog ─── */}
