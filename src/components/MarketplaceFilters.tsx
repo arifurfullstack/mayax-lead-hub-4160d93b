@@ -366,6 +366,7 @@ export function countActiveFilters(f: MarketplaceFilters): number {
   if (f.buyerTypes.length) count++;
   if (f.provinces.length) count++;
   if (f.documents.length) count++;
+  if (f.grades.length) count++;
   if (f.vehicleType !== "all") count++;
   if (f.vehicleMake !== "all") count++;
   if (f.vehicleModel !== "all") count++;
