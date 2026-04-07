@@ -38,6 +38,8 @@ const WalletPage = () => {
   const [dealerId, setDealerId] = useState<string | null>(null);
   const [addFundsOpen, setAddFundsOpen] = useState(false);
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
+  const [customAmount, setCustomAmount] = useState("");
+  const [isCustom, setIsCustom] = useState(false);
   const [selectedGateway, setSelectedGateway] = useState<string | null>(null);
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [processing, setProcessing] = useState(false);
