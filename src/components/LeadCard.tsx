@@ -102,7 +102,7 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
       </div>
 
       {/* Contact info — blurred until purchased, at the top */}
-      <div className="space-y-1 mb-2">
+      <div className="space-y-0.5 mb-1.5">
         <div className="flex items-center gap-1.5">
           <User className="h-3 w-3 text-muted-foreground" />
           <span className={cn("text-xs font-medium", revealed ? "text-foreground" : "text-muted-foreground select-none")} style={!revealed ? { filter: "blur(5px)" } : undefined}>
@@ -127,14 +127,14 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
       </div>
 
       {/* Buyer type */}
-      <div className="flex items-center gap-1.5 mb-1 text-muted-foreground">
+      <div className="flex items-center gap-1.5 mb-0.5 text-muted-foreground">
         {buyerIcon}
         <span className="text-xs">{buyerLabel}</span>
       </div>
 
       {/* Vehicle preference */}
       {lead.vehicle_preference && (
-        <div className="flex items-center gap-1.5 mb-1 text-muted-foreground">
+        <div className="flex items-center gap-1.5 mb-0.5 text-muted-foreground">
           <Car className="h-3.5 w-3.5" />
           <span className="text-xs">{lead.vehicle_preference}</span>
         </div>
@@ -142,7 +142,7 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
 
       {/* Vehicle mileage */}
       {lead.vehicle_mileage != null && (
-        <div className="flex items-center gap-1.5 mb-1 text-muted-foreground">
+        <div className="flex items-center gap-1.5 mb-0.5 text-muted-foreground">
           <Gauge className="h-3.5 w-3.5" />
           <span className="text-xs font-mono-timer">{Number(lead.vehicle_mileage).toLocaleString()} km</span>
         </div>
@@ -150,7 +150,7 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
 
       {/* Location */}
       {location && (
-        <div className="flex items-center gap-1.5 mb-1 text-muted-foreground">
+        <div className="flex items-center gap-1.5 mb-0.5 text-muted-foreground">
           <MapPin className="h-3.5 w-3.5" />
           <span className="text-xs">{location}</span>
         </div>
@@ -158,7 +158,7 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
 
       {/* Income */}
       {incomeDisplay && (
-        <div className="flex items-center gap-1.5 mb-2 text-muted-foreground">
+        <div className="flex items-center gap-1.5 mb-0.5 text-muted-foreground">
           <DollarSign className="h-3.5 w-3.5" />
           <span className="text-xs">{incomeDisplay}</span>
         </div>
@@ -168,7 +168,7 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
       <div className="flex-1" />
 
       {/* Bottom section */}
-      <div className="pt-2 border-t border-border/50 space-y-2">
+      <div className="pt-2 border-t border-border/50 space-y-1.5">
         {/* Documents row */}
         <div className="flex items-center gap-1 flex-wrap">
           {(lead.documents ?? []).slice(0, 5).map((d: string, i: number) => (
@@ -187,28 +187,17 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
           )}
         </div>
 
-        {/* Price */}
+        {/* Status + Price + Buy row */}
         <div className="flex items-center justify-between">
-          <span className="text-muted-foreground text-[10px]">Lead Price</span>
-          <span className="text-base font-bold text-foreground font-mono-timer">${Number(lead.price).toFixed(0)}</span>
-        </div>
-
-        {/* Action row */}
-        {isLocked ? (
-          <div className="flex items-center justify-between">
+          {isLocked ? (
             <span className="badge-amber text-[10px] font-medium px-2 py-1 rounded flex items-center gap-1 font-mono-timer">
               <Clock className="h-2.5 w-2.5" /> {display}
             </span>
-            <button
-              className="gradient-cta-buy text-foreground px-4 py-1.5 rounded text-[10px] font-semibold tracking-wide hover:opacity-90 transition-opacity"
-              onClick={(e) => { e.stopPropagation(); onBuy(lead); }}
-            >
-              BUY &nbsp;&rsaquo;
-            </button>
-          </div>
-        ) : (
-          <div className="flex items-center justify-between">
+          ) : (
             <span className="badge-green text-[10px] font-medium px-1.5 py-0.5 rounded whitespace-nowrap">Available</span>
+          )}
+          <div className="flex items-center gap-2">
+            <span className="text-base font-bold text-foreground font-mono-timer">${Number(lead.price).toFixed(0)}</span>
             <button
               className="gradient-cta-buy text-foreground px-4 py-1.5 rounded text-[10px] font-semibold tracking-wide hover:opacity-90 transition-opacity"
               onClick={(e) => { e.stopPropagation(); onBuy(lead); }}
@@ -216,7 +205,7 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
               BUY &nbsp;&rsaquo;
             </button>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
