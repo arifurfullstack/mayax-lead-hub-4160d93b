@@ -256,10 +256,10 @@ const WalletPage = () => {
                   {presetAmounts.map((amt) => (
                     <button
                       key={amt}
-                      onClick={() => setSelectedAmount(amt)}
+                      onClick={() => handlePresetSelect(amt)}
                       className={cn(
                         "glass-card p-4 text-center rounded-lg transition-all cursor-pointer",
-                        selectedAmount === amt
+                        selectedAmount === amt && !isCustom
                           ? "border-primary glow-blue text-primary"
                           : "text-muted-foreground hover:text-foreground hover:border-primary/30"
                       )}
@@ -268,6 +268,39 @@ const WalletPage = () => {
                     </button>
                   ))}
                 </div>
+
+                {/* Custom Amount */}
+                <button
+                  onClick={handleCustomToggle}
+                  className={cn(
+                    "w-full glass-card p-3 rounded-lg text-center transition-all cursor-pointer",
+                    isCustom
+                      ? "border-primary glow-blue text-primary"
+                      : "text-muted-foreground hover:text-foreground hover:border-primary/30"
+                  )}
+                >
+                  Custom Amount
+                </button>
+                {isCustom && (
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold">$</span>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder={`${MIN_CUSTOM} – ${MAX_CUSTOM.toLocaleString()}`}
+                        value={customAmount}
+                        onChange={(e) => handleCustomChange(e.target.value)}
+                        autoFocus
+                        className="w-full pl-8 pr-4 py-3 rounded-lg bg-background border border-border text-foreground text-lg font-semibold focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                      />
+                    </div>
+                    {customAmount && (parseFloat(customAmount) < MIN_CUSTOM || parseFloat(customAmount) > MAX_CUSTOM) && (
+                      <p className="text-xs text-destructive">Enter an amount between ${MIN_CUSTOM} and ${MAX_CUSTOM.toLocaleString()}</p>
+                    )}
+                  </div>
+                )}
+
                 <Button
                   className="w-full gradient-blue-cyan text-foreground"
                   disabled={!selectedAmount}
