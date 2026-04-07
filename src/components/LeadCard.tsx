@@ -98,21 +98,36 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
         )}
       </div>
 
+      {/* Contact info — blurred until purchased, at the top */}
+      <div className="space-y-1 mb-2">
+        <div className="flex items-center gap-1.5">
+          <User className="h-3 w-3 text-muted-foreground" />
+          <span className={cn("text-xs font-medium", revealed ? "text-foreground" : "text-muted-foreground select-none")} style={!revealed ? { filter: "blur(5px)" } : undefined}>
+            {lead.first_name} {lead.last_name?.charAt(0)}.
+          </span>
+          {!revealed && <Tooltip><TooltipTrigger asChild><Lock className="h-2.5 w-2.5 text-muted-foreground/60 cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Purchase to reveal</TooltipContent></Tooltip>}
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Phone className="h-3 w-3 text-muted-foreground" />
+          <span className={cn("text-xs", revealed ? "text-foreground" : "text-muted-foreground select-none")} style={!revealed ? { filter: "blur(5px)" } : undefined}>
+            {lead.phone}
+          </span>
+          {!revealed && <Tooltip><TooltipTrigger asChild><Lock className="h-2.5 w-2.5 text-muted-foreground/60 cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Purchase to reveal</TooltipContent></Tooltip>}
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Mail className="h-3 w-3 text-muted-foreground" />
+          <span className={cn("text-xs", revealed ? "text-foreground" : "text-muted-foreground select-none")} style={!revealed ? { filter: "blur(5px)" } : undefined}>
+            {lead.email}
+          </span>
+          {!revealed && <Tooltip><TooltipTrigger asChild><Lock className="h-2.5 w-2.5 text-muted-foreground/60 cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Purchase to reveal</TooltipContent></Tooltip>}
+        </div>
+      </div>
+
       {/* Buyer type */}
       <div className="flex items-center gap-1.5 mb-2 text-muted-foreground">
         {buyerIcon}
         <span className="text-xs">{buyerLabel}</span>
       </div>
-
-      {/* Income — prominent */}
-      {incomeDisplay && (
-        <div className="flex items-center gap-2 mb-1">
-          <Coins className="h-3.5 w-3.5 text-[hsl(var(--gold))]" />
-          <span className="text-lg font-bold text-foreground font-mono-timer">
-            {incomeDisplay}
-          </span>
-        </div>
-      )}
 
       {/* Location — visible */}
       {location && (
@@ -137,31 +152,6 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
           <span className="text-xs font-mono-timer">{Number(lead.vehicle_mileage).toLocaleString()} km</span>
         </div>
       )}
-
-      {/* Contact info — blurred until purchased */}
-      <div className="space-y-1 mb-2">
-        <div className="flex items-center gap-1.5">
-          <User className="h-3 w-3 text-muted-foreground" />
-          <span className={cn("text-xs font-medium", revealed ? "text-foreground" : "text-muted-foreground select-none")} style={!revealed ? { filter: "blur(5px)" } : undefined}>
-            {lead.first_name} {lead.last_name?.charAt(0)}.
-          </span>
-          {!revealed && <Tooltip><TooltipTrigger asChild><Lock className="h-2.5 w-2.5 text-muted-foreground/60 cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Purchase to reveal</TooltipContent></Tooltip>}
-        </div>
-        <div className="flex items-center gap-1.5">
-          <Phone className="h-3 w-3 text-muted-foreground" />
-          <span className={cn("text-xs", revealed ? "text-foreground" : "text-muted-foreground select-none")} style={!revealed ? { filter: "blur(5px)" } : undefined}>
-            {lead.phone}
-          </span>
-          {!revealed && <Tooltip><TooltipTrigger asChild><Lock className="h-2.5 w-2.5 text-muted-foreground/60 cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Purchase to reveal</TooltipContent></Tooltip>}
-        </div>
-        <div className="flex items-center gap-1.5">
-          <Mail className="h-3 w-3 text-muted-foreground" />
-          <span className={cn("text-xs", revealed ? "text-foreground" : "text-muted-foreground select-none")} style={!revealed ? { filter: "blur(5px)" } : undefined}>
-            {lead.email}
-          </span>
-          {!revealed && <Tooltip><TooltipTrigger asChild><Lock className="h-2.5 w-2.5 text-muted-foreground/60 cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Purchase to reveal</TooltipContent></Tooltip>}
-        </div>
-      </div>
 
       {/* Spacer */}
       <div className="flex-1" />
