@@ -44,6 +44,7 @@ import { toast } from "@/hooks/use-toast";
 import AdminPlanManager from "@/components/AdminPlanManager";
 import AdminPaymentManager from "@/components/AdminPaymentManager";
 import AdminBrandingSettings from "@/components/AdminBrandingSettings";
+import AdminUserManager from "@/components/AdminUserManager";
 import LeadFileUploader from "@/components/LeadFileUploader";
 import AdminLeadTable, { type AdminLead } from "@/components/AdminLeadTable";
 
