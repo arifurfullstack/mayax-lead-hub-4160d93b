@@ -435,5 +435,9 @@ export function applyFilters(leads: any[], filters: MarketplaceFilters, maxIncom
     result = result.filter((l) => Number(l.price) <= filters.priceMax);
   }
 
+  if (filters.grades.length) {
+    result = result.filter((l) => filters.grades.includes(l.quality_grade));
+  }
+
   return result;
 }
