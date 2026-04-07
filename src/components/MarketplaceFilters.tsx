@@ -93,6 +93,7 @@ interface FilterSidebarProps {
   onReset: () => void;
   activeCount: number;
   maxIncome: number;
+  maxPrice: number;
   leads: any[];
 }
 
