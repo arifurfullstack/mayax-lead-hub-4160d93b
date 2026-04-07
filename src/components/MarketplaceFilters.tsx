@@ -145,23 +145,6 @@ function FilterContent({ filters, onChange, onReset, activeCount, maxIncome, max
 
   return (
     <div className="space-y-5 text-sm">
-      {/* Credit Range */}
-      <div>
-        <p className="font-semibold text-foreground mb-3">Credit Range</p>
-        <Slider
-          min={300}
-          max={900}
-          step={10}
-          value={[filters.creditMin, filters.creditMax]}
-          onValueChange={([min, max]) => update({ creditMin: min, creditMax: max })}
-          className="marketplace-slider"
-        />
-        <div className="flex justify-between text-xs text-muted-foreground mt-1">
-          <span>{filters.creditMin}</span>
-          <span>{filters.creditMax}</span>
-        </div>
-      </div>
-
       {/* Income Range — dual slider */}
       <div>
         <p className="font-semibold text-foreground mb-3">Income Range</p>
@@ -362,7 +345,6 @@ export function MarketplaceFilterDrawer(props: FilterSidebarProps) {
 
 export function countActiveFilters(f: MarketplaceFilters): number {
   let count = 0;
-  if (f.creditMin !== 300 || f.creditMax !== 900) count++;
   if (f.incomeMin > 0 || (f.incomeMax > 0)) count++;
   if (f.buyerTypes.length) count++;
   if (f.provinces.length) count++;
@@ -377,12 +359,6 @@ export function countActiveFilters(f: MarketplaceFilters): number {
 
 export function applyFilters(leads: any[], filters: MarketplaceFilters, maxIncome?: number): any[] {
   let result = leads;
-
-  if (filters.creditMin !== 300 || filters.creditMax !== 900) {
-    result = result.filter(
-      (l) => (l.credit_range_min ?? 0) >= filters.creditMin && (l.credit_range_max ?? 900) <= filters.creditMax
-    );
-  }
 
   if (filters.incomeMin > 0) {
     result = result.filter((l) => (l.income ?? 0) >= filters.incomeMin);
