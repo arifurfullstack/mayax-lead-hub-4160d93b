@@ -179,6 +179,23 @@ function FilterContent({ filters, onChange, onReset, activeCount, maxIncome, max
         </div>
       </div>
 
+      {/* Price Range */}
+      <div>
+        <p className="font-semibold text-foreground mb-3">Lead Price</p>
+        <Slider
+          min={0}
+          max={effectivePriceMax}
+          step={5}
+          value={[filters.priceMin, sliderPriceMax]}
+          onValueChange={([min, max]) => update({ priceMin: min, priceMax: max })}
+          className="marketplace-slider"
+        />
+        <div className="flex justify-between text-xs text-muted-foreground mt-1">
+          <span>${filters.priceMin}</span>
+          <span>${sliderPriceMax}</span>
+        </div>
+      </div>
+
       {/* Documents Uploaded */}
       <div>
         <p className="font-semibold text-foreground mb-3">Documents Uploaded</p>
