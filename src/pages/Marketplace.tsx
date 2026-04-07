@@ -202,6 +202,8 @@ const Marketplace = () => {
               onChange={(f) => setFilters(f)}
               onReset={() => setFilters(defaultFilters)}
               activeCount={activeFilterCount}
+              maxIncome={maxIncome}
+              leads={leads}
             />
           </div>
 
