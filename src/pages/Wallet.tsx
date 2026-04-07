@@ -22,6 +22,8 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 
 const presetAmounts = [100, 250, 500, 1000];
+const MIN_CUSTOM = 10;
+const MAX_CUSTOM = 10000;
 
 const gatewayIcons: Record<string, typeof CreditCard> = {
   stripe: CreditCard,
