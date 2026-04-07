@@ -696,9 +696,7 @@ export type Database = {
           sold_at: string
           sold_status: string
           sold_to_dealer_id: string
-          vehicle_make: string
           vehicle_mileage: number
-          vehicle_model: string
           vehicle_preference: string
           vehicle_price: number
         }[]

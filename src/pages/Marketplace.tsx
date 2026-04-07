@@ -95,12 +95,16 @@ const Marketplace = () => {
     [delayHours]
   );
 
+  const maxIncome = useMemo(() => {
+    return leads.reduce((max, l) => Math.max(max, Number(l.income ?? 0)), 0);
+  }, [leads]);
+
   const filtered = useMemo(() => {
     let result = leads.filter((l) => l.sold_status === "available");
-    result = applyFilters(result, filters);
+    result = applyFilters(result, filters, maxIncome);
     result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     return result;
-  }, [leads, filters]);
+  }, [leads, filters, maxIncome]);
 
   const activeFilterCount = countActiveFilters(filters);
 
@@ -187,6 +191,8 @@ const Marketplace = () => {
             onChange={(f) => setFilters(f)}
             onReset={() => setFilters(defaultFilters)}
             activeCount={activeFilterCount}
+            maxIncome={maxIncome}
+            leads={leads}
           />
 
           {/* Mobile filter trigger */}
@@ -196,6 +202,8 @@ const Marketplace = () => {
               onChange={(f) => setFilters(f)}
               onReset={() => setFilters(defaultFilters)}
               activeCount={activeFilterCount}
+              maxIncome={maxIncome}
+              leads={leads}
             />
           </div>
 
@@ -230,7 +238,7 @@ const Marketplace = () => {
                   No leads match your criteria.
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 pb-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 pb-4">
                   {filtered.map((lead, i) => (
                     <LeadCard
                       key={lead.id}
