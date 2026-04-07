@@ -32,6 +32,7 @@ export interface MarketplaceFilters {
   buyerTypes: string[];
   provinces: string[];
   documents: string[];
+  grades: string[];
   vehicleType: string;
   vehicleMake: string;
   vehicleModel: string;
@@ -48,6 +49,7 @@ export const defaultFilters: MarketplaceFilters = {
   buyerTypes: [],
   provinces: [],
   documents: [],
+  grades: [],
   vehicleType: "all",
   vehicleMake: "all",
   vehicleModel: "all",
@@ -178,6 +180,22 @@ function FilterContent({ filters, onChange, onReset, activeCount, maxIncome, max
           <span>${sliderPriceMax}</span>
         </div>
       </div>
+
+      {/* Quality Grade */}
+      <CollapsibleSection title="Quality Grade" defaultOpen={filters.grades.length > 0}>
+        <div className="space-y-2.5">
+          {["A+", "A", "B", "C"].map((g) => (
+            <label key={g} className="flex items-center gap-2.5 cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
+              <Checkbox
+                checked={filters.grades.includes(g)}
+                onCheckedChange={() => toggleArray("grades", g)}
+                className="border-primary data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+              />
+              <span className="text-sm">{g}</span>
+            </label>
+          ))}
+        </div>
+      </CollapsibleSection>
 
       {/* Documents Uploaded */}
       <CollapsibleSection title="Documents Uploaded">
@@ -348,6 +366,7 @@ export function countActiveFilters(f: MarketplaceFilters): number {
   if (f.buyerTypes.length) count++;
   if (f.provinces.length) count++;
   if (f.documents.length) count++;
+  if (f.grades.length) count++;
   if (f.vehicleType !== "all") count++;
   if (f.vehicleMake !== "all") count++;
   if (f.vehicleModel !== "all") count++;
@@ -414,6 +433,10 @@ export function applyFilters(leads: any[], filters: MarketplaceFilters, maxIncom
   }
   if (filters.priceMax > 0) {
     result = result.filter((l) => Number(l.price) <= filters.priceMax);
+  }
+
+  if (filters.grades.length) {
+    result = result.filter((l) => filters.grades.includes(l.quality_grade));
   }
 
   return result;
