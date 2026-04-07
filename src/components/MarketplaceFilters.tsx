@@ -434,11 +434,11 @@ export function applyFilters(leads: any[], filters: MarketplaceFilters, maxIncom
     result = result.filter((l) => l.created_at > cutoff);
   }
 
-  if (filters.priceMin) {
-    result = result.filter((l) => l.price >= Number(filters.priceMin));
+  if (filters.priceMin > 0) {
+    result = result.filter((l) => Number(l.price) >= filters.priceMin);
   }
-  if (filters.priceMax) {
-    result = result.filter((l) => l.price <= Number(filters.priceMax));
+  if (filters.priceMax > 0) {
+    result = result.filter((l) => Number(l.price) <= filters.priceMax);
   }
 
   return result;
