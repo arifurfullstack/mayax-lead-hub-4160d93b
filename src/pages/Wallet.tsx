@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { DollarSign, ArrowUpRight, ArrowDownLeft, Plus, TrendingUp, CreditCard, Building2, Clock, Copy, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,8 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 
 const presetAmounts = [100, 250, 500, 1000];
+const MIN_CUSTOM = 10;
+const MAX_CUSTOM = 10000;
 
 const gatewayIcons: Record<string, typeof CreditCard> = {
   stripe: CreditCard,
@@ -36,6 +38,8 @@ const WalletPage = () => {
   const [dealerId, setDealerId] = useState<string | null>(null);
   const [addFundsOpen, setAddFundsOpen] = useState(false);
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
+  const [customAmount, setCustomAmount] = useState("");
+  const [isCustom, setIsCustom] = useState(false);
   const [selectedGateway, setSelectedGateway] = useState<string | null>(null);
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [processing, setProcessing] = useState(false);
@@ -78,9 +82,33 @@ const WalletPage = () => {
   const resetDialog = () => {
     setStep(1);
     setSelectedAmount(null);
+    setCustomAmount("");
+    setIsCustom(false);
     setSelectedGateway(null);
     setBankDetails(null);
     setProcessing(false);
+  };
+
+  const handlePresetSelect = (amt: number) => {
+    setSelectedAmount(amt);
+    setIsCustom(false);
+    setCustomAmount("");
+  };
+
+  const handleCustomToggle = () => {
+    setIsCustom(true);
+    setSelectedAmount(null);
+  };
+
+  const handleCustomChange = (val: string) => {
+    const cleaned = val.replace(/[^0-9.]/g, "");
+    setCustomAmount(cleaned);
+    const num = parseFloat(cleaned);
+    if (!isNaN(num) && num >= MIN_CUSTOM && num <= MAX_CUSTOM) {
+      setSelectedAmount(num);
+    } else {
+      setSelectedAmount(null);
+    }
   };
 
   const handleOpenChange = (open: boolean) => {
@@ -228,10 +256,10 @@ const WalletPage = () => {
                   {presetAmounts.map((amt) => (
                     <button
                       key={amt}
-                      onClick={() => setSelectedAmount(amt)}
+                      onClick={() => handlePresetSelect(amt)}
                       className={cn(
                         "glass-card p-4 text-center rounded-lg transition-all cursor-pointer",
-                        selectedAmount === amt
+                        selectedAmount === amt && !isCustom
                           ? "border-primary glow-blue text-primary"
                           : "text-muted-foreground hover:text-foreground hover:border-primary/30"
                       )}
@@ -240,6 +268,39 @@ const WalletPage = () => {
                     </button>
                   ))}
                 </div>
+
+                {/* Custom Amount */}
+                <button
+                  onClick={handleCustomToggle}
+                  className={cn(
+                    "w-full glass-card p-3 rounded-lg text-center transition-all cursor-pointer",
+                    isCustom
+                      ? "border-primary glow-blue text-primary"
+                      : "text-muted-foreground hover:text-foreground hover:border-primary/30"
+                  )}
+                >
+                  Custom Amount
+                </button>
+                {isCustom && (
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold">$</span>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder={`${MIN_CUSTOM} – ${MAX_CUSTOM.toLocaleString()}`}
+                        value={customAmount}
+                        onChange={(e) => handleCustomChange(e.target.value)}
+                        autoFocus
+                        className="w-full pl-8 pr-4 py-3 rounded-lg bg-background border border-border text-foreground text-lg font-semibold focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                      />
+                    </div>
+                    {customAmount && (parseFloat(customAmount) < MIN_CUSTOM || parseFloat(customAmount) > MAX_CUSTOM) && (
+                      <p className="text-xs text-destructive">Enter an amount between ${MIN_CUSTOM} and ${MAX_CUSTOM.toLocaleString()}</p>
+                    )}
+                  </div>
+                )}
+
                 <Button
                   className="w-full gradient-blue-cyan text-foreground"
                   disabled={!selectedAmount}
