@@ -1,43 +1,82 @@
 
 
-## Plan: Implement Screenshot Requirements
+# Plan: MayaX UI Overhaul — 5 Changes
 
-Based on the annotated screenshot, there are 3 requirements:
+## 1. Admin Sidebar — Already Hidden for Non-Admins (Verify Only)
 
-### 1. Make Wallet Balance Clickable (Sidebar)
-The wallet balance in the sidebar footer should navigate to `/wallet` when clicked.
+The `AppSidebar.tsx` already checks `isAdmin` state and conditionally renders the Admin link. The `/admin` route uses `ProtectedRoute` with `requireAdmin`. No code change needed — just verification.
 
-**File:** `src/components/AppSidebar.tsx`
-- Wrap the wallet balance `glass-card` div with a `Link` (from react-router-dom) pointing to `/wallet`
-- Add cursor-pointer and hover styling
+The login page already routes admins to `/admin` and dealers to `/dashboard`. The login view is shared (no separate admin login page). If you want a visually different admin login, clarify — otherwise this is already correct.
 
-### 2. Make Notification Bell Dynamic and Functional (Top Navbar)
-The notification bell icon needs to be dynamic — show unread count and a dropdown with notifications.
+---
 
-**File:** `src/components/TopNavbar.tsx`
-- Add a dropdown menu (using existing `DropdownMenu` component) to the bell icon
-- For now, show a placeholder "No new notifications" state since there's no notifications table yet
-- Add a red badge dot when there are unread notifications (future-ready)
+## 2. Income Filter — Dual-Thumb Slider (0 to Max)
 
-### 3. Profile Icon with Menu (Top Navbar)
-Replace the plain dealer name text with a clickable avatar/icon that opens a dropdown menu with options like Settings, Logout, etc.
+**Files:** `MarketplaceFilters.tsx`, `Marketplace.tsx`
 
-**File:** `src/components/TopNavbar.tsx`
-- Replace the dealer name `<span>` with an avatar circle showing initials
-- Wrap it in a `DropdownMenu` with items: Settings, Logout
-- Pass `onLogout` callback through from `AppLayout`
+- Change `incomeMin`/`incomeMax` from strings to numbers (`incomeRange: [number, number]`)
+- In `Marketplace.tsx`, compute `maxIncome` from leads data and pass it as a prop to the filter components
+- Replace the current static income display with a `<Slider>` component (dual-thumb, min=0, max=maxIncome, step=1000)
+- Show formatted labels below the slider ($0 — $X,XXX)
+- Update `applyFilters` and `countActiveFilters` accordingly
 
-**File:** `src/components/AppLayout.tsx`
-- Pass `onLogout` handler to `TopNavbar`
+---
 
-### 4. Make Top Navbar Wallet Clickable
-The wallet balance display in the top navbar should also navigate to `/wallet` when clicked.
+## 3. Vehicle Filter — Type → Make → Model Cascade
 
-**File:** `src/components/TopNavbar.tsx`
-- Wrap wallet display with a `Link` to `/wallet`
+**Files:** `MarketplaceFilters.tsx`, `Marketplace.tsx`
 
-### Summary of file changes:
-- `src/components/AppSidebar.tsx` — clickable wallet balance
-- `src/components/TopNavbar.tsx` — clickable wallet, notification dropdown, profile avatar with menu
-- `src/components/AppLayout.tsx` — pass onLogout to TopNavbar
+Current data format: `"SUV - Ford Escape"` (Type - Make Model). No separate DB columns needed — we parse `vehicle_preference` client-side.
+
+- Step 1: User picks vehicle type (SUV, Sedan, Truck, etc.) — existing checkboxes
+- Step 2: Once type selected, extract unique makes from leads matching that type and show a make dropdown/select
+- Step 3: Once make selected, extract unique models and show model dropdown (optional)
+- Add `vehicleMake` and `vehicleModel` string fields to `MarketplaceFilters`
+- Reset model when make changes; reset make when type changes
+- Update `applyFilters` to match on parsed make/model
+- Pass leads data to filter component so it can derive available makes/models
+
+Also fix the `get_marketplace_leads` DB function — it references `l.vehicle_make` and `l.vehicle_model` which don't exist. Remove those columns from the function return.
+
+---
+
+## 4. Smaller Lead Cards — More Per Row
+
+**Files:** `LeadCard.tsx`, `Marketplace.tsx`
+
+- Reduce card padding from `p-5` to `p-3.5`
+- Reduce font sizes slightly (credit score from `text-xl` to `text-lg`, price stays prominent)
+- Tighten vertical margins (`mb-3` → `mb-2`, `mb-1.5` → `mb-1`)
+- Change grid to `xl:grid-cols-4` in `Marketplace.tsx`
+- Reduce icon sizes where needed (keep readability)
+
+---
+
+## 5. Blur Logic — Only Contact Info Hidden
+
+**Files:** `LeadCard.tsx`
+
+Remove CSS blur from:
+- Credit score range — show clearly
+- Location (city, province) — show clearly
+- Income — show clearly
+- Vehicle preference — show clearly
+- Vehicle mileage — show clearly
+
+Add blurred contact fields to card:
+- Name (first_name + last_name initial) — blurred with lock icon
+- Phone — blurred with lock icon
+- Email — blurred with lock icon
+
+After purchase (when `lead.sold_to_dealer_id` matches requesting dealer), these fields are already unmasked by the `get_marketplace_leads` DB function, so the card just checks if the values are real (not `***` / `+XX-XXX-XXXX`) to decide whether to blur.
+
+---
+
+## Implementation Order
+
+1. Fix `get_marketplace_leads` function (remove nonexistent columns) — DB migration
+2. Lead card blur changes (step 5)
+3. Smaller lead cards (step 4)
+4. Income slider filter (step 2)
+5. Vehicle cascading filter (step 3)
 
