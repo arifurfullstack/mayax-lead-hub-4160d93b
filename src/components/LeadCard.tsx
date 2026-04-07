@@ -88,6 +88,9 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
       <div className="flex items-center gap-1.5 mb-1">
         <span className="text-muted-foreground">{leadType.icon}</span>
         <span className="text-xs font-semibold text-foreground">{leadType.label}</span>
+        {lead.reference_code && (
+          <span className="text-[9px] text-muted-foreground font-mono-timer">#{lead.reference_code}</span>
+        )}
         {lead.quality_grade && (
           <span className={cn(
             "ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider font-mono-timer",
