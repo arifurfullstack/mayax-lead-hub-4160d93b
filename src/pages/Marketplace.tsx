@@ -95,12 +95,16 @@ const Marketplace = () => {
     [delayHours]
   );
 
+  const maxIncome = useMemo(() => {
+    return leads.reduce((max, l) => Math.max(max, Number(l.income ?? 0)), 0);
+  }, [leads]);
+
   const filtered = useMemo(() => {
     let result = leads.filter((l) => l.sold_status === "available");
-    result = applyFilters(result, filters);
+    result = applyFilters(result, filters, maxIncome);
     result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     return result;
-  }, [leads, filters]);
+  }, [leads, filters, maxIncome]);
 
   const activeFilterCount = countActiveFilters(filters);
 
