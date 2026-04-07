@@ -36,15 +36,15 @@ export interface MarketplaceFilters {
   vehicleMake: string;
   vehicleModel: string;
   maxAge: string;
-  priceMin: string;
-  priceMax: string;
+  priceMin: number;
+  priceMax: number;
 }
 
 export const defaultFilters: MarketplaceFilters = {
   creditMin: 300,
   creditMax: 900,
   incomeMin: 0,
-  incomeMax: 0, // 0 means "use maxIncome"
+  incomeMax: 0,
   buyerTypes: [],
   provinces: [],
   documents: [],
@@ -52,8 +52,8 @@ export const defaultFilters: MarketplaceFilters = {
   vehicleMake: "all",
   vehicleModel: "all",
   maxAge: "all",
-  priceMin: "",
-  priceMax: "",
+  priceMin: 0,
+  priceMax: 0, // 0 means "use maxPrice"
 };
 
 const documentOptions = [
