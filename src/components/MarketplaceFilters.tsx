@@ -345,7 +345,6 @@ export function MarketplaceFilterDrawer(props: FilterSidebarProps) {
 
 export function countActiveFilters(f: MarketplaceFilters): number {
   let count = 0;
-  if (f.creditMin !== 300 || f.creditMax !== 900) count++;
   if (f.incomeMin > 0 || (f.incomeMax > 0)) count++;
   if (f.buyerTypes.length) count++;
   if (f.provinces.length) count++;
