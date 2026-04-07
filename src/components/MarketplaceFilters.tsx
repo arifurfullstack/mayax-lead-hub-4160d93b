@@ -360,12 +360,6 @@ export function countActiveFilters(f: MarketplaceFilters): number {
 export function applyFilters(leads: any[], filters: MarketplaceFilters, maxIncome?: number): any[] {
   let result = leads;
 
-  if (filters.creditMin !== 300 || filters.creditMax !== 900) {
-    result = result.filter(
-      (l) => (l.credit_range_min ?? 0) >= filters.creditMin && (l.credit_range_max ?? 900) <= filters.creditMax
-    );
-  }
-
   if (filters.incomeMin > 0) {
     result = result.filter((l) => (l.income ?? 0) >= filters.incomeMin);
   }
