@@ -32,6 +32,7 @@ export interface MarketplaceFilters {
   buyerTypes: string[];
   provinces: string[];
   documents: string[];
+  grades: string[];
   vehicleType: string;
   vehicleMake: string;
   vehicleModel: string;
@@ -48,6 +49,7 @@ export const defaultFilters: MarketplaceFilters = {
   buyerTypes: [],
   provinces: [],
   documents: [],
+  grades: [],
   vehicleType: "all",
   vehicleMake: "all",
   vehicleModel: "all",
