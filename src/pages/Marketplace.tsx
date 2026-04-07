@@ -211,7 +211,6 @@ const Marketplace = () => {
               maxPrice={maxPrice}
               leads={leads}
             />
-            />
           </div>
 
           {/* Main content */}
