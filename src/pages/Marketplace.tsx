@@ -59,7 +59,6 @@ const Marketplace = () => {
       setDealerTier(dealer.subscription_tier);
       setWalletBalance(dealer.wallet_balance);
 
-      // Fetch current month usage
       const now = new Date();
       const periodStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
       const { data: usageData } = await supabase
@@ -94,6 +93,31 @@ const Marketplace = () => {
     (lead: any) => new Date(lead.created_at).getTime() + delayHours * 3600000,
     [delayHours]
   );
+
+  // Compute max income from leads for slider
+  const maxIncome = useMemo(() => {
+    const incomes = leads.map((l) => Number(l.income ?? 0)).filter((v) => v > 0);
+    return incomes.length > 0 ? Math.max(...incomes) : 500000;
+  }, [leads]);
+
+  // Extract available makes/models from leads based on selected vehicle type/make
+  const availableMakes = useMemo(() => {
+    if (filters.vehicleType === "all") return [];
+    const makes = leads
+      .filter((l) => l.vehicle_preference?.toLowerCase().includes(filters.vehicleType.toLowerCase()))
+      .map((l) => l.vehicle_make)
+      .filter(Boolean);
+    return [...new Set(makes)].sort();
+  }, [leads, filters.vehicleType]);
+
+  const availableModels = useMemo(() => {
+    if (filters.vehicleMake === "all") return [];
+    const models = leads
+      .filter((l) => l.vehicle_make?.toLowerCase() === filters.vehicleMake.toLowerCase())
+      .map((l) => l.vehicle_model)
+      .filter(Boolean);
+    return [...new Set(models)].sort();
+  }, [leads, filters.vehicleMake]);
 
   const filtered = useMemo(() => {
     let result = leads.filter((l) => l.sold_status === "available");
@@ -178,15 +202,18 @@ const Marketplace = () => {
   }
 
   return (
-    <div className="min-h-screen pb-20 starfield">
-      <div className="max-w-[1400px] mx-auto px-4 py-6 relative z-10">
-        <div className="flex gap-6">
+    <div className="min-h-screen pb-20">
+      <div className="max-w-[1600px] mx-auto px-4 py-6 relative z-10">
+        <div className="flex gap-5">
           {/* Left sidebar filters */}
           <MarketplaceFilterSidebar
             filters={filters}
             onChange={(f) => setFilters(f)}
             onReset={() => setFilters(defaultFilters)}
             activeCount={activeFilterCount}
+            maxIncome={maxIncome}
+            availableMakes={availableMakes}
+            availableModels={availableModels}
           />
 
           {/* Mobile filter trigger */}
@@ -196,41 +223,38 @@ const Marketplace = () => {
               onChange={(f) => setFilters(f)}
               onReset={() => setFilters(defaultFilters)}
               activeCount={activeFilterCount}
+              maxIncome={maxIncome}
+              availableMakes={availableMakes}
+              availableModels={availableModels}
             />
           </div>
 
           {/* Main content */}
           <div className="flex-1 min-w-0 flex flex-col" style={{ height: "calc(100vh - 120px)" }}>
-            {/* Sticky Header */}
-            <div className="flex items-center justify-between mb-5 flex-shrink-0">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4 flex-shrink-0">
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-semibold text-foreground">Leads</h2>
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">({filtered.length})</span>
               </div>
               {usage && (
-                <div
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium"
-                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
-                >
-                  <span style={{ color: "rgba(255,255,255,0.5)" }}>Leads Used:</span>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-muted border border-border">
+                  <span className="text-muted-foreground">Leads Used:</span>
                   <span className={`font-mono font-bold ${usage.leads_used >= usage.leads_limit ? "text-destructive" : "text-foreground"}`}>
                     {usage.leads_used}/{usage.leads_limit}
                   </span>
-                  {usage.leads_used >= usage.leads_limit && (
-                    <span className="text-destructive text-[10px] uppercase tracking-wider font-bold">Limit Reached</span>
-                  )}
                 </div>
               )}
             </div>
 
-            {/* Scrollable Card grid */}
+            {/* Card grid */}
             <div className="flex-1 overflow-y-auto min-h-0 pr-1">
               {filtered.length === 0 ? (
                 <div className="text-center py-20 text-muted-foreground">
                   No leads match your criteria.
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 pb-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 pb-4">
                   {filtered.map((lead, i) => (
                     <LeadCard
                       key={lead.id}
@@ -252,29 +276,17 @@ const Marketplace = () => {
 
       {/* Bottom sticky bar */}
       <div className="fixed bottom-0 left-0 right-0 glass border-t border-border py-3 px-6 z-50">
-        <div className="max-w-[1400px] mx-auto flex items-center justify-between">
+        <div className="max-w-[1600px] mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
               onClick={() => setFilters(defaultFilters)}
-              className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground font-medium transition-colors border border-border/60 px-4 py-2 rounded-lg hover:border-foreground/20"
+              className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground font-medium transition-colors border border-border px-4 py-2 rounded-lg hover:border-foreground/20"
             >
               Clear Filters <ChevronRight className="h-4 w-4" />
             </button>
             {selectedLeads.size > 0 && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <span className="text-foreground font-medium">{selectedLeads.size} lead{selectedLeads.size > 1 ? "s" : ""} selected</span>
-                <span className="text-muted-foreground/60">—</span>
-                <span className="truncate max-w-[300px]">
-                  {filtered
-                    .filter((l) => selectedLeads.has(l.id))
-                    .map((l) => {
-                      const grade = l.quality_grade?.toLowerCase?.() ?? "";
-                      if (grade === "a+" || grade === "a") return "Credit/Finance Lead";
-                      if (grade === "b") return "Marketplace Lead";
-                      return "Referral Lead";
-                    })
-                    .join(", ")}
-                </span>
               </div>
             )}
           </div>
@@ -283,7 +295,7 @@ const Marketplace = () => {
               Total: <span className="font-bold text-foreground font-mono-timer text-lg">${selectedTotal.toFixed(0)}</span>
             </span>
             <button
-              className="gradient-cta-green text-foreground px-6 py-2.5 rounded-lg font-semibold text-sm tracking-wide hover:opacity-90 transition-opacity disabled:opacity-40"
+              className="gradient-cta-green px-6 py-2.5 rounded-lg font-semibold text-sm tracking-wide hover:opacity-90 transition-opacity disabled:opacity-40"
               disabled={selectedLeads.size === 0}
               onClick={() => {
                 const firstSelected = filtered.find((l) => selectedLeads.has(l.id));
@@ -298,26 +310,25 @@ const Marketplace = () => {
 
       {/* Confirm Purchase Dialog */}
       <Dialog open={!!confirmLead} onOpenChange={() => setConfirmLead(null)}>
-        <DialogContent className="glass border-border max-w-md">
+        <DialogContent className="bg-card border-border max-w-md">
           <DialogHeader>
             <DialogTitle className="text-foreground">Confirm Purchase</DialogTitle>
           </DialogHeader>
           {confirmLead && (
             <div className="space-y-3">
-              <div className="flex justify-between items-center text-sm p-3 rounded-lg bg-muted/50 border border-border/50">
+              <div className="flex justify-between items-center text-sm p-3 rounded-lg bg-muted border border-border">
                 <div>
                   <span className="font-mono-timer text-primary text-xs">{confirmLead.reference_code}</span>
-                  <span className="text-foreground ml-2">{confirmLead.first_name} {confirmLead.last_name?.charAt(0)}.</span>
                 </div>
                 <span className="font-bold text-foreground font-mono-timer">${Number(confirmLead.price).toFixed(2)}</span>
               </div>
-              <div className="border-t border-border/50 pt-3 flex justify-between">
+              <div className="border-t border-border pt-3 flex justify-between">
                 <span className="text-muted-foreground">Total</span>
                 <span className="text-lg font-bold text-foreground font-mono-timer">${Number(confirmLead.price).toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Wallet Balance</span>
-                <span className={cn("font-semibold font-mono-timer", walletBalance >= confirmLead.price ? "text-[#22c55e]" : "text-destructive")}>
+                <span className={cn("font-semibold font-mono-timer", walletBalance >= confirmLead.price ? "text-[hsl(var(--success))]" : "text-destructive")}>
                   ${walletBalance.toFixed(2)}
                 </span>
               </div>
@@ -327,9 +338,9 @@ const Marketplace = () => {
             </div>
           )}
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setConfirmLead(null)} className="border-border/60">Cancel</Button>
+            <Button variant="outline" onClick={() => setConfirmLead(null)}>Cancel</Button>
             <button
-              className="gradient-cta-buy text-foreground px-5 py-2 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-40"
+              className="gradient-cta-buy px-5 py-2 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-40"
               disabled={purchasing || !confirmLead || walletBalance < confirmLead.price}
               onClick={executePurchase}
             >
