@@ -145,23 +145,6 @@ function FilterContent({ filters, onChange, onReset, activeCount, maxIncome, max
 
   return (
     <div className="space-y-5 text-sm">
-      {/* Credit Range */}
-      <div>
-        <p className="font-semibold text-foreground mb-3">Credit Range</p>
-        <Slider
-          min={300}
-          max={900}
-          step={10}
-          value={[filters.creditMin, filters.creditMax]}
-          onValueChange={([min, max]) => update({ creditMin: min, creditMax: max })}
-          className="marketplace-slider"
-        />
-        <div className="flex justify-between text-xs text-muted-foreground mt-1">
-          <span>{filters.creditMin}</span>
-          <span>{filters.creditMax}</span>
-        </div>
-      </div>
-
       {/* Income Range — dual slider */}
       <div>
         <p className="font-semibold text-foreground mb-3">Income Range</p>
