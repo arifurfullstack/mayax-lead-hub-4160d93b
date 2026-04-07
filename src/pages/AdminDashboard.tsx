@@ -44,6 +44,7 @@ import { toast } from "@/hooks/use-toast";
 import AdminPlanManager from "@/components/AdminPlanManager";
 import AdminPaymentManager from "@/components/AdminPaymentManager";
 import AdminBrandingSettings from "@/components/AdminBrandingSettings";
+import AdminUserManager from "@/components/AdminUserManager";
 import LeadFileUploader from "@/components/LeadFileUploader";
 import AdminLeadTable, { type AdminLead } from "@/components/AdminLeadTable";
 
@@ -328,6 +329,9 @@ const AdminDashboard = () => {
           <TabsTrigger value="branding" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
             <Palette className="h-4 w-4" /> Branding
           </TabsTrigger>
+          <TabsTrigger value="users" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
+            <Users className="h-4 w-4" /> User Management
+          </TabsTrigger>
         </TabsList>
 
         {/* ─── Dealers Tab ─── */}
@@ -487,6 +491,11 @@ const AdminDashboard = () => {
             onSave={savePlatformSettings}
             saving={savingSettings}
           />
+        </TabsContent>
+
+        {/* ─── User Management Tab ─── */}
+        <TabsContent value="users" className="space-y-4">
+          <AdminUserManager />
         </TabsContent>
       </Tabs>
 
