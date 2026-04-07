@@ -1,9 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { Filter, X, ChevronDown, ChevronRight, Coins } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Sheet,
   SheetContent,
@@ -21,14 +20,12 @@ import { cn } from "@/lib/utils";
 export interface MarketplaceFilters {
   creditMin: number;
   creditMax: number;
-  incomeMin: number;
-  incomeMax: number;
+  incomeMin: string;
+  incomeMax: string;
   buyerTypes: string[];
   provinces: string[];
   documents: string[];
   vehicleType: string;
-  vehicleMake: string;
-  vehicleModel: string;
   maxAge: string;
   priceMin: string;
   priceMax: string;
@@ -37,14 +34,12 @@ export interface MarketplaceFilters {
 export const defaultFilters: MarketplaceFilters = {
   creditMin: 300,
   creditMax: 900,
-  incomeMin: 0,
-  incomeMax: 0,
+  incomeMin: "",
+  incomeMax: "",
   buyerTypes: [],
   provinces: [],
   documents: [],
   vehicleType: "all",
-  vehicleMake: "all",
-  vehicleModel: "all",
   maxAge: "all",
   priceMin: "",
   priceMax: "",
@@ -74,9 +69,6 @@ interface FilterSidebarProps {
   onChange: (filters: MarketplaceFilters) => void;
   onReset: () => void;
   activeCount: number;
-  maxIncome?: number;
-  availableMakes?: string[];
-  availableModels?: string[];
 }
 
 function CollapsibleSection({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
@@ -94,7 +86,7 @@ function CollapsibleSection({ title, children, defaultOpen = false }: { title: s
   );
 }
 
-function FilterContent({ filters, onChange, onReset, activeCount, maxIncome = 500000, availableMakes = [], availableModels = [] }: FilterSidebarProps) {
+function FilterContent({ filters, onChange, onReset, activeCount }: FilterSidebarProps) {
   const update = (partial: Partial<MarketplaceFilters>) =>
     onChange({ ...filters, ...partial });
 
@@ -104,40 +96,38 @@ function FilterContent({ filters, onChange, onReset, activeCount, maxIncome = 50
     update({ [key]: next });
   };
 
-  const effectiveIncomeMax = filters.incomeMax === 0 ? maxIncome : filters.incomeMax;
-
   return (
     <div className="space-y-5 text-sm">
       {/* Credit Range */}
       <div>
         <p className="font-semibold text-foreground mb-3">Credit Range</p>
-        <Slider
-          min={300}
-          max={900}
-          step={10}
-          value={[filters.creditMin, filters.creditMax]}
-          onValueChange={([min, max]) => update({ creditMin: min, creditMax: max })}
-          className="marketplace-slider"
-        />
+        <div className="relative">
+          <Slider
+            min={300}
+            max={900}
+            step={10}
+            value={[filters.creditMin, filters.creditMax]}
+            onValueChange={([min, max]) => update({ creditMin: min, creditMax: max })}
+            className="marketplace-slider"
+          />
+        </div>
         <div className="flex justify-between text-xs text-muted-foreground mt-1">
           <span>{filters.creditMin}</span>
           <span>{filters.creditMax}</span>
         </div>
       </div>
 
-      {/* Income Range Slider */}
+      {/* Income Range */}
       <div>
-        <p className="font-semibold text-foreground mb-3">Income Range</p>
-        <Slider
-          min={0}
-          max={maxIncome}
-          step={1000}
-          value={[filters.incomeMin, effectiveIncomeMax]}
-          onValueChange={([min, max]) => update({ incomeMin: min, incomeMax: max })}
-        />
-        <div className="flex justify-between text-xs text-muted-foreground mt-1">
-          <span>${filters.incomeMin.toLocaleString()}</span>
-          <span>${effectiveIncomeMax.toLocaleString()}</span>
+        <p className="font-semibold text-foreground mb-2">Income Range</p>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Coins className="h-4 w-4 text-amber-500" />
+          <span>500 LD</span>
+          <div className="flex gap-1 ml-2">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className={cn("w-2 h-2 rounded-full", i <= 3 ? "bg-muted-foreground" : "bg-muted")} />
+            ))}
+          </div>
         </div>
       </div>
 
@@ -175,68 +165,18 @@ function FilterContent({ filters, onChange, onReset, activeCount, maxIncome = 50
           </div>
         </CollapsibleSection>
 
-        <CollapsibleSection title="Vehicle" defaultOpen>
-          <div className="space-y-3">
-            {/* Vehicle Type */}
-            <div className="space-y-2">
-              <p className="text-xs text-muted-foreground font-medium">Type</p>
-              {vehicleTypes.map((v) => (
-                <label key={v} className="flex items-center gap-2 cursor-pointer text-muted-foreground text-sm hover:text-foreground transition-colors">
-                  <Checkbox
-                    checked={filters.vehicleType === v}
-                    onCheckedChange={() => update({
-                      vehicleType: filters.vehicleType === v ? "all" : v,
-                      vehicleMake: "all",
-                      vehicleModel: "all",
-                    })}
-                    className="border-primary data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                  />
-                  <span>{v}</span>
-                </label>
-              ))}
-            </div>
-
-            {/* Vehicle Make */}
-            {filters.vehicleType !== "all" && availableMakes.length > 0 && (
-              <div>
-                <p className="text-xs text-muted-foreground font-medium mb-1">Make</p>
-                <Select
-                  value={filters.vehicleMake}
-                  onValueChange={(v) => update({ vehicleMake: v, vehicleModel: "all" })}
-                >
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="All Makes" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Makes</SelectItem>
-                    {availableMakes.map((m) => (
-                      <SelectItem key={m} value={m}>{m}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {/* Vehicle Model */}
-            {filters.vehicleMake !== "all" && availableModels.length > 0 && (
-              <div>
-                <p className="text-xs text-muted-foreground font-medium mb-1">Model</p>
-                <Select
-                  value={filters.vehicleModel}
-                  onValueChange={(v) => update({ vehicleModel: v })}
-                >
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="All Models" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Models</SelectItem>
-                    {availableModels.map((m) => (
-                      <SelectItem key={m} value={m}>{m}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+        <CollapsibleSection title="Vehicle">
+          <div className="space-y-2">
+            {vehicleTypes.map((v) => (
+              <label key={v} className="flex items-center gap-2 cursor-pointer text-muted-foreground text-sm hover:text-foreground transition-colors">
+                <Checkbox
+                  checked={filters.vehicleType === v}
+                  onCheckedChange={() => update({ vehicleType: filters.vehicleType === v ? "all" : v })}
+                  className="border-primary data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                />
+                <span>{v}</span>
+              </label>
+            ))}
           </div>
         </CollapsibleSection>
 
@@ -260,7 +200,7 @@ function FilterContent({ filters, onChange, onReset, activeCount, maxIncome = 50
       <div className="pt-3 border-t border-border">
         <button
           onClick={onReset}
-          className="flex items-center justify-between w-full px-4 py-2.5 rounded-lg border border-border text-muted-foreground text-sm font-medium hover:text-foreground hover:border-foreground/30 transition-colors"
+          className="flex items-center justify-between w-full px-4 py-2.5 rounded-lg border border-border text-muted-foreground text-sm font-medium hover:text-foreground hover:border-muted-foreground transition-colors"
         >
           <span>Clear Filters</span>
           <ChevronRight className="h-4 w-4" />
@@ -273,8 +213,8 @@ function FilterContent({ filters, onChange, onReset, activeCount, maxIncome = 50
 /** Persistent sidebar for desktop */
 export function MarketplaceFilterSidebar(props: FilterSidebarProps) {
   return (
-    <aside className="w-[260px] shrink-0 glass-card p-4 h-fit sticky top-4 hidden lg:block">
-      <h2 className="text-base font-bold text-foreground mb-4">Filters</h2>
+    <aside className="w-[280px] shrink-0 glass-card p-5 h-fit sticky top-4 hidden lg:block">
+      <h2 className="text-lg font-bold text-foreground mb-5">Filters</h2>
       <FilterContent {...props} />
     </aside>
   );
@@ -309,12 +249,11 @@ export function MarketplaceFilterDrawer(props: FilterSidebarProps) {
 export function countActiveFilters(f: MarketplaceFilters): number {
   let count = 0;
   if (f.creditMin !== 300 || f.creditMax !== 900) count++;
-  if (f.incomeMin > 0 || f.incomeMax > 0) count++;
+  if (f.incomeMin || f.incomeMax) count++;
   if (f.buyerTypes.length) count++;
   if (f.provinces.length) count++;
   if (f.documents.length) count++;
   if (f.vehicleType !== "all") count++;
-  if (f.vehicleMake !== "all") count++;
   if (f.maxAge !== "all") count++;
   if (f.priceMin || f.priceMax) count++;
   return count;
@@ -329,11 +268,11 @@ export function applyFilters(leads: any[], filters: MarketplaceFilters): any[] {
     );
   }
 
-  if (filters.incomeMin > 0) {
-    result = result.filter((l) => (l.income ?? 0) >= filters.incomeMin);
+  if (filters.incomeMin) {
+    result = result.filter((l) => (l.income ?? 0) >= Number(filters.incomeMin));
   }
-  if (filters.incomeMax > 0) {
-    result = result.filter((l) => (l.income ?? 0) <= filters.incomeMax);
+  if (filters.incomeMax) {
+    result = result.filter((l) => (l.income ?? 0) <= Number(filters.incomeMax));
   }
 
   if (filters.buyerTypes.length) {
@@ -353,18 +292,6 @@ export function applyFilters(leads: any[], filters: MarketplaceFilters): any[] {
   if (filters.vehicleType !== "all") {
     result = result.filter((l) =>
       l.vehicle_preference?.toLowerCase().includes(filters.vehicleType.toLowerCase())
-    );
-  }
-
-  if (filters.vehicleMake !== "all") {
-    result = result.filter((l) =>
-      l.vehicle_make?.toLowerCase() === filters.vehicleMake.toLowerCase()
-    );
-  }
-
-  if (filters.vehicleModel !== "all") {
-    result = result.filter((l) =>
-      l.vehicle_model?.toLowerCase() === filters.vehicleModel.toLowerCase()
     );
   }
 

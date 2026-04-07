@@ -6,44 +6,44 @@
 
 @layer base {
   :root {
-    --background: 80 20% 98%;
-    --foreground: 240 10% 10%;
+    --background: 220 47% 5%;
+    --foreground: 210 40% 93%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 10%;
+    --card: 222 45% 10%;
+    --card-foreground: 210 40% 93%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 10%;
+    --popover: 222 45% 10%;
+    --popover-foreground: 210 40% 93%;
 
-    --primary: 84 81% 44%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 210 40% 98%;
 
-    --secondary: 84 40% 90%;
-    --secondary-foreground: 84 60% 25%;
+    --secondary: 263 70% 66%;
+    --secondary-foreground: 210 40% 98%;
 
-    --muted: 80 10% 93%;
-    --muted-foreground: 220 10% 46%;
+    --muted: 220 30% 14%;
+    --muted-foreground: 215 20% 55%;
 
-    --accent: 84 60% 92%;
-    --accent-foreground: 84 70% 30%;
+    --accent: 192 91% 42%;
+    --accent-foreground: 210 40% 98%;
 
     --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive-foreground: 210 40% 98%;
 
-    --border: 80 15% 88%;
-    --input: 80 15% 88%;
-    --ring: 84 81% 44%;
+    --border: 215 25% 18%;
+    --input: 215 25% 18%;
+    --ring: 217 91% 60%;
 
     --radius: 0.75rem;
 
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 220 10% 46%;
-    --sidebar-primary: 84 81% 44%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 84 40% 95%;
-    --sidebar-accent-foreground: 240 10% 10%;
-    --sidebar-border: 80 15% 88%;
-    --sidebar-ring: 84 81% 44%;
+    --sidebar-background: 222 45% 10%;
+    --sidebar-foreground: 215 20% 55%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 210 40% 98%;
+    --sidebar-accent: 222 40% 15%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 215 25% 18%;
+    --sidebar-ring: 217 91% 60%;
 
     --success: 142 71% 45%;
     --warning: 38 92% 50%;
@@ -60,51 +60,163 @@
 
   body {
     @apply bg-background text-foreground font-sans;
+    background-color: #080c14;
   }
 }
 
 @layer utilities {
+  /* Star field background */
+  .starfield {
+    position: relative;
+    background-color: #080c14;
+    background-image:
+      radial-gradient(ellipse at 50% 30%, rgba(30, 58, 138, 0.12) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 70%, rgba(59, 107, 220, 0.06) 0%, transparent 50%);
+  }
+
+  .starfield::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background-image:
+      radial-gradient(2px 2px at 18% 22%, rgba(255,255,255,0.5), transparent),
+      radial-gradient(1.5px 1.5px at 52% 38%, rgba(180,210,255,0.4), transparent),
+      radial-gradient(2px 2px at 78% 62%, rgba(255,255,255,0.35), transparent),
+      radial-gradient(1.5px 1.5px at 35% 72%, rgba(180,210,255,0.3), transparent),
+      radial-gradient(2px 2px at 88% 18%, rgba(255,255,255,0.45), transparent),
+      radial-gradient(1.5px 1.5px at 8% 85%, rgba(180,210,255,0.3), transparent);
+    animation: drift-particles 25s ease-in-out infinite alternate;
+  }
+
+  .starfield::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background-image:
+      radial-gradient(1px 1px at 10% 15%, rgba(255,255,255,0.4), transparent),
+      radial-gradient(1px 1px at 25% 35%, rgba(255,255,255,0.2), transparent),
+      radial-gradient(1px 1px at 40% 10%, rgba(255,255,255,0.35), transparent),
+      radial-gradient(1px 1px at 55% 45%, rgba(255,255,255,0.15), transparent),
+      radial-gradient(1px 1px at 70% 20%, rgba(255,255,255,0.3), transparent),
+      radial-gradient(1px 1px at 85% 55%, rgba(255,255,255,0.25), transparent),
+      radial-gradient(1px 1px at 15% 65%, rgba(255,255,255,0.2), transparent),
+      radial-gradient(1px 1px at 35% 80%, rgba(255,255,255,0.15), transparent),
+      radial-gradient(1px 1px at 60% 70%, rgba(255,255,255,0.3), transparent),
+      radial-gradient(1px 1px at 90% 85%, rgba(255,255,255,0.2), transparent),
+      radial-gradient(1.5px 1.5px at 5% 40%, rgba(255,255,255,0.5), transparent),
+      radial-gradient(1.5px 1.5px at 45% 55%, rgba(255,255,255,0.35), transparent),
+      radial-gradient(1px 1px at 75% 40%, rgba(255,255,255,0.25), transparent),
+      radial-gradient(1px 1px at 30% 50%, rgba(255,255,255,0.18), transparent),
+      radial-gradient(1px 1px at 50% 90%, rgba(255,255,255,0.22), transparent),
+      radial-gradient(1px 1px at 95% 30%, rgba(255,255,255,0.3), transparent),
+      radial-gradient(1px 1px at 20% 90%, rgba(255,255,255,0.15), transparent),
+      radial-gradient(2px 2px at 65% 5%, rgba(255,255,255,0.45), transparent),
+      radial-gradient(1px 1px at 80% 95%, rgba(255,255,255,0.2), transparent),
+      radial-gradient(1px 1px at 12% 28%, rgba(255,255,255,0.18), transparent);
+  }
+
   .glass {
-    background: hsla(0, 0%, 100%, 0.85);
+    background: rgba(13, 18, 32, 0.85);
     backdrop-filter: blur(12px);
-    border: 1px solid hsl(var(--border));
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
   }
 
   .glass-card {
     position: relative;
-    background: hsl(var(--card));
-    border: 1px solid hsl(var(--border));
+    background:
+      linear-gradient(135deg, rgba(80, 140, 255, 0.06) 0%, transparent 40%, transparent 60%, rgba(60, 110, 220, 0.04) 100%),
+      rgba(13, 18, 32, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid transparent;
     border-radius: 12px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    animation: card-enter 0.4s ease-out both;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    animation: card-enter 0.5s ease-out both;
     overflow: hidden;
   }
 
   .glass-card > .shimmer-sweep {
-    display: none;
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    background: linear-gradient(
+      105deg,
+      transparent 40%,
+      rgba(150, 190, 255, 0.08) 45%,
+      rgba(200, 220, 255, 0.12) 50%,
+      rgba(150, 190, 255, 0.08) 55%,
+      transparent 60%
+    );
+    background-size: 200% 100%;
+    animation: shimmer-scan 1.2s 0.3s ease-out forwards;
+    border-radius: 12px;
+  }
+
+  .glass-card::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: 13px;
+    padding: 1px;
+    background: linear-gradient(
+      160deg,
+      rgba(100, 160, 255, 0.25) 0%,
+      rgba(60, 110, 220, 0.12) 30%,
+      rgba(255, 255, 255, 0.06) 60%,
+      rgba(60, 110, 220, 0.10) 100%
+    );
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: 1;
+    transition: opacity 0.3s ease;
   }
 
   .glass-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08), 0 0 0 1px hsl(var(--primary) / 0.15);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5), 0 0 20px rgba(80, 140, 255, 0.12);
+  }
+
+  .glass-card:hover::before {
+    background: linear-gradient(
+      160deg,
+      rgba(100, 160, 255, 0.45) 0%,
+      rgba(60, 110, 220, 0.22) 30%,
+      rgba(255, 255, 255, 0.10) 60%,
+      rgba(80, 140, 255, 0.20) 100%
+    );
+  }
+
+  .glass-card-selected::before {
+    background: linear-gradient(
+      160deg,
+      rgba(100, 160, 255, 0.5) 0%,
+      rgba(60, 110, 220, 0.3) 30%,
+      rgba(100, 160, 255, 0.15) 60%,
+      rgba(80, 140, 255, 0.25) 100%
+    );
   }
 
   .glass-card-selected {
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06), 0 0 0 2px hsl(var(--primary) / 0.4);
-    transform: translateY(-1px);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4), 0 0 25px rgba(59, 130, 246, 0.2), inset 0 0 30px rgba(59, 130, 246, 0.04);
   }
 
   /* CTA Gradients */
   .gradient-cta-buy {
-    background: linear-gradient(90deg, hsl(84, 81%, 38%) 0%, hsl(84, 81%, 44%) 50%, hsl(84, 70%, 52%) 100%);
-    color: white;
+    background: linear-gradient(90deg, #1a3a8f 0%, #2d6be4 50%, #5b9cf6 100%);
   }
 
   .gradient-cta-green {
-    background: linear-gradient(90deg, hsl(84, 81%, 38%) 0%, hsl(84, 81%, 44%) 100%);
-    color: white;
+    background: linear-gradient(90deg, #18a056 0%, #22c55e 100%);
   }
 
   .gradient-cta-amber {
@@ -113,43 +225,43 @@
 
   /* Badge recipes */
   .badge-amber {
-    background: rgba(245, 166, 35, 0.12);
+    background: rgba(245, 166, 35, 0.15);
     border: 1px solid rgba(245, 166, 35, 0.25);
-    color: #b07a1a;
+    color: #f5a623;
   }
 
   .badge-green {
-    background: rgba(34, 197, 94, 0.12);
+    background: rgba(34, 197, 94, 0.15);
     border: 1px solid rgba(34, 197, 94, 0.25);
-    color: #15803d;
+    color: #22c55e;
   }
 
   .badge-blue {
-    background: rgba(59, 130, 246, 0.12);
+    background: rgba(59, 130, 246, 0.15);
     border: 1px solid rgba(59, 130, 246, 0.25);
-    color: #2563eb;
+    color: #3b82f6;
   }
 
   .badge-purple {
-    background: rgba(139, 92, 246, 0.12);
+    background: rgba(139, 92, 246, 0.15);
     border: 1px solid rgba(139, 92, 246, 0.25);
-    color: #7c3aed;
+    color: #8b5cf6;
   }
 
   .glow-blue {
-    box-shadow: 0 0 15px rgba(59, 130, 246, 0.15);
+    box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
   }
 
   .glow-purple {
-    box-shadow: 0 0 15px rgba(139, 92, 246, 0.15);
+    box-shadow: 0 0 15px rgba(139, 92, 246, 0.3);
   }
 
   .glow-gold {
-    box-shadow: 0 0 15px rgba(200, 168, 78, 0.15);
+    box-shadow: 0 0 15px rgba(200, 168, 78, 0.3);
   }
 
   .glow-cyan {
-    box-shadow: 0 0 15px rgba(6, 182, 212, 0.15);
+    box-shadow: 0 0 15px rgba(6, 182, 212, 0.3);
   }
 
   .gradient-blue-cyan {
@@ -172,13 +284,44 @@
   }
 }
 
+@keyframes drift-particles {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.6;
+  }
+  25% {
+    opacity: 0.9;
+  }
+  50% {
+    transform: translate(15px, -20px) scale(1.05);
+    opacity: 0.5;
+  }
+  75% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translate(-10px, 12px) scale(0.98);
+    opacity: 0.65;
+  }
+}
+
 @keyframes card-enter {
   0% {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(12px);
   }
   100% {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes shimmer-scan {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+    opacity: 0;
   }
 }

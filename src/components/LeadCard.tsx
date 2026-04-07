@@ -15,16 +15,16 @@ interface LeadCardProps {
 
 function getLeadType(lead: any): { label: string; icon: React.ReactNode } {
   const grade = lead.quality_grade?.toLowerCase?.() ?? "";
-  if (grade === "a+" || grade === "a") return { label: "Credit/Finance Lead", icon: <Building2 className="h-3.5 w-3.5" /> };
-  if (grade === "b") return { label: "Marketplace Lead", icon: <Home className="h-3.5 w-3.5" /> };
-  return { label: "Referral Lead", icon: <User className="h-3.5 w-3.5" /> };
+  if (grade === "a+" || grade === "a") return { label: "Credit/Finance Lead", icon: <Building2 className="h-4 w-4" /> };
+  if (grade === "b") return { label: "Marketplace Lead", icon: <Home className="h-4 w-4" /> };
+  return { label: "Referral Lead", icon: <User className="h-4 w-4" /> };
 }
 
 const gradeColors: Record<string, string> = {
   "a+": "border-[hsl(var(--gold))] text-[hsl(var(--gold))] bg-[hsl(var(--gold))/0.1]",
-  a: "border-emerald-600 text-emerald-600 bg-emerald-50",
-  b: "border-sky-600 text-sky-600 bg-sky-50",
-  c: "border-muted-foreground text-muted-foreground bg-muted",
+  a: "border-emerald-500 text-emerald-400 bg-emerald-500/10",
+  b: "border-sky-500 text-sky-400 bg-sky-500/10",
+  c: "border-muted-foreground text-muted-foreground bg-muted/30",
 };
 
 function useCountdown(targetMs: number) {
@@ -42,49 +42,51 @@ function useCountdown(targetMs: number) {
 }
 
 const docLabels: Record<string, { icon: React.ReactNode; short: string }> = {
-  license: { icon: <FileText className="h-3 w-3" />, short: "DL" },
-  paystub: { icon: <Monitor className="h-3 w-3" />, short: "PS" },
-  bank_statement: { icon: <Building2 className="h-3 w-3" />, short: "BS" },
-  credit_report: { icon: <FileText className="h-3 w-3" />, short: "CR" },
-  pre_approval: { icon: <Shield className="h-3 w-3" />, short: "PA" },
+  license: { icon: <FileText className="h-3.5 w-3.5" />, short: "DL" },
+  paystub: { icon: <Monitor className="h-3.5 w-3.5" />, short: "PS" },
+  bank_statement: { icon: <Building2 className="h-3.5 w-3.5" />, short: "BS" },
+  credit_report: { icon: <FileText className="h-3.5 w-3.5" />, short: "CR" },
+  pre_approval: { icon: <Shield className="h-3.5 w-3.5" />, short: "PA" },
 };
 
 export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, index = 0 }: LeadCardProps) {
   const { remaining, display } = useCountdown(unlockAt);
   const leadType = getLeadType(lead);
-  const buyerLabel = lead.buyer_type === "walk-in" ? "In-Store" : "Online";
+  const buyerLabel = lead.buyer_type === "walk-in" ? "In-Store Buyer" : "Online Buyer";
+  const buyerIcon = lead.buyer_type === "walk-in" ? <Home className="h-3.5 w-3.5" /> : <User className="h-3.5 w-3.5" />;
   const creditRange = lead.credit_range_min != null && lead.credit_range_max != null
     ? `${lead.credit_range_min}-${lead.credit_range_max}`
     : "N/A";
   const location = [lead.city, lead.province].filter(Boolean).join(", ");
   const isLocked = locked && remaining > 0;
-  const staggerDelay = `${index * 60}ms`;
-  const incomeDisplay = lead.income != null ? `$${Number(lead.income).toLocaleString()}` : null;
-  const contactName = `${lead.first_name} ${lead.last_name}`;
-  const isPurchased = lead.sold_to_dealer_id && lead.first_name !== "***";
+  const staggerDelay = `${index * 80}ms`;
+
+  const incomeDisplay = lead.income != null ? `${Number(lead.income).toLocaleString()} LD` : null;
 
   return (
     <div
       className={cn(
-        "glass-card p-3 cursor-pointer relative z-10 flex flex-col",
+        "glass-card p-5 cursor-pointer relative z-10 flex flex-col",
         selected && "glass-card-selected"
       )}
       style={{ animationDelay: staggerDelay }}
       onClick={() => onSelect?.(lead)}
     >
+      <div className="shimmer-sweep" style={{ animationDelay: `${index * 80 + 300}ms` }} />
+
       {selected && (
-        <div className="absolute top-2 right-2 z-10 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-          <CheckCircle2 className="h-3.5 w-3.5 text-primary-foreground" />
+        <div className="absolute top-3 right-3 z-10 w-6 h-6 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/30">
+          <CheckCircle2 className="h-4 w-4 text-primary-foreground" />
         </div>
       )}
 
       {/* Lead type + grade badge */}
-      <div className="flex items-center gap-1.5 mb-1">
+      <div className="flex items-center gap-2 mb-1.5">
         <span className="text-muted-foreground">{leadType.icon}</span>
-        <span className="text-xs font-semibold text-foreground">{leadType.label}</span>
+        <span className="text-sm font-semibold text-foreground">{leadType.label}</span>
         {lead.quality_grade && (
           <span className={cn(
-            "ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider font-mono-timer",
+            "ml-auto text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider font-mono-timer",
             gradeColors[lead.quality_grade.toLowerCase()] ?? gradeColors.c
           )}>
             {lead.quality_grade}
@@ -93,109 +95,109 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
       </div>
 
       {/* Buyer type */}
-      <div className="text-[11px] text-muted-foreground mb-2">{buyerLabel} Buyer</div>
-
-      {/* Credit score — visible */}
-      <div className="flex items-center gap-1.5 mb-1">
-        <Shield className="h-3.5 w-3.5 text-primary" />
-        <span className="text-sm font-bold text-foreground font-mono-timer">{creditRange}</span>
+      <div className="flex items-center gap-2 mb-3 text-muted-foreground">
+        {buyerIcon}
+        <span className="text-sm">{buyerLabel}</span>
       </div>
 
-      {/* Location — visible */}
+      {/* Credit score — blurred */}
+      <div className="flex items-center gap-2 mb-1.5">
+        <Shield className="h-4 w-4 text-destructive" />
+        <span className="text-xl font-bold text-foreground font-mono-timer select-none" style={{ filter: "blur(6px)" }}>
+          {creditRange}
+        </span>
+        <Tooltip><TooltipTrigger asChild><Lock className="h-3 w-3 text-muted-foreground/60 cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Purchase to reveal</TooltipContent></Tooltip>
+      </div>
+
+      {/* Location — blurred */}
       {location && (
-        <div className="flex items-center gap-1.5 mb-1 text-muted-foreground">
-          <MapPin className="h-3.5 w-3.5" />
-          <span className="text-xs">{location}</span>
+        <div className="flex items-center gap-2 mb-2 text-muted-foreground">
+          <MapPin className="h-4 w-4" />
+          <span className="text-sm select-none" style={{ filter: "blur(5px)" }}>{location}</span>
+          <Tooltip><TooltipTrigger asChild><Lock className="h-3 w-3 text-muted-foreground/60 cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Purchase to reveal</TooltipContent></Tooltip>
         </div>
       )}
 
-      {/* Income — visible */}
+      {/* Income — blurred */}
       {incomeDisplay && (
-        <div className="flex items-center gap-1.5 mb-1 text-muted-foreground">
-          <Coins className="h-3.5 w-3.5 text-[hsl(var(--gold))]" />
-          <span className="text-xs font-medium font-mono-timer">{incomeDisplay}</span>
+        <div className="flex items-center gap-2 mb-3 text-muted-foreground">
+          <Coins className="h-4 w-4 text-[hsl(var(--gold))]" />
+          <span className="text-sm font-medium font-mono-timer select-none" style={{ filter: "blur(5px)" }}>{incomeDisplay}</span>
+          <Tooltip><TooltipTrigger asChild><Lock className="h-3 w-3 text-muted-foreground/60 cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Purchase to reveal</TooltipContent></Tooltip>
         </div>
       )}
 
-      {/* Vehicle preference — visible */}
+      {/* Vehicle preference — blurred */}
       {lead.vehicle_preference && (
-        <div className="flex items-center gap-1.5 mb-1 text-muted-foreground">
-          <Car className="h-3.5 w-3.5" />
-          <span className="text-xs">{lead.vehicle_preference}</span>
+        <div className="flex items-center gap-2 mb-2 text-muted-foreground">
+          <Car className="h-4 w-4" />
+          <span className="text-sm select-none" style={{ filter: "blur(5px)" }}>{lead.vehicle_preference}</span>
+          <Tooltip><TooltipTrigger asChild><Lock className="h-3 w-3 text-muted-foreground/60 cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Purchase to reveal</TooltipContent></Tooltip>
         </div>
       )}
 
-      {/* Vehicle mileage — visible */}
+      {/* Vehicle mileage — blurred */}
       {lead.vehicle_mileage != null && (
-        <div className="flex items-center gap-1.5 mb-1 text-muted-foreground">
-          <Gauge className="h-3.5 w-3.5" />
-          <span className="text-xs font-mono-timer">{Number(lead.vehicle_mileage).toLocaleString()} km</span>
+        <div className="flex items-center gap-2 mb-3 text-muted-foreground">
+          <Gauge className="h-4 w-4" />
+          <span className="text-sm font-mono-timer select-none" style={{ filter: "blur(5px)" }}>{Number(lead.vehicle_mileage).toLocaleString()} km</span>
+          <Tooltip><TooltipTrigger asChild><Lock className="h-3 w-3 text-muted-foreground/60 cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Purchase to reveal</TooltipContent></Tooltip>
         </div>
       )}
 
-      {/* Contact info — blurred unless purchased */}
-      <div className="flex items-center gap-1.5 mb-1">
-        <User className="h-3.5 w-3.5 text-muted-foreground" />
-        {isPurchased ? (
-          <span className="text-xs font-medium text-foreground">{contactName}</span>
-        ) : (
-          <>
-            <span className="text-xs select-none" style={{ filter: "blur(5px)" }}>{contactName}</span>
-            <Tooltip><TooltipTrigger asChild><Lock className="h-3 w-3 text-muted-foreground/60 cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Purchase to reveal</TooltipContent></Tooltip>
-          </>
-        )}
-      </div>
-
-      {/* Spacer */}
+      {/* Spacer to push bottom section down */}
       <div className="flex-1" />
 
       {/* Bottom section */}
-      <div className="pt-2 border-t border-border/50 space-y-2 mt-2">
+      <div className="pt-3 border-t border-border/50 space-y-3">
         {/* Documents row */}
-        <div className="flex items-center gap-1 flex-wrap">
+        <div className="flex items-center gap-1.5 flex-wrap">
           {(lead.documents ?? []).slice(0, 5).map((d: string, i: number) => (
             <span
               key={i}
-              className="h-6 px-1 rounded border border-border/60 flex items-center justify-center text-muted-foreground gap-0.5"
+              className="h-7 px-1.5 rounded border border-border/60 flex items-center justify-center text-muted-foreground gap-1"
               title={d}
             >
-              {docLabels[d]?.icon ?? <FileText className="h-3 w-3" />}
+              {docLabels[d]?.icon ?? <FileText className="h-3.5 w-3.5" />}
             </span>
           ))}
           {lead.ai_score != null && (
-            <span className="badge-blue text-[9px] font-bold px-1.5 py-0.5 rounded ml-auto font-mono-timer tracking-wider">
-              AI {lead.ai_score}
+            <span className="badge-blue text-[10px] font-bold px-2 py-1 rounded ml-auto font-mono-timer tracking-wider">
+              AI SCORE {lead.ai_score}
             </span>
           )}
         </div>
 
-        {/* Price + Action */}
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-bold text-foreground font-mono-timer">${Number(lead.price).toFixed(0)}</span>
-          {isLocked ? (
-            <div className="flex items-center gap-1.5">
-              <span className="badge-amber text-[10px] font-medium px-1.5 py-1 rounded flex items-center gap-1 font-mono-timer">
-                <Clock className="h-2.5 w-2.5" /> {display}
-              </span>
-              <button
-                className="gradient-cta-buy px-3 py-1.5 rounded text-[11px] font-semibold tracking-wide hover:opacity-90 transition-opacity"
-                onClick={(e) => { e.stopPropagation(); onBuy(lead); }}
-              >
-                BUY
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1.5">
-              <span className="badge-green text-[10px] font-medium px-1.5 py-0.5 rounded">Available</span>
-              <button
-                className="gradient-cta-buy px-3 py-1.5 rounded text-[11px] font-semibold tracking-wide hover:opacity-90 transition-opacity"
-                onClick={(e) => { e.stopPropagation(); onBuy(lead); }}
-              >
-                BUY
-              </button>
-            </div>
-          )}
+        {/* Price */}
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-muted-foreground text-xs">Lead Price</span>
+          <span className="text-lg font-bold text-foreground font-mono-timer">${Number(lead.price).toFixed(0)}</span>
         </div>
+
+        {/* Action row */}
+        {isLocked ? (
+          <div className="flex items-center justify-between">
+            <span className="badge-amber text-xs font-medium px-2.5 py-1.5 rounded flex items-center gap-1.5 font-mono-timer">
+              <Clock className="h-3 w-3" /> Unlocks in {display}
+            </span>
+            <button
+              className="gradient-cta-buy text-foreground px-5 py-2 rounded text-xs font-semibold tracking-wide hover:opacity-90 transition-opacity"
+              onClick={(e) => { e.stopPropagation(); onBuy(lead); }}
+            >
+              BUY LEAD &nbsp;&rsaquo;
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between">
+            <span className="badge-green text-xs font-medium px-2 py-1 rounded whitespace-nowrap">Available Now</span>
+            <button
+              className="gradient-cta-buy text-foreground px-5 py-2 rounded text-xs font-semibold tracking-wide hover:opacity-90 transition-opacity"
+              onClick={(e) => { e.stopPropagation(); onBuy(lead); }}
+            >
+              BUY LEAD &nbsp;&rsaquo;
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
