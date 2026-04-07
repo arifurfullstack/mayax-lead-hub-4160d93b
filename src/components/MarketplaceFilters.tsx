@@ -371,7 +371,7 @@ export function countActiveFilters(f: MarketplaceFilters): number {
   if (f.vehicleMake !== "all") count++;
   if (f.vehicleModel !== "all") count++;
   if (f.maxAge !== "all") count++;
-  if (f.priceMin || f.priceMax) count++;
+  if (f.priceMin > 0 || f.priceMax > 0) count++;
   return count;
 }
 
