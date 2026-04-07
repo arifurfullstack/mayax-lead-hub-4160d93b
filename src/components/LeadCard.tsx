@@ -102,7 +102,7 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
       </div>
 
       {/* Contact info — blurred until purchased, at the top */}
-      <div className="space-y-1 mb-2">
+      <div className="space-y-0.5 mb-1.5">
         <div className="flex items-center gap-1.5">
           <User className="h-3 w-3 text-muted-foreground" />
           <span className={cn("text-xs font-medium", revealed ? "text-foreground" : "text-muted-foreground select-none")} style={!revealed ? { filter: "blur(5px)" } : undefined}>
@@ -127,14 +127,14 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
       </div>
 
       {/* Buyer type */}
-      <div className="flex items-center gap-1.5 mb-1 text-muted-foreground">
+      <div className="flex items-center gap-1.5 mb-0.5 text-muted-foreground">
         {buyerIcon}
         <span className="text-xs">{buyerLabel}</span>
       </div>
 
       {/* Vehicle preference */}
       {lead.vehicle_preference && (
-        <div className="flex items-center gap-1.5 mb-1 text-muted-foreground">
+        <div className="flex items-center gap-1.5 mb-0.5 text-muted-foreground">
           <Car className="h-3.5 w-3.5" />
           <span className="text-xs">{lead.vehicle_preference}</span>
         </div>
@@ -142,7 +142,7 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
 
       {/* Vehicle mileage */}
       {lead.vehicle_mileage != null && (
-        <div className="flex items-center gap-1.5 mb-1 text-muted-foreground">
+        <div className="flex items-center gap-1.5 mb-0.5 text-muted-foreground">
           <Gauge className="h-3.5 w-3.5" />
           <span className="text-xs font-mono-timer">{Number(lead.vehicle_mileage).toLocaleString()} km</span>
         </div>
@@ -150,7 +150,7 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
 
       {/* Location */}
       {location && (
-        <div className="flex items-center gap-1.5 mb-1 text-muted-foreground">
+        <div className="flex items-center gap-1.5 mb-0.5 text-muted-foreground">
           <MapPin className="h-3.5 w-3.5" />
           <span className="text-xs">{location}</span>
         </div>
@@ -158,7 +158,7 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
 
       {/* Income */}
       {incomeDisplay && (
-        <div className="flex items-center gap-1.5 mb-2 text-muted-foreground">
+        <div className="flex items-center gap-1.5 mb-0.5 text-muted-foreground">
           <DollarSign className="h-3.5 w-3.5" />
           <span className="text-xs">{incomeDisplay}</span>
         </div>
