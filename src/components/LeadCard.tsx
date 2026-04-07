@@ -168,7 +168,7 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
       <div className="flex-1" />
 
       {/* Bottom section */}
-      <div className="pt-2 border-t border-border/50 space-y-2">
+      <div className="pt-2 border-t border-border/50 space-y-1.5">
         {/* Documents row */}
         <div className="flex items-center gap-1 flex-wrap">
           {(lead.documents ?? []).slice(0, 5).map((d: string, i: number) => (
@@ -187,28 +187,17 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
           )}
         </div>
 
-        {/* Price */}
+        {/* Status + Price + Buy row */}
         <div className="flex items-center justify-between">
-          <span className="text-muted-foreground text-[10px]">Lead Price</span>
-          <span className="text-base font-bold text-foreground font-mono-timer">${Number(lead.price).toFixed(0)}</span>
-        </div>
-
-        {/* Action row */}
-        {isLocked ? (
-          <div className="flex items-center justify-between">
+          {isLocked ? (
             <span className="badge-amber text-[10px] font-medium px-2 py-1 rounded flex items-center gap-1 font-mono-timer">
               <Clock className="h-2.5 w-2.5" /> {display}
             </span>
-            <button
-              className="gradient-cta-buy text-foreground px-4 py-1.5 rounded text-[10px] font-semibold tracking-wide hover:opacity-90 transition-opacity"
-              onClick={(e) => { e.stopPropagation(); onBuy(lead); }}
-            >
-              BUY &nbsp;&rsaquo;
-            </button>
-          </div>
-        ) : (
-          <div className="flex items-center justify-between">
+          ) : (
             <span className="badge-green text-[10px] font-medium px-1.5 py-0.5 rounded whitespace-nowrap">Available</span>
+          )}
+          <div className="flex items-center gap-2">
+            <span className="text-base font-bold text-foreground font-mono-timer">${Number(lead.price).toFixed(0)}</span>
             <button
               className="gradient-cta-buy text-foreground px-4 py-1.5 rounded text-[10px] font-semibold tracking-wide hover:opacity-90 transition-opacity"
               onClick={(e) => { e.stopPropagation(); onBuy(lead); }}
@@ -216,7 +205,7 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
               BUY &nbsp;&rsaquo;
             </button>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
