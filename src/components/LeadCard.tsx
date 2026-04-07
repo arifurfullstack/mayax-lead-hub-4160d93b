@@ -124,20 +124,12 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
       </div>
 
       {/* Buyer type */}
-      <div className="flex items-center gap-1.5 mb-2 text-muted-foreground">
+      <div className="flex items-center gap-1.5 mb-1 text-muted-foreground">
         {buyerIcon}
         <span className="text-xs">{buyerLabel}</span>
       </div>
 
-      {/* Location — visible */}
-      {location && (
-        <div className="flex items-center gap-1.5 mb-1 text-muted-foreground">
-          <MapPin className="h-3.5 w-3.5" />
-          <span className="text-xs">{location}</span>
-        </div>
-      )}
-
-      {/* Vehicle preference — visible */}
+      {/* Vehicle preference */}
       {lead.vehicle_preference && (
         <div className="flex items-center gap-1.5 mb-1 text-muted-foreground">
           <Car className="h-3.5 w-3.5" />
@@ -145,11 +137,27 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
         </div>
       )}
 
-      {/* Vehicle mileage — visible */}
+      {/* Vehicle mileage */}
       {lead.vehicle_mileage != null && (
-        <div className="flex items-center gap-1.5 mb-2 text-muted-foreground">
+        <div className="flex items-center gap-1.5 mb-1 text-muted-foreground">
           <Gauge className="h-3.5 w-3.5" />
           <span className="text-xs font-mono-timer">{Number(lead.vehicle_mileage).toLocaleString()} km</span>
+        </div>
+      )}
+
+      {/* Location */}
+      {location && (
+        <div className="flex items-center gap-1.5 mb-1 text-muted-foreground">
+          <MapPin className="h-3.5 w-3.5" />
+          <span className="text-xs">{location}</span>
+        </div>
+      )}
+
+      {/* Income */}
+      {incomeDisplay && (
+        <div className="flex items-center gap-1.5 mb-2 text-muted-foreground">
+          <DollarSign className="h-3.5 w-3.5" />
+          <span className="text-xs">{incomeDisplay}</span>
         </div>
       )}
 
