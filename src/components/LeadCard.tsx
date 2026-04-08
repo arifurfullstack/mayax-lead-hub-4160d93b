@@ -198,7 +198,14 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
             <span className="badge-green text-[10px] font-medium px-1.5 py-0.5 rounded whitespace-nowrap">Available</span>
           )}
           <div className="flex items-center gap-2">
-            <span className="text-base font-bold text-foreground font-mono-timer">${Number(lead.price).toFixed(0)}</span>
+            {promoPrice != null ? (
+              <>
+                <span className="text-xs text-muted-foreground line-through font-mono-timer">${Number(lead.price).toFixed(0)}</span>
+                <span className="text-base font-bold text-primary font-mono-timer">${promoPrice.toFixed(0)}</span>
+              </>
+            ) : (
+              <span className="text-base font-bold text-foreground font-mono-timer">${Number(lead.price).toFixed(0)}</span>
+            )}
             <button
               className="gradient-cta-buy text-foreground px-4 py-1.5 rounded text-[10px] font-semibold tracking-wide hover:opacity-90 transition-opacity"
               onClick={(e) => { e.stopPropagation(); onBuy(lead); }}
