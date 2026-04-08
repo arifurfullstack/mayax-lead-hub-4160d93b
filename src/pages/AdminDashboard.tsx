@@ -501,6 +501,11 @@ const AdminDashboard = () => {
         <TabsContent value="users" className="space-y-4">
           <AdminUserManager />
         </TabsContent>
+
+        {/* ─── Promo Codes Tab ─── */}
+        <TabsContent value="promos" className="space-y-4">
+          <AdminPromoCodeManager />
+        </TabsContent>
       </Tabs>
 
       {/* ─── Dealer Detail Dialog ─── */}
