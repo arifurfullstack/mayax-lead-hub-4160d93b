@@ -85,6 +85,7 @@ const Marketplace = () => {
       } else {
         setActivePromo(null);
       }
+    }
 
     const { data } = await supabase.rpc("get_marketplace_leads", {
       requesting_dealer_id: dealer?.id,
