@@ -95,6 +95,57 @@ const Marketplace = () => {
     setLoading(false);
   };
 
+  const applyPromoCode = async () => {
+    if (!promoCode.trim() || !dealerId) return;
+    setApplyingPromo(true);
+    // Look up the promo code
+    const { data: promo, error } = await supabase
+      .from("promo_codes")
+      .select("id, code, flat_price, is_active, max_uses, times_used, expires_at")
+      .eq("code", promoCode.trim().toUpperCase())
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (error || !promo) {
+      toast({ title: "Invalid Code", description: "Promo code not found or inactive.", variant: "destructive" });
+      setApplyingPromo(false);
+      return;
+    }
+    if (promo.expires_at && new Date(promo.expires_at) < new Date()) {
+      toast({ title: "Expired", description: "This promo code has expired.", variant: "destructive" });
+      setApplyingPromo(false);
+      return;
+    }
+    if (promo.max_uses !== null && promo.times_used >= promo.max_uses) {
+      toast({ title: "Limit Reached", description: "This promo code has reached its usage limit.", variant: "destructive" });
+      setApplyingPromo(false);
+      return;
+    }
+
+    // Remove existing promo if any, then insert
+    await supabase.from("dealer_promo_codes").delete().eq("dealer_id", dealerId);
+    const { error: insertErr } = await supabase.from("dealer_promo_codes").insert({
+      dealer_id: dealerId,
+      promo_code_id: promo.id,
+    });
+
+    if (insertErr) {
+      toast({ title: "Error", description: insertErr.message, variant: "destructive" });
+    } else {
+      setActivePromo({ code: promo.code, flat_price: Number(promo.flat_price) });
+      setPromoCode("");
+      toast({ title: "Promo Applied!", description: `All leads now cost $${Number(promo.flat_price).toFixed(2)}.` });
+    }
+    setApplyingPromo(false);
+  };
+
+  const removePromoCode = async () => {
+    if (!dealerId) return;
+    await supabase.from("dealer_promo_codes").delete().eq("dealer_id", dealerId);
+    setActivePromo(null);
+    toast({ title: "Promo Removed", description: "Regular pricing restored." });
+  };
+
   const delayHours = tierDelayHours[dealerTier] ?? 24;
 
   const isLocked = useCallback(
