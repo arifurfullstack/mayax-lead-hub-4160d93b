@@ -8,6 +8,6 @@ Tier access delays: VIP=0h, Elite=6h, Pro=12h, Basic=24h.
 
 ## Memories
 - [Design tokens](mem://design/tokens) — Full color palette, glassmorphism utilities, grade border colors, tier glow colors
-- [Database schema](mem://features/schema) — 10 tables: dealers, leads, subscriptions, wallet_transactions, purchases, delivery_logs, autopay_settings, user_roles, payment_gateways, payment_requests
+- [Database schema](mem://features/schema) — 8 tables: dealers, leads, subscriptions, wallet_transactions, purchases, delivery_logs, autopay_settings, user_roles
 - [Auth flow](mem://features/auth) — Email/password, dealer approval_status gates, ProtectedRoute component, admin role check
-- [Payment gateways](mem://features/payments) — Stripe, PayPal, Bank Transfer (offline) in wallet; admin enable/disable + config; edge functions create-checkout & payment-webhook
+- [Promo codes](mem://features/promo-codes) — Admin-managed promo codes with flat pricing for dealers, applied in marketplace and purchase edge function

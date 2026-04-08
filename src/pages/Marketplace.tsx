@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Tag, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,6 +10,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
 import {
   MarketplaceFilterSidebar,
@@ -39,6 +40,9 @@ const Marketplace = () => {
   const [confirmLead, setConfirmLead] = useState<any | null>(null);
   const [purchasing, setPurchasing] = useState(false);
   const [usage, setUsage] = useState<{ leads_used: number; leads_limit: number } | null>(null);
+  const [promoCode, setPromoCode] = useState("");
+  const [activePromo, setActivePromo] = useState<{ code: string; flat_price: number } | null>(null);
+  const [applyingPromo, setApplyingPromo] = useState(false);
 
   useEffect(() => {
     fetchLeads();
@@ -69,6 +73,19 @@ const Marketplace = () => {
         .eq("period_start", periodStr)
         .maybeSingle();
       if (usageData) setUsage(usageData);
+
+      // Check if dealer has an active promo
+      const { data: dealerPromo } = await supabase
+        .from("dealer_promo_codes")
+        .select("promo_code_id, promo_codes(code, flat_price, is_active)")
+        .eq("dealer_id", dealer.id)
+        .maybeSingle();
+      if (dealerPromo && (dealerPromo as any).promo_codes?.is_active) {
+        const pc = (dealerPromo as any).promo_codes;
+        setActivePromo({ code: pc.code, flat_price: Number(pc.flat_price) });
+      } else {
+        setActivePromo(null);
+      }
     }
 
     const { data } = await supabase.rpc("get_marketplace_leads", {
@@ -77,6 +94,57 @@ const Marketplace = () => {
 
     setLeads(data || []);
     setLoading(false);
+  };
+
+  const applyPromoCode = async () => {
+    if (!promoCode.trim() || !dealerId) return;
+    setApplyingPromo(true);
+    // Look up the promo code
+    const { data: promo, error } = await supabase
+      .from("promo_codes")
+      .select("id, code, flat_price, is_active, max_uses, times_used, expires_at")
+      .eq("code", promoCode.trim().toUpperCase())
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (error || !promo) {
+      toast({ title: "Invalid Code", description: "Promo code not found or inactive.", variant: "destructive" });
+      setApplyingPromo(false);
+      return;
+    }
+    if (promo.expires_at && new Date(promo.expires_at) < new Date()) {
+      toast({ title: "Expired", description: "This promo code has expired.", variant: "destructive" });
+      setApplyingPromo(false);
+      return;
+    }
+    if (promo.max_uses !== null && promo.times_used >= promo.max_uses) {
+      toast({ title: "Limit Reached", description: "This promo code has reached its usage limit.", variant: "destructive" });
+      setApplyingPromo(false);
+      return;
+    }
+
+    // Remove existing promo if any, then insert
+    await supabase.from("dealer_promo_codes").delete().eq("dealer_id", dealerId);
+    const { error: insertErr } = await supabase.from("dealer_promo_codes").insert({
+      dealer_id: dealerId,
+      promo_code_id: promo.id,
+    });
+
+    if (insertErr) {
+      toast({ title: "Error", description: insertErr.message, variant: "destructive" });
+    } else {
+      setActivePromo({ code: promo.code, flat_price: Number(promo.flat_price) });
+      setPromoCode("");
+      toast({ title: "Promo Applied!", description: `All leads now cost $${Number(promo.flat_price).toFixed(2)}.` });
+    }
+    setApplyingPromo(false);
+  };
+
+  const removePromoCode = async () => {
+    if (!dealerId) return;
+    await supabase.from("dealer_promo_codes").delete().eq("dealer_id", dealerId);
+    setActivePromo(null);
+    toast({ title: "Promo Removed", description: "Regular pricing restored." });
   };
 
   const delayHours = tierDelayHours[dealerTier] ?? 24;
@@ -124,8 +192,8 @@ const Marketplace = () => {
   const selectedTotal = useMemo(() => {
     return filtered
       .filter((l) => selectedLeads.has(l.id))
-      .reduce((sum, l) => sum + Number(l.price), 0);
-  }, [filtered, selectedLeads]);
+      .reduce((sum, l) => sum + (activePromo ? activePromo.flat_price : Number(l.price)), 0);
+  }, [filtered, selectedLeads, activePromo]);
 
   const executePurchase = async () => {
     if (!confirmLead) return;
@@ -216,25 +284,52 @@ const Marketplace = () => {
           {/* Main content */}
           <div className="flex-1 min-w-0 flex flex-col" style={{ height: "calc(100vh - 120px)" }}>
             {/* Sticky Header */}
-            <div className="flex items-center justify-between mb-5 flex-shrink-0">
+            <div className="flex items-center justify-between mb-5 flex-shrink-0 flex-wrap gap-3">
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-semibold text-foreground">Leads</h2>
                 <ChevronDown className="h-4 w-4 text-muted-foreground" />
               </div>
-              {usage && (
-                <div
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium"
-                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
-                >
-                  <span style={{ color: "rgba(255,255,255,0.5)" }}>Leads Used:</span>
-                  <span className={`font-mono font-bold ${usage.leads_used >= usage.leads_limit ? "text-destructive" : "text-foreground"}`}>
-                    {usage.leads_used}/{usage.leads_limit}
-                  </span>
-                  {usage.leads_used >= usage.leads_limit && (
-                    <span className="text-destructive text-[10px] uppercase tracking-wider font-bold">Limit Reached</span>
-                  )}
-                </div>
-              )}
+              <div className="flex items-center gap-3 flex-wrap">
+                {/* Promo code */}
+                {activePromo ? (
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary/10 border border-primary/30">
+                    <Tag className="h-3.5 w-3.5 text-primary" />
+                    <span className="text-primary font-bold font-mono-timer">{activePromo.code}</span>
+                    <span className="text-muted-foreground">— All leads at</span>
+                    <span className="text-foreground font-bold font-mono-timer">${activePromo.flat_price.toFixed(2)}</span>
+                    <button onClick={removePromoCode} className="ml-1 text-muted-foreground hover:text-destructive transition-colors">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5">
+                    <Input
+                      placeholder="Promo code"
+                      value={promoCode}
+                      onChange={(e) => setPromoCode(e.target.value)}
+                      className="h-8 w-32 text-xs uppercase bg-card border-border"
+                      onKeyDown={(e) => e.key === "Enter" && applyPromoCode()}
+                    />
+                    <Button size="sm" variant="outline" className="h-8 text-xs" onClick={applyPromoCode} disabled={applyingPromo || !promoCode.trim()}>
+                      {applyingPromo ? "..." : "Apply"}
+                    </Button>
+                  </div>
+                )}
+                {usage && (
+                  <div
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium"
+                    style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
+                  >
+                    <span style={{ color: "rgba(255,255,255,0.5)" }}>Leads Used:</span>
+                    <span className={`font-mono font-bold ${usage.leads_used >= usage.leads_limit ? "text-destructive" : "text-foreground"}`}>
+                      {usage.leads_used}/{usage.leads_limit}
+                    </span>
+                    {usage.leads_used >= usage.leads_limit && (
+                      <span className="text-destructive text-[10px] uppercase tracking-wider font-bold">Limit Reached</span>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Scrollable Card grid */}
@@ -255,6 +350,7 @@ const Marketplace = () => {
                       selected={selectedLeads.has(lead.id)}
                       onSelect={toggleSelect}
                       index={i}
+                      promoPrice={activePromo?.flat_price ?? null}
                     />
                   ))}
                 </div>
@@ -323,19 +419,30 @@ const Marketplace = () => {
                   <span className="font-mono-timer text-primary text-xs">{confirmLead.reference_code}</span>
                   <span className="text-foreground ml-2">{confirmLead.first_name} {confirmLead.last_name?.charAt(0)}.</span>
                 </div>
-                <span className="font-bold text-foreground font-mono-timer">${Number(confirmLead.price).toFixed(2)}</span>
+                <span className="font-bold text-foreground font-mono-timer">
+                  ${activePromo ? activePromo.flat_price.toFixed(2) : Number(confirmLead.price).toFixed(2)}
+                  {activePromo && <span className="text-xs text-primary ml-1">(promo)</span>}
+                </span>
               </div>
               <div className="border-t border-border/50 pt-3 flex justify-between">
                 <span className="text-muted-foreground">Total</span>
-                <span className="text-lg font-bold text-foreground font-mono-timer">${Number(confirmLead.price).toFixed(2)}</span>
+                <span className="text-lg font-bold text-foreground font-mono-timer">
+                  ${activePromo ? activePromo.flat_price.toFixed(2) : Number(confirmLead.price).toFixed(2)}
+                </span>
               </div>
+              {activePromo && (
+                <div className="flex items-center gap-2 text-xs text-primary bg-primary/10 px-3 py-1.5 rounded-lg">
+                  <Tag className="h-3.5 w-3.5" />
+                  <span>Promo <strong>{activePromo.code}</strong> applied — flat rate pricing</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Wallet Balance</span>
-                <span className={cn("font-semibold font-mono-timer", walletBalance >= confirmLead.price ? "text-[#22c55e]" : "text-destructive")}>
+                <span className={cn("font-semibold font-mono-timer", walletBalance >= (activePromo ? activePromo.flat_price : confirmLead.price) ? "text-[#22c55e]" : "text-destructive")}>
                   ${walletBalance.toFixed(2)}
                 </span>
               </div>
-              {walletBalance < confirmLead.price && (
+              {walletBalance < (activePromo ? activePromo.flat_price : confirmLead.price) && (
                 <p className="text-destructive text-xs">Insufficient funds. Please add more funds to your wallet.</p>
               )}
             </div>
@@ -344,7 +451,7 @@ const Marketplace = () => {
             <Button variant="outline" onClick={() => setConfirmLead(null)} className="border-border/60">Cancel</Button>
             <button
               className="gradient-cta-buy text-foreground px-5 py-2 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-40"
-              disabled={purchasing || !confirmLead || walletBalance < confirmLead.price}
+              disabled={purchasing || !confirmLead || walletBalance < (activePromo ? activePromo.flat_price : confirmLead.price)}
               onClick={executePurchase}
             >
               {purchasing ? "Processing..." : "Confirm Purchase"}

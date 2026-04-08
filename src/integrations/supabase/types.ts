@@ -91,6 +91,35 @@ export type Database = {
           },
         ]
       }
+      dealer_promo_codes: {
+        Row: {
+          applied_at: string
+          dealer_id: string
+          id: string
+          promo_code_id: string
+        }
+        Insert: {
+          applied_at?: string
+          dealer_id: string
+          id?: string
+          promo_code_id: string
+        }
+        Update: {
+          applied_at?: string
+          dealer_id?: string
+          id?: string
+          promo_code_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dealer_promo_codes_promo_code_id_fkey"
+            columns: ["promo_code_id"]
+            isOneToOne: false
+            referencedRelation: "promo_codes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dealer_subscription_usage: {
         Row: {
           created_at: string
@@ -454,6 +483,42 @@ export type Database = {
         Update: {
           key?: string
           value?: string | null
+        }
+        Relationships: []
+      }
+      promo_codes: {
+        Row: {
+          code: string
+          created_at: string
+          expires_at: string | null
+          flat_price: number
+          id: string
+          is_active: boolean
+          max_uses: number | null
+          times_used: number
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          expires_at?: string | null
+          flat_price: number
+          id?: string
+          is_active?: boolean
+          max_uses?: number | null
+          times_used?: number
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          expires_at?: string | null
+          flat_price?: number
+          id?: string
+          is_active?: boolean
+          max_uses?: number | null
+          times_used?: number
+          updated_at?: string
         }
         Relationships: []
       }

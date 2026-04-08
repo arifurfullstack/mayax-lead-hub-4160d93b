@@ -19,6 +19,7 @@ import {
   CreditCard,
   Trash2,
   Pencil,
+  Tag,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,7 @@ import AdminPlanManager from "@/components/AdminPlanManager";
 import AdminPaymentManager from "@/components/AdminPaymentManager";
 import AdminBrandingSettings from "@/components/AdminBrandingSettings";
 import AdminUserManager from "@/components/AdminUserManager";
+import AdminPromoCodeManager from "@/components/AdminPromoCodeManager";
 import LeadFileUploader from "@/components/LeadFileUploader";
 import AdminLeadTable, { type AdminLead } from "@/components/AdminLeadTable";
 
@@ -332,6 +334,9 @@ const AdminDashboard = () => {
           <TabsTrigger value="users" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
             <Users className="h-4 w-4" /> User Management
           </TabsTrigger>
+          <TabsTrigger value="promos" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
+            <Tag className="h-4 w-4" /> Promo Codes
+          </TabsTrigger>
         </TabsList>
 
         {/* ─── Dealers Tab ─── */}
@@ -496,6 +501,11 @@ const AdminDashboard = () => {
         {/* ─── User Management Tab ─── */}
         <TabsContent value="users" className="space-y-4">
           <AdminUserManager />
+        </TabsContent>
+
+        {/* ─── Promo Codes Tab ─── */}
+        <TabsContent value="promos" className="space-y-4">
+          <AdminPromoCodeManager />
         </TabsContent>
       </Tabs>
 
