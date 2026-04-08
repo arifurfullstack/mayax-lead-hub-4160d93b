@@ -148,7 +148,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      const price = Number(lead.price);
+      const price = promoFlatPrice !== null ? promoFlatPrice : Number(lead.price);
       if (currentBalance < price) {
         results.push({ lead_id: leadId, success: false, error: "Insufficient wallet balance" });
         continue;
@@ -189,7 +189,7 @@ Deno.serve(async (req) => {
         type: "purchase",
         amount: -price,
         balance_after: currentBalance,
-        description: `Purchased lead ${lead.reference_code}`,
+        description: `Purchased lead ${lead.reference_code}${promoFlatPrice !== null ? " (promo)" : ""}`,
         reference_id: leadId,
       });
 
@@ -202,6 +202,14 @@ Deno.serve(async (req) => {
         delivery_status: "delivered",
         delivery_method: "email",
       });
+
+      // Increment promo usage if applicable
+      if (promoFlatPrice !== null && dealerPromo) {
+        await admin
+          .from("promo_codes")
+          .update({ times_used: (await admin.from("promo_codes").select("times_used").eq("id", dealerPromo.promo_code_id).single()).data!.times_used + 1 })
+          .eq("id", dealerPromo.promo_code_id);
+      }
 
       purchasedCount++;
       results.push({ lead_id: leadId, success: true });
