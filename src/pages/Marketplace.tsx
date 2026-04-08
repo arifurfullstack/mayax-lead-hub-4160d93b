@@ -10,6 +10,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
 import {
   MarketplaceFilterSidebar,
