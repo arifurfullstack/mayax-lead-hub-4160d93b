@@ -203,12 +203,22 @@ Deno.serve(async (req) => {
         delivery_method: "email",
       });
 
-      // Increment promo usage if applicable
+      // Increment promo usage and log it if applicable
       if (promoFlatPrice !== null && dealerPromo) {
+        const { data: currentPromo } = await admin.from("promo_codes").select("times_used").eq("id", dealerPromo.promo_code_id).single();
         await admin
           .from("promo_codes")
-          .update({ times_used: (await admin.from("promo_codes").select("times_used").eq("id", dealerPromo.promo_code_id).single()).data!.times_used + 1 })
+          .update({ times_used: (currentPromo?.times_used ?? 0) + 1 })
           .eq("id", dealerPromo.promo_code_id);
+
+        // Log promo usage
+        await admin.from("promo_code_usage").insert({
+          dealer_id: dealer.id,
+          promo_code_id: dealerPromo.promo_code_id,
+          lead_id: leadId,
+          price_paid: price,
+          original_price: Number(lead.price),
+        });
       }
 
       purchasedCount++;
