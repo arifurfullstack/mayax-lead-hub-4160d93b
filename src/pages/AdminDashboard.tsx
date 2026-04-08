@@ -45,6 +45,7 @@ import AdminPlanManager from "@/components/AdminPlanManager";
 import AdminPaymentManager from "@/components/AdminPaymentManager";
 import AdminBrandingSettings from "@/components/AdminBrandingSettings";
 import AdminUserManager from "@/components/AdminUserManager";
+import AdminPromoCodeManager from "@/components/AdminPromoCodeManager";
 import LeadFileUploader from "@/components/LeadFileUploader";
 import AdminLeadTable, { type AdminLead } from "@/components/AdminLeadTable";
 
