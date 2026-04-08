@@ -192,8 +192,8 @@ const Marketplace = () => {
   const selectedTotal = useMemo(() => {
     return filtered
       .filter((l) => selectedLeads.has(l.id))
-      .reduce((sum, l) => sum + Number(l.price), 0);
-  }, [filtered, selectedLeads]);
+      .reduce((sum, l) => sum + (activePromo ? activePromo.flat_price : Number(l.price)), 0);
+  }, [filtered, selectedLeads, activePromo]);
 
   const executePurchase = async () => {
     if (!confirmLead) return;
