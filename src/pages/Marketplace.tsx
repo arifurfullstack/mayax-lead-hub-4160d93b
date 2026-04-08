@@ -350,6 +350,8 @@ const Marketplace = () => {
                       selected={selectedLeads.has(lead.id)}
                       onSelect={toggleSelect}
                       index={i}
+                      promoPrice={activePromo?.flat_price ?? null}
+                    />
                     />
                   ))}
                 </div>
