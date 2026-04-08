@@ -59,7 +59,30 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get active subscription for dynamic delay and limits
+    // Check if dealer has an active promo code
+    let promoFlatPrice: number | null = null;
+    const { data: dealerPromo } = await admin
+      .from("dealer_promo_codes")
+      .select("promo_code_id")
+      .eq("dealer_id", dealer.id)
+      .maybeSingle();
+
+    if (dealerPromo) {
+      const { data: promo } = await admin
+        .from("promo_codes")
+        .select("id, flat_price, is_active, max_uses, times_used, expires_at")
+        .eq("id", dealerPromo.promo_code_id)
+        .single();
+
+      if (promo && promo.is_active) {
+        const notExpired = !promo.expires_at || new Date(promo.expires_at) > new Date();
+        const notMaxed = promo.max_uses === null || promo.times_used < promo.max_uses;
+        if (notExpired && notMaxed) {
+          promoFlatPrice = Number(promo.flat_price);
+        }
+      }
+    }
+
     const { data: activeSub } = await admin
       .from("subscriptions")
       .select("delay_hours, leads_per_month, plan_id")
