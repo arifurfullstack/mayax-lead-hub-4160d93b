@@ -451,7 +451,7 @@ const Marketplace = () => {
             <Button variant="outline" onClick={() => setConfirmLead(null)} className="border-border/60">Cancel</Button>
             <button
               className="gradient-cta-buy text-foreground px-5 py-2 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-40"
-              disabled={purchasing || !confirmLead || walletBalance < confirmLead.price}
+              disabled={purchasing || !confirmLead || walletBalance < (activePromo ? activePromo.flat_price : confirmLead.price)}
               onClick={executePurchase}
             >
               {purchasing ? "Processing..." : "Confirm Purchase"}
