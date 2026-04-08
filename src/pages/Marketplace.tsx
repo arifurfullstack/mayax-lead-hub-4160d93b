@@ -284,25 +284,52 @@ const Marketplace = () => {
           {/* Main content */}
           <div className="flex-1 min-w-0 flex flex-col" style={{ height: "calc(100vh - 120px)" }}>
             {/* Sticky Header */}
-            <div className="flex items-center justify-between mb-5 flex-shrink-0">
+            <div className="flex items-center justify-between mb-5 flex-shrink-0 flex-wrap gap-3">
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-semibold text-foreground">Leads</h2>
                 <ChevronDown className="h-4 w-4 text-muted-foreground" />
               </div>
-              {usage && (
-                <div
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium"
-                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
-                >
-                  <span style={{ color: "rgba(255,255,255,0.5)" }}>Leads Used:</span>
-                  <span className={`font-mono font-bold ${usage.leads_used >= usage.leads_limit ? "text-destructive" : "text-foreground"}`}>
-                    {usage.leads_used}/{usage.leads_limit}
-                  </span>
-                  {usage.leads_used >= usage.leads_limit && (
-                    <span className="text-destructive text-[10px] uppercase tracking-wider font-bold">Limit Reached</span>
-                  )}
-                </div>
-              )}
+              <div className="flex items-center gap-3 flex-wrap">
+                {/* Promo code */}
+                {activePromo ? (
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary/10 border border-primary/30">
+                    <Tag className="h-3.5 w-3.5 text-primary" />
+                    <span className="text-primary font-bold font-mono-timer">{activePromo.code}</span>
+                    <span className="text-muted-foreground">— All leads at</span>
+                    <span className="text-foreground font-bold font-mono-timer">${activePromo.flat_price.toFixed(2)}</span>
+                    <button onClick={removePromoCode} className="ml-1 text-muted-foreground hover:text-destructive transition-colors">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5">
+                    <Input
+                      placeholder="Promo code"
+                      value={promoCode}
+                      onChange={(e) => setPromoCode(e.target.value)}
+                      className="h-8 w-32 text-xs uppercase bg-card border-border"
+                      onKeyDown={(e) => e.key === "Enter" && applyPromoCode()}
+                    />
+                    <Button size="sm" variant="outline" className="h-8 text-xs" onClick={applyPromoCode} disabled={applyingPromo || !promoCode.trim()}>
+                      {applyingPromo ? "..." : "Apply"}
+                    </Button>
+                  </div>
+                )}
+                {usage && (
+                  <div
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium"
+                    style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
+                  >
+                    <span style={{ color: "rgba(255,255,255,0.5)" }}>Leads Used:</span>
+                    <span className={`font-mono font-bold ${usage.leads_used >= usage.leads_limit ? "text-destructive" : "text-foreground"}`}>
+                      {usage.leads_used}/{usage.leads_limit}
+                    </span>
+                    {usage.leads_used >= usage.leads_limit && (
+                      <span className="text-destructive text-[10px] uppercase tracking-wider font-bold">Limit Reached</span>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Scrollable Card grid */}
