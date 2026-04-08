@@ -420,19 +420,30 @@ const Marketplace = () => {
                   <span className="font-mono-timer text-primary text-xs">{confirmLead.reference_code}</span>
                   <span className="text-foreground ml-2">{confirmLead.first_name} {confirmLead.last_name?.charAt(0)}.</span>
                 </div>
-                <span className="font-bold text-foreground font-mono-timer">${Number(confirmLead.price).toFixed(2)}</span>
+                <span className="font-bold text-foreground font-mono-timer">
+                  ${activePromo ? activePromo.flat_price.toFixed(2) : Number(confirmLead.price).toFixed(2)}
+                  {activePromo && <span className="text-xs text-primary ml-1">(promo)</span>}
+                </span>
               </div>
               <div className="border-t border-border/50 pt-3 flex justify-between">
                 <span className="text-muted-foreground">Total</span>
-                <span className="text-lg font-bold text-foreground font-mono-timer">${Number(confirmLead.price).toFixed(2)}</span>
+                <span className="text-lg font-bold text-foreground font-mono-timer">
+                  ${activePromo ? activePromo.flat_price.toFixed(2) : Number(confirmLead.price).toFixed(2)}
+                </span>
               </div>
+              {activePromo && (
+                <div className="flex items-center gap-2 text-xs text-primary bg-primary/10 px-3 py-1.5 rounded-lg">
+                  <Tag className="h-3.5 w-3.5" />
+                  <span>Promo <strong>{activePromo.code}</strong> applied — flat rate pricing</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Wallet Balance</span>
-                <span className={cn("font-semibold font-mono-timer", walletBalance >= confirmLead.price ? "text-[#22c55e]" : "text-destructive")}>
+                <span className={cn("font-semibold font-mono-timer", walletBalance >= (activePromo ? activePromo.flat_price : confirmLead.price) ? "text-[#22c55e]" : "text-destructive")}>
                   ${walletBalance.toFixed(2)}
                 </span>
               </div>
-              {walletBalance < confirmLead.price && (
+              {walletBalance < (activePromo ? activePromo.flat_price : confirmLead.price) && (
                 <p className="text-destructive text-xs">Insufficient funds. Please add more funds to your wallet.</p>
               )}
             </div>
