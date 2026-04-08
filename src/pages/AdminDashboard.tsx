@@ -333,6 +333,9 @@ const AdminDashboard = () => {
           <TabsTrigger value="users" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
             <Users className="h-4 w-4" /> User Management
           </TabsTrigger>
+          <TabsTrigger value="promos" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
+            <Tag className="h-4 w-4" /> Promo Codes
+          </TabsTrigger>
         </TabsList>
 
         {/* ─── Dealers Tab ─── */}
