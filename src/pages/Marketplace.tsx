@@ -352,7 +352,6 @@ const Marketplace = () => {
                       index={i}
                       promoPrice={activePromo?.flat_price ?? null}
                     />
-                    />
                   ))}
                 </div>
               )}
