@@ -486,6 +486,44 @@ export type Database = {
         }
         Relationships: []
       }
+      promo_code_usage: {
+        Row: {
+          created_at: string
+          dealer_id: string
+          id: string
+          lead_id: string
+          original_price: number
+          price_paid: number
+          promo_code_id: string
+        }
+        Insert: {
+          created_at?: string
+          dealer_id: string
+          id?: string
+          lead_id: string
+          original_price: number
+          price_paid: number
+          promo_code_id: string
+        }
+        Update: {
+          created_at?: string
+          dealer_id?: string
+          id?: string
+          lead_id?: string
+          original_price?: number
+          price_paid?: number
+          promo_code_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promo_code_usage_promo_code_id_fkey"
+            columns: ["promo_code_id"]
+            isOneToOne: false
+            referencedRelation: "promo_codes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       promo_codes: {
         Row: {
           code: string
