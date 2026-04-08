@@ -39,6 +39,9 @@ const Marketplace = () => {
   const [confirmLead, setConfirmLead] = useState<any | null>(null);
   const [purchasing, setPurchasing] = useState(false);
   const [usage, setUsage] = useState<{ leads_used: number; leads_limit: number } | null>(null);
+  const [promoCode, setPromoCode] = useState("");
+  const [activePromo, setActivePromo] = useState<{ code: string; flat_price: number } | null>(null);
+  const [applyingPromo, setApplyingPromo] = useState(false);
 
   useEffect(() => {
     fetchLeads();
