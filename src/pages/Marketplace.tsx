@@ -72,7 +72,19 @@ const Marketplace = () => {
         .eq("period_start", periodStr)
         .maybeSingle();
       if (usageData) setUsage(usageData);
-    }
+
+      // Check if dealer has an active promo
+      const { data: dealerPromo } = await supabase
+        .from("dealer_promo_codes")
+        .select("promo_code_id, promo_codes(code, flat_price, is_active)")
+        .eq("dealer_id", dealer.id)
+        .maybeSingle();
+      if (dealerPromo && (dealerPromo as any).promo_codes?.is_active) {
+        const pc = (dealerPromo as any).promo_codes;
+        setActivePromo({ code: pc.code, flat_price: Number(pc.flat_price) });
+      } else {
+        setActivePromo(null);
+      }
 
     const { data } = await supabase.rpc("get_marketplace_leads", {
       requesting_dealer_id: dealer?.id,
