@@ -47,6 +47,7 @@ import AdminPaymentManager from "@/components/AdminPaymentManager";
 import AdminBrandingSettings from "@/components/AdminBrandingSettings";
 import AdminUserManager from "@/components/AdminUserManager";
 import AdminPromoCodeManager from "@/components/AdminPromoCodeManager";
+import AdminPromoUsageHistory from "@/components/AdminPromoUsageHistory";
 import LeadFileUploader from "@/components/LeadFileUploader";
 import AdminLeadTable, { type AdminLead } from "@/components/AdminLeadTable";
 
@@ -506,6 +507,7 @@ const AdminDashboard = () => {
         {/* ─── Promo Codes Tab ─── */}
         <TabsContent value="promos" className="space-y-4">
           <AdminPromoCodeManager />
+          <AdminPromoUsageHistory />
         </TabsContent>
       </Tabs>
 
