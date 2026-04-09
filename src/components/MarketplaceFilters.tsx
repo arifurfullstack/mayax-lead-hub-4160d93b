@@ -354,28 +354,12 @@ export function applyFilters(leads: any[], filters: MarketplaceFilters, maxIncom
     );
   }
 
-  // Vehicle type filter
-  if (filters.vehicleType !== "all") {
-    result = result.filter((l) => {
-      const parsed = parseVehiclePref(l.vehicle_preference);
-      return parsed.type.toLowerCase() === filters.vehicleType.toLowerCase();
-    });
-  }
-
-  // Vehicle make filter
-  if (filters.vehicleMake !== "all") {
-    result = result.filter((l) => {
-      const parsed = parseVehiclePref(l.vehicle_preference);
-      return parsed.make.toLowerCase() === filters.vehicleMake.toLowerCase();
-    });
-  }
-
-  // Vehicle model filter
-  if (filters.vehicleModel !== "all") {
-    result = result.filter((l) => {
-      const parsed = parseVehiclePref(l.vehicle_preference);
-      return parsed.model.toLowerCase() === filters.vehicleModel.toLowerCase();
-    });
+  // Vehicle search filter — matches against vehicle_preference string
+  if (filters.vehicleSearch) {
+    const q = filters.vehicleSearch.toLowerCase();
+    result = result.filter((l) =>
+      (l.vehicle_preference ?? "").toLowerCase().includes(q)
+    );
   }
 
   if (filters.maxAge !== "all") {
