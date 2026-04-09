@@ -78,10 +78,9 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
   }, [form.income, form.vehicle_preference, form.buyer_type, form.notes, form.appointment_time, form.trade_in]);
 
   const generateRefCode = () => {
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    let code = "MX-";
-    for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
-    return code;
+    const year = new Date().getFullYear();
+    const seq = String(Math.floor(Math.random() * 900) + 100);
+    return `MX-${year}-${seq}`;
   };
 
   const handleSubmit = async () => {
