@@ -135,14 +135,23 @@ export default function AdminWebhookSettings({ settingsForm, setSettingsForm, pl
         </div>
       </div>
 
-      {/* Appointment Webhook */}
+      {/* Appointment */}
       <div className="glass-card p-6 space-y-4">
-        <div className="flex items-center gap-2">
-          <Calendar className="h-4 w-4 text-cyan" />
-          <h2 className="text-sm font-semibold text-foreground">Appointment Pre-Send</h2>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-cyan" />
+            <h2 className="text-sm font-semibold text-foreground">Appointment Pre-Send</h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">{settingsForm["appointment_presend_enabled"] === "true" ? "Enabled" : "Disabled"}</span>
+            <Switch
+              checked={settingsForm["appointment_presend_enabled"] === "true"}
+              onCheckedChange={(v) => update("appointment_presend_enabled", v ? "true" : "false")}
+            />
+          </div>
         </div>
         <p className="text-xs text-muted-foreground">
-          If a lead has a phone appointment and is still available, it will be sent to the webhook below X minutes before the appointment time, then removed from the system.
+          When enabled, leads with a phone appointment that are still available will be sent to the webhook below (if set) X minutes before the appointment, then removed. When disabled, appointment leads stay in the system.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
