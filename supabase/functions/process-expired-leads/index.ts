@@ -43,25 +43,28 @@ Deno.serve(async (req) => {
       if (fetchErr) {
         results.errors.push(`Fetch expired: ${fetchErr.message}`);
       } else if (expiredLeads && expiredLeads.length > 0) {
-        // Send to webhook
-        try {
-          const resp = await fetch(expiryWebhookUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ type: "expired_leads", leads: expiredLeads }),
-          });
-          if (!resp.ok) {
-            results.errors.push(`Expiry webhook returned ${resp.status}`);
-          } else {
-            results.expired_sent = expiredLeads.length;
-            // Delete expired leads from system
-            const ids = expiredLeads.map((l: any) => l.id);
-            const { error: delErr } = await admin.from("leads").delete().in("id", ids);
-            if (delErr) results.errors.push(`Delete expired: ${delErr.message}`);
+        // Send to webhook if URL configured
+        if (expiryWebhookUrl) {
+          try {
+            const resp = await fetch(expiryWebhookUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ type: "expired_leads", leads: expiredLeads }),
+            });
+            if (!resp.ok) {
+              results.errors.push(`Expiry webhook returned ${resp.status}`);
+            } else {
+              results.expired_sent = expiredLeads.length;
+            }
+          } catch (e) {
+            results.errors.push(`Expiry webhook error: ${e.message}`);
           }
-        } catch (e) {
-          results.errors.push(`Expiry webhook error: ${e.message}`);
         }
+        // Always delete expired leads when feature is enabled
+        const ids = expiredLeads.map((l: any) => l.id);
+        const { error: delErr } = await admin.from("leads").delete().in("id", ids);
+        if (delErr) results.errors.push(`Delete expired: ${delErr.message}`);
+        else results.expired_deleted = expiredLeads.length;
       }
     }
 
