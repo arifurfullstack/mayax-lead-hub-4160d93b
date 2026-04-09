@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Webhook, Clock, Calendar, Save, Copy, CheckCircle2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,9 +9,11 @@ import { toast } from "@/hooks/use-toast";
 
 const SETTINGS_KEYS = [
   "lead_expiry_hours",
+  "lead_expiry_enabled",
   "expiry_webhook_url",
   "appointment_webhook_url",
   "appointment_pre_send_minutes",
+  "appointment_presend_enabled",
   "inbound_webhook_secret",
 ];
 
@@ -91,14 +94,23 @@ export default function AdminWebhookSettings({ settingsForm, setSettingsForm, pl
         </div>
       </div>
 
-      {/* Expiry Webhook */}
+      {/* Expiry */}
       <div className="glass-card p-6 space-y-4">
-        <div className="flex items-center gap-2">
-          <Clock className="h-4 w-4 text-warning" />
-          <h2 className="text-sm font-semibold text-foreground">Unsold Lead Expiry</h2>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-warning" />
+            <h2 className="text-sm font-semibold text-foreground">Unsold Lead Expiry</h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">{settingsForm["lead_expiry_enabled"] === "true" ? "Enabled" : "Disabled"}</span>
+            <Switch
+              checked={settingsForm["lead_expiry_enabled"] === "true"}
+              onCheckedChange={(v) => update("lead_expiry_enabled", v ? "true" : "false")}
+            />
+          </div>
         </div>
         <p className="text-xs text-muted-foreground">
-          Leads that remain unsold for the configured time will be sent to the webhook below and removed from the system.
+          When enabled, leads that remain unsold for the configured time will be sent to the webhook below (if set) and removed from the system. When disabled, leads stay indefinitely.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -125,14 +137,23 @@ export default function AdminWebhookSettings({ settingsForm, setSettingsForm, pl
         </div>
       </div>
 
-      {/* Appointment Webhook */}
+      {/* Appointment */}
       <div className="glass-card p-6 space-y-4">
-        <div className="flex items-center gap-2">
-          <Calendar className="h-4 w-4 text-cyan" />
-          <h2 className="text-sm font-semibold text-foreground">Appointment Pre-Send</h2>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-cyan" />
+            <h2 className="text-sm font-semibold text-foreground">Appointment Pre-Send</h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">{settingsForm["appointment_presend_enabled"] === "true" ? "Enabled" : "Disabled"}</span>
+            <Switch
+              checked={settingsForm["appointment_presend_enabled"] === "true"}
+              onCheckedChange={(v) => update("appointment_presend_enabled", v ? "true" : "false")}
+            />
+          </div>
         </div>
         <p className="text-xs text-muted-foreground">
-          If a lead has a phone appointment and is still available, it will be sent to the webhook below X minutes before the appointment time, then removed from the system.
+          When enabled, leads with a phone appointment that are still available will be sent to the webhook below (if set) X minutes before the appointment, then removed. When disabled, appointment leads stay in the system.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
