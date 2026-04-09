@@ -14,6 +14,7 @@ function calculateAiScore(lead: {
   buyer_type?: string | null;
   notes?: string | null;
   appointment_time?: string | null;
+  trade_in?: boolean | null;
 }): { ai_score: number; quality_grade: string } {
   let score = 65;
   const income = lead.income ?? 0;
@@ -26,7 +27,7 @@ function calculateAiScore(lead: {
   }
 
   const combined = `${lead.buyer_type ?? ""} ${lead.notes ?? ""}`.toLowerCase();
-  if (/trade|refinanc/.test(combined)) score += 5;
+  if (lead.trade_in || /trade|refinanc/.test(combined)) score += 5;
   if (/bankrupt/.test(lead.notes ?? "")) score += 5;
   if (lead.appointment_time) score += 5;
   if ((lead.income ?? 0) > 0 && veh) score += 5;
@@ -44,6 +45,14 @@ function calculateAiScore(lead: {
   else quality_grade = "D";
 
   return { ai_score: score, quality_grade };
+}
+
+const GRADE_PRICES: Record<string, number> = {
+  "A+": 50, A: 40, "B+": 30, B: 25, "C+": 20, C: 15, "D+": 10, D: 5,
+};
+
+function getGradePrice(grade: string): number {
+  return GRADE_PRICES[grade] ?? 15;
 }
 // --- End scoring logic ---
 
@@ -86,15 +95,15 @@ Deno.serve(async (req) => {
 
     // Support single lead or array of leads
     const leadsInput = Array.isArray(body) ? body : [body];
-    const results: { reference_code: string; status: string; error?: string }[] = [];
+    const results: { reference_code: string; status: string; ai_score?: number; quality_grade?: string; price?: number; error?: string }[] = [];
 
     for (const lead of leadsInput) {
-      // Validate required fields
-      if (!lead.first_name || !lead.last_name || lead.price == null) {
+      // Validate required fields — price is NO LONGER required from input
+      if (!lead.first_name || !lead.last_name) {
         results.push({
           reference_code: lead.reference_code ?? "unknown",
           status: "error",
-          error: "Missing required fields: first_name, last_name, price",
+          error: "Missing required fields: first_name, last_name",
         });
         continue;
       }
@@ -103,14 +112,17 @@ Deno.serve(async (req) => {
       const referenceCode =
         lead.reference_code ?? `INB-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
 
-      // Auto-compute AI score and grade
+      // Auto-compute AI score, grade, and price
       const { ai_score, quality_grade } = calculateAiScore({
         income: lead.income != null ? Number(lead.income) : null,
         vehicle_preference: lead.vehicle_preference ?? null,
         buyer_type: lead.buyer_type ?? "online",
         notes: lead.notes ?? null,
         appointment_time: lead.appointment_time ?? null,
+        trade_in: lead.trade_in === true,
       });
+
+      const price = getGradePrice(quality_grade);
 
       const insertData: Record<string, unknown> = {
         reference_code: referenceCode,
@@ -128,9 +140,10 @@ Deno.serve(async (req) => {
         vehicle_mileage: lead.vehicle_mileage ?? null,
         vehicle_price: lead.vehicle_price ?? null,
         notes: lead.notes ?? null,
+        trade_in: lead.trade_in === true,
         quality_grade,
         ai_score,
-        price: Number(lead.price),
+        price,
         sold_status: "available",
         appointment_time: lead.appointment_time ?? null,
       };
@@ -140,7 +153,7 @@ Deno.serve(async (req) => {
       if (error) {
         results.push({ reference_code: referenceCode, status: "error", error: error.message });
       } else {
-        results.push({ reference_code: referenceCode, status: "created" });
+        results.push({ reference_code: referenceCode, status: "created", ai_score, quality_grade, price });
       }
     }
 
