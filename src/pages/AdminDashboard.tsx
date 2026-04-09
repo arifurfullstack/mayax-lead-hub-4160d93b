@@ -206,6 +206,17 @@ const AdminDashboard = () => {
       ai_score: editForm.ai_score ? Number(editForm.ai_score) : 0,
       price: Number(editForm.price),
       sold_status: editForm.sold_status,
+      buyer_type: editForm.buyer_type || null,
+      vehicle_preference: editForm.vehicle_preference || null,
+      vehicle_price: editForm.vehicle_price ? Number(editForm.vehicle_price) : null,
+      vehicle_mileage: editForm.vehicle_mileage ? Number(editForm.vehicle_mileage) : null,
+      income: editForm.income ? Number(editForm.income) : null,
+      credit_range_min: editForm.credit_range_min ? Number(editForm.credit_range_min) : null,
+      credit_range_max: editForm.credit_range_max ? Number(editForm.credit_range_max) : null,
+      notes: editForm.notes || null,
+      appointment_time: editForm.appointment_time || null,
+      trade_in: editForm.trade_in,
+      has_bankruptcy: editForm.has_bankruptcy,
     };
     const { error } = await supabase.from("leads").update(updates).eq("id", selectedLead.id);
     setSavingLead(false);
@@ -630,7 +641,7 @@ const AdminDashboard = () => {
                 <div><span className="text-muted-foreground text-xs">Name</span><p className="text-foreground">{selectedLead.first_name} {selectedLead.last_name}</p></div>
                 <div><span className="text-muted-foreground text-xs">Email</span><p className="text-foreground">{selectedLead.email ?? "—"}</p></div>
                 <div><span className="text-muted-foreground text-xs">Phone</span><p className="text-foreground">{selectedLead.phone ?? "—"}</p></div>
-                <div><span className="text-muted-foreground text-xs">Location</span><p className="text-foreground">{selectedLead.city && selectedLead.province ? `${selectedLead.city}, ${selectedLead.province}` : "—"}</p></div>
+                <div><span className="text-muted-foreground text-xs">Location</span><p className="text-foreground">{selectedLead.city && selectedLead.province ? `${selectedLead.city}, ${selectedLead.province}` : selectedLead.province ?? "—"}</p></div>
                 <div><span className="text-muted-foreground text-xs">Grade</span>
                   <Badge className={cn("border-0 text-[10px] mt-1", gradeColors[selectedLead.quality_grade ?? ""] ?? "bg-muted text-muted-foreground")}>
                     {selectedLead.quality_grade ?? "—"}
@@ -639,7 +650,19 @@ const AdminDashboard = () => {
                 <div><span className="text-muted-foreground text-xs">AI Score</span><p className="text-foreground">{selectedLead.ai_score ?? "—"}</p></div>
                 <div><span className="text-muted-foreground text-xs">Price</span><p className="text-foreground font-mono">${Number(selectedLead.price).toFixed(2)}</p></div>
                 <div><span className="text-muted-foreground text-xs">Status</span><p className="text-foreground capitalize">{selectedLead.sold_status}</p></div>
+                <div><span className="text-muted-foreground text-xs">Buyer Type</span><p className="text-foreground capitalize">{selectedLead.buyer_type ?? "—"}</p></div>
+                <div><span className="text-muted-foreground text-xs">Income</span><p className="text-foreground">{selectedLead.income != null ? `$${Number(selectedLead.income).toLocaleString()}` : "—"}</p></div>
+                <div><span className="text-muted-foreground text-xs">Credit Range</span><p className="text-foreground">{selectedLead.credit_range_min != null && selectedLead.credit_range_max != null ? `${selectedLead.credit_range_min} – ${selectedLead.credit_range_max}` : "—"}</p></div>
+                <div><span className="text-muted-foreground text-xs">Vehicle Preference</span><p className="text-foreground">{selectedLead.vehicle_preference ?? "—"}</p></div>
+                <div><span className="text-muted-foreground text-xs">Vehicle Price</span><p className="text-foreground">{selectedLead.vehicle_price != null ? `$${Number(selectedLead.vehicle_price).toLocaleString()}` : "—"}</p></div>
+                <div><span className="text-muted-foreground text-xs">Vehicle Mileage</span><p className="text-foreground">{selectedLead.vehicle_mileage != null ? `${Number(selectedLead.vehicle_mileage).toLocaleString()} km` : "—"}</p></div>
+                <div><span className="text-muted-foreground text-xs">Trade-In</span><p className="text-foreground">{selectedLead.trade_in ? "Yes" : "No"}</p></div>
+                <div><span className="text-muted-foreground text-xs">Bankruptcy</span><p className="text-foreground">{selectedLead.has_bankruptcy ? "Yes" : "No"}</p></div>
+                <div><span className="text-muted-foreground text-xs">Appointment</span><p className="text-foreground">{selectedLead.appointment_time ? new Date(selectedLead.appointment_time).toLocaleString() : "—"}</p></div>
                 <div className="col-span-2"><span className="text-muted-foreground text-xs">Created</span><p className="text-foreground">{new Date(selectedLead.created_at).toLocaleString()}</p></div>
+                {selectedLead.notes && (
+                  <div className="col-span-2"><span className="text-muted-foreground text-xs">Notes</span><p className="text-foreground text-xs whitespace-pre-wrap">{selectedLead.notes}</p></div>
+                )}
               </div>
               <div className="border-t border-border pt-4">
                 <LeadFileUploader
