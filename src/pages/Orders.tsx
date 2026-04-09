@@ -50,6 +50,9 @@ interface LeadDetail {
   ai_score: number | null;
   quality_grade: string | null;
   price: number;
+  notes: string | null;
+  appointment_time: string | null;
+  trade_in: boolean | null;
 }
 
 interface OrderRow {
@@ -101,7 +104,7 @@ const Orders = () => {
         .from("purchases")
         .select(`
           id, price_paid, purchased_at, delivery_status, delivery_method, dealer_tier_at_purchase, lead_id,
-          leads(reference_code, first_name, last_name, phone, email, buyer_type, credit_range_min, credit_range_max, income, city, province, vehicle_preference, vehicle_mileage, vehicle_price, documents, document_files, ai_score, quality_grade, price)
+          leads(reference_code, first_name, last_name, phone, email, buyer_type, credit_range_min, credit_range_max, income, city, province, vehicle_preference, vehicle_mileage, vehicle_price, documents, document_files, ai_score, quality_grade, price, notes, appointment_time, trade_in)
         `)
         .eq("dealer_id", dealer.id)
         .order("purchased_at", { ascending: false });

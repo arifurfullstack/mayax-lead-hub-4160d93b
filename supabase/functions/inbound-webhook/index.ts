@@ -108,9 +108,10 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Generate reference code if not provided
-      const referenceCode =
-        lead.reference_code ?? `INB-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+      // Generate short MX-YYYY-NNN reference code
+      const year = new Date().getFullYear();
+      const seq = String(Math.floor(Math.random() * 900) + 100);
+      const referenceCode = lead.reference_code ?? `MX-${year}-${seq}`;
 
       // Auto-compute AI score, grade, and price
       const { ai_score, quality_grade } = calculateAiScore({

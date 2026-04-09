@@ -79,16 +79,18 @@ export default function AdminWebhookSettings({ settingsForm, setSettingsForm, pl
 {`{
   "first_name": "John",        // required
   "last_name": "Doe",          // required
-  "price": 25.00,              // required
   "email": "john@email.com",
-  "phone": "+1-555-1234",
+  "phone": "416 454 6556",
   "city": "Toronto",
   "province": "Ontario",
-  "quality_grade": "A",
-  "ai_score": 85,
-  "appointment_time": "2025-01-15T14:00:00Z",
+  "income": 4500,
+  "credit_range_min": 600,
+  "credit_range_max": 700,
   "vehicle_preference": "SUV",
-  "buyer_type": "online"
+  "buyer_type": "online",
+  "trade_in": true,
+  "notes": "Looking for financing",
+  "appointment_time": "2025-01-15T14:00:00Z"
 }`}
           </pre>
         </div>
