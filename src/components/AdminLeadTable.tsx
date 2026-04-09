@@ -276,7 +276,20 @@ export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props
                 {([
                   ["reference_code", "Reference"],
                   ["first_name", "Name"],
-                  ["first_name", "Phone"],
+                ] as [SortField, string][]).map(([field, label]) => (
+                  <th
+                    key={field}
+                    className="p-3 text-xs text-muted-foreground font-medium cursor-pointer select-none hover:text-foreground transition-colors text-left"
+                    onClick={() => toggleSort(field)}
+                  >
+                    <span className="inline-flex items-center">
+                      {label}
+                      <SortIcon field={field} />
+                    </span>
+                  </th>
+                ))}
+                <th className="p-3 text-xs text-muted-foreground font-medium text-left">Phone</th>
+                {([
                   ["province", "Location"],
                   ["quality_grade", "Grade"],
                   ["ai_score", "AI Score"],
@@ -314,6 +327,7 @@ export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props
                   </td>
                   <td className="p-3 font-mono text-foreground text-xs">{l.reference_code}</td>
                   <td className="p-3 text-foreground">{l.first_name} {l.last_name}</td>
+                  <td className="p-3 text-muted-foreground text-xs">{l.phone ?? "—"}</td>
                   <td className="p-3 text-muted-foreground">
                     {l.city && l.province ? `${l.city}, ${l.province}` : l.province ?? "—"}
                   </td>
@@ -341,7 +355,7 @@ export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props
               ))}
               {paged.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="p-8 text-center text-muted-foreground">No leads found.</td>
+                  <td colSpan={11} className="p-8 text-center text-muted-foreground">No leads found.</td>
                 </tr>
               )}
             </tbody>
