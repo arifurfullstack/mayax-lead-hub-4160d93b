@@ -285,6 +285,7 @@ export type Database = {
           sold_at: string | null
           sold_status: string
           sold_to_dealer_id: string | null
+          trade_in: boolean | null
           vehicle_mileage: number | null
           vehicle_preference: string | null
           vehicle_price: number | null
@@ -313,6 +314,7 @@ export type Database = {
           sold_at?: string | null
           sold_status?: string
           sold_to_dealer_id?: string | null
+          trade_in?: boolean | null
           vehicle_mileage?: number | null
           vehicle_preference?: string | null
           vehicle_price?: number | null
@@ -341,6 +343,7 @@ export type Database = {
           sold_at?: string | null
           sold_status?: string
           sold_to_dealer_id?: string | null
+          trade_in?: boolean | null
           vehicle_mileage?: number | null
           vehicle_preference?: string | null
           vehicle_price?: number | null

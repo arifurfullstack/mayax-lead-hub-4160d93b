@@ -1,0 +1,1 @@
+ALTER TABLE public.leads ADD COLUMN trade_in boolean DEFAULT false;
