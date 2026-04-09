@@ -263,6 +263,7 @@ export type Database = {
       leads: {
         Row: {
           ai_score: number | null
+          appointment_time: string | null
           buyer_type: string | null
           city: string | null
           created_at: string
@@ -289,6 +290,7 @@ export type Database = {
         }
         Insert: {
           ai_score?: number | null
+          appointment_time?: string | null
           buyer_type?: string | null
           city?: string | null
           created_at?: string
@@ -315,6 +317,7 @@ export type Database = {
         }
         Update: {
           ai_score?: number | null
+          appointment_time?: string | null
           buyer_type?: string | null
           city?: string | null
           created_at?: string

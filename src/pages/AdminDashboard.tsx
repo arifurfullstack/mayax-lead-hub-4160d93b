@@ -20,6 +20,7 @@ import {
   Trash2,
   Pencil,
   Tag,
+  Webhook,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -48,6 +49,7 @@ import AdminBrandingSettings from "@/components/AdminBrandingSettings";
 import AdminUserManager from "@/components/AdminUserManager";
 import AdminPromoCodeManager from "@/components/AdminPromoCodeManager";
 import AdminPromoUsageHistory from "@/components/AdminPromoUsageHistory";
+import AdminWebhookSettings from "@/components/AdminWebhookSettings";
 import LeadFileUploader from "@/components/LeadFileUploader";
 import AdminLeadTable, { type AdminLead } from "@/components/AdminLeadTable";
 
@@ -338,6 +340,9 @@ const AdminDashboard = () => {
           <TabsTrigger value="promos" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
             <Tag className="h-4 w-4" /> Promo Codes
           </TabsTrigger>
+          <TabsTrigger value="webhooks" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
+            <Webhook className="h-4 w-4" /> Webhooks
+          </TabsTrigger>
         </TabsList>
 
         {/* ─── Dealers Tab ─── */}
@@ -508,6 +513,17 @@ const AdminDashboard = () => {
         <TabsContent value="promos" className="space-y-4">
           <AdminPromoCodeManager />
           <AdminPromoUsageHistory />
+        </TabsContent>
+
+        {/* ─── Webhooks Tab ─── */}
+        <TabsContent value="webhooks" className="space-y-4">
+          <AdminWebhookSettings
+            settingsForm={settingsForm}
+            setSettingsForm={setSettingsForm}
+            platformSettings={platformSettings}
+            onSave={savePlatformSettings}
+            saving={savingSettings}
+          />
         </TabsContent>
       </Tabs>
 
