@@ -9,9 +9,11 @@ import { toast } from "@/hooks/use-toast";
 
 const SETTINGS_KEYS = [
   "lead_expiry_hours",
+  "lead_expiry_enabled",
   "expiry_webhook_url",
   "appointment_webhook_url",
   "appointment_pre_send_minutes",
+  "appointment_presend_enabled",
   "inbound_webhook_secret",
 ];
 
