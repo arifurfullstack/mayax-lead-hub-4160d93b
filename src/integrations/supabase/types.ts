@@ -798,6 +798,7 @@ export type Database = {
           documents: string[]
           email: string
           first_name: string
+          has_bankruptcy: boolean
           id: string
           income: number
           last_name: string
