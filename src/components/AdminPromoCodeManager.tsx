@@ -258,6 +258,14 @@ const AdminPromoCodeManager = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {assignPromo && (
+        <AdminPromoAssignDialog
+          promoCodeId={assignPromo.id}
+          promoCode={assignPromo.code}
+          open={!!assignPromo}
+          onOpenChange={(open) => { if (!open) setAssignPromo(null); }}
+        />
+      )}
     </div>
   );
 };
