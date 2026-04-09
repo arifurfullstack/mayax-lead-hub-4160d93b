@@ -50,6 +50,9 @@ interface LeadDetail {
   ai_score: number | null;
   quality_grade: string | null;
   price: number;
+  notes: string | null;
+  appointment_time: string | null;
+  trade_in: boolean | null;
 }
 
 interface OrderRow {
