@@ -693,6 +693,7 @@ const AdminDashboard = () => {
           )}
           {selectedLead && editingLead && (
             <div className="space-y-4">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Personal Information</p>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">First Name</Label>
@@ -717,6 +718,60 @@ const AdminDashboard = () => {
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">Province</Label>
                   <Input value={editForm.province} onChange={(e) => setEditForm((f) => ({ ...f, province: e.target.value }))} className="bg-background border-border" />
+                </div>
+              </div>
+
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide pt-2">Financial</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Income ($)</Label>
+                  <Input type="number" min={0} value={editForm.income} onChange={(e) => setEditForm((f) => ({ ...f, income: e.target.value }))} className="bg-background border-border" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Credit Min</Label>
+                  <Input type="number" min={300} max={900} value={editForm.credit_range_min} onChange={(e) => setEditForm((f) => ({ ...f, credit_range_min: e.target.value }))} className="bg-background border-border" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Credit Max</Label>
+                  <Input type="number" min={300} max={900} value={editForm.credit_range_max} onChange={(e) => setEditForm((f) => ({ ...f, credit_range_max: e.target.value }))} className="bg-background border-border" />
+                </div>
+              </div>
+
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide pt-2">Vehicle</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Vehicle Preference</Label>
+                  <Input value={editForm.vehicle_preference} onChange={(e) => setEditForm((f) => ({ ...f, vehicle_preference: e.target.value }))} className="bg-background border-border" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Vehicle Price ($)</Label>
+                  <Input type="number" min={0} value={editForm.vehicle_price} onChange={(e) => setEditForm((f) => ({ ...f, vehicle_price: e.target.value }))} className="bg-background border-border" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Vehicle Mileage (km)</Label>
+                  <Input type="number" min={0} value={editForm.vehicle_mileage} onChange={(e) => setEditForm((f) => ({ ...f, vehicle_mileage: e.target.value }))} className="bg-background border-border" />
+                </div>
+              </div>
+
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide pt-2">Lead Details</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Buyer Type</Label>
+                  <Select value={editForm.buyer_type} onValueChange={(v) => setEditForm((f) => ({ ...f, buyer_type: v }))}>
+                    <SelectTrigger className="bg-background border-border"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="online">Online</SelectItem>
+                      <SelectItem value="walk-in">Walk-in</SelectItem>
+                      <SelectItem value="referral">Referral</SelectItem>
+                      <SelectItem value="phone">Phone</SelectItem>
+                      <SelectItem value="trade">Trade-in</SelectItem>
+                      <SelectItem value="refinance">Refinance</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Appointment Time</Label>
+                  <Input type="datetime-local" value={editForm.appointment_time} onChange={(e) => setEditForm((f) => ({ ...f, appointment_time: e.target.value }))} className="bg-background border-border" />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">Quality Grade</Label>
@@ -746,6 +801,27 @@ const AdminDashboard = () => {
                   </Select>
                 </div>
               </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-center gap-2">
+                  <Checkbox checked={editForm.trade_in} onCheckedChange={(v) => setEditForm((f) => ({ ...f, trade_in: !!v }))} className="border-muted-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary" />
+                  <Label className="text-xs text-muted-foreground">Trade-In</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox checked={editForm.has_bankruptcy} onCheckedChange={(v) => setEditForm((f) => ({ ...f, has_bankruptcy: !!v }))} className="border-muted-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary" />
+                  <Label className="text-xs text-muted-foreground">Bankruptcy</Label>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Notes</Label>
+                <textarea
+                  value={editForm.notes}
+                  onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
+                  className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 min-h-[60px]"
+                />
+              </div>
+
               <div className="flex justify-end gap-3 pt-2 border-t border-border">
                 <Button variant="outline" size="sm" onClick={() => setEditingLead(false)}>Cancel</Button>
                 <Button size="sm" disabled={savingLead} className="gradient-blue-cyan text-foreground" onClick={saveLeadEdits}>
