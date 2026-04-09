@@ -169,17 +169,33 @@ function FilterContent({ filters, onChange, onReset, activeCount, maxIncome, max
 
       {/* Quality Grade */}
       <CollapsibleSection title="Quality Grade" defaultOpen={filters.grades.length > 0}>
-        <div className="space-y-2.5">
-          {["A+", "A", "B", "C"].map((g) => (
-            <label key={g} className="flex items-center gap-2.5 cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
-              <Checkbox
-                checked={filters.grades.includes(g)}
-                onCheckedChange={() => toggleArray("grades", g)}
-                className="border-primary data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-              />
-              <span className="text-sm">{g}</span>
-            </label>
-          ))}
+        <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
+          <div className="space-y-2.5">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-semibold">Plus</p>
+            {["A+", "B+", "C+", "D+"].map((g) => (
+              <label key={g} className="flex items-center gap-2.5 cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
+                <Checkbox
+                  checked={filters.grades.includes(g)}
+                  onCheckedChange={() => toggleArray("grades", g)}
+                  className="border-primary data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                />
+                <span className="text-sm">{g}</span>
+              </label>
+            ))}
+          </div>
+          <div className="space-y-2.5">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-semibold">Standard</p>
+            {["A", "B", "C", "D"].map((g) => (
+              <label key={g} className="flex items-center gap-2.5 cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
+                <Checkbox
+                  checked={filters.grades.includes(g)}
+                  onCheckedChange={() => toggleArray("grades", g)}
+                  className="border-primary data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                />
+                <span className="text-sm">{g}</span>
+              </label>
+            ))}
+          </div>
         </div>
       </CollapsibleSection>
 
