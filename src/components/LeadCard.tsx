@@ -17,7 +17,7 @@ interface LeadCardProps {
 
 function getLeadType(lead: any): { label: string; icon: React.ReactNode } {
   const grade = lead.quality_grade?.toLowerCase?.() ?? "";
-  if (grade === "a+" || grade === "a") return { label: "Credit/Finance Lead", icon: <Building2 className="h-3.5 w-3.5" /> };
+  if (grade === "a+" || grade === "a") return { label: "Finance Lead", icon: <Building2 className="h-3.5 w-3.5" /> };
   if (grade === "b") return { label: "Marketplace Lead", icon: <Home className="h-3.5 w-3.5" /> };
   return { label: "Referral Lead", icon: <User className="h-3.5 w-3.5" /> };
 }
