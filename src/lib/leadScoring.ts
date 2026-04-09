@@ -6,6 +6,7 @@ interface LeadInput {
   buyer_type?: string | null;
   notes?: string | null;
   appointment_time?: string | null;
+  trade_in?: boolean | null;
 }
 
 export function calculateAiScore(lead: LeadInput): { ai_score: number; quality_grade: string } {
@@ -23,9 +24,9 @@ export function calculateAiScore(lead: LeadInput): { ai_score: number; quality_g
     score += isGeneric ? 5 : 10;
   }
 
-  // Trade / Refinance
+  // Trade / Refinance — from trade_in flag, buyer_type, or notes
   const combined = `${lead.buyer_type ?? ""} ${lead.notes ?? ""}`.toLowerCase();
-  if (/trade|refinanc/i.test(combined)) score += 5;
+  if (lead.trade_in || /trade|refinanc/i.test(combined)) score += 5;
 
   // Bankruptcy
   if (/bankrupt/i.test(lead.notes ?? "")) score += 5;
@@ -49,4 +50,20 @@ export function calculateAiScore(lead: LeadInput): { ai_score: number; quality_g
   else quality_grade = "D";
 
   return { ai_score: score, quality_grade };
+}
+
+/** Auto-price based on grade */
+const GRADE_PRICES: Record<string, number> = {
+  "A+": 50,
+  A: 40,
+  "B+": 30,
+  B: 25,
+  "C+": 20,
+  C: 15,
+  "D+": 10,
+  D: 5,
+};
+
+export function getGradePrice(grade: string): number {
+  return GRADE_PRICES[grade] ?? 15;
 }
