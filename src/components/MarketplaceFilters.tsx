@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
-import { Filter, ChevronDown, ChevronRight } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Filter, ChevronDown, ChevronRight, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
@@ -15,13 +16,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 export interface MarketplaceFilters {
@@ -33,9 +27,7 @@ export interface MarketplaceFilters {
   provinces: string[];
   documents: string[];
   grades: string[];
-  vehicleType: string;
-  vehicleMake: string;
-  vehicleModel: string;
+  vehicleSearch: string;
   maxAge: string;
   priceMin: number;
   priceMax: number;
@@ -50,12 +42,10 @@ export const defaultFilters: MarketplaceFilters = {
   provinces: [],
   documents: [],
   grades: [],
-  vehicleType: "all",
-  vehicleMake: "all",
-  vehicleModel: "all",
+  vehicleSearch: "",
   maxAge: "all",
   priceMin: 0,
-  priceMax: 0, // 0 means "use maxPrice"
+  priceMax: 0,
 };
 
 const documentOptions = [
@@ -67,7 +57,6 @@ const documentOptions = [
 ];
 
 const provinceOptions = ["Ontario", "British Columbia", "Alberta", "Quebec", "Manitoba", "Saskatchewan", "Nova Scotia", "Newfoundland"];
-const vehicleTypes = ["SUV", "Sedan", "Truck", "Compact", "Luxury"];
 const ageOptions = [
   { value: "all", label: "Any Age" },
   { value: "1", label: "< 1 day" },
@@ -130,20 +119,17 @@ function FilterContent({ filters, onChange, onReset, activeCount, maxIncome, max
   const effectivePriceMax = maxPrice || 500;
   const sliderPriceMax = filters.priceMax === 0 ? effectivePriceMax : filters.priceMax;
 
-  // Derive makes/models from leads based on selected vehicle type
-  const { availableMakes, availableModels } = useMemo(() => {
-    const parsed = leads.map((l) => parseVehiclePref(l.vehicle_preference));
-    let filtered = parsed;
-    if (filters.vehicleType !== "all") {
-      filtered = parsed.filter((p) => p.type.toLowerCase() === filters.vehicleType.toLowerCase());
-    }
-    const makes = [...new Set(filtered.map((p) => p.make).filter(Boolean))].sort();
-    let models: string[] = [];
-    if (filters.vehicleMake !== "all") {
-      models = [...new Set(filtered.filter((p) => p.make.toLowerCase() === filters.vehicleMake.toLowerCase()).map((p) => p.model).filter(Boolean))].sort();
-    }
-    return { availableMakes: makes, availableModels: models };
-  }, [leads, filters.vehicleType, filters.vehicleMake]);
+  // Derive unique vehicle preferences from leads for search suggestions
+  const vehicleOptions = useMemo(() => {
+    const prefs = leads.map((l) => l.vehicle_preference).filter(Boolean) as string[];
+    return [...new Set(prefs)].sort();
+  }, [leads]);
+
+  const filteredVehicleOptions = useMemo(() => {
+    if (!filters.vehicleSearch) return [];
+    const q = filters.vehicleSearch.toLowerCase();
+    return vehicleOptions.filter((v) => v.toLowerCase().includes(q)).slice(0, 8);
+  }, [vehicleOptions, filters.vehicleSearch]);
 
   return (
     <div className="space-y-5 text-sm">
@@ -230,65 +216,28 @@ function FilterContent({ filters, onChange, onReset, activeCount, maxIncome, max
           </div>
         </CollapsibleSection>
 
-        <CollapsibleSection title="Vehicle" defaultOpen={filters.vehicleType !== "all"}>
-          <div className="space-y-3">
-            {/* Vehicle Type */}
-            <div className="space-y-2">
-              {vehicleTypes.map((v) => (
-                <label key={v} className="flex items-center gap-2 cursor-pointer text-muted-foreground text-sm hover:text-foreground transition-colors">
-                  <Checkbox
-                    checked={filters.vehicleType === v}
-                    onCheckedChange={() => update({
-                      vehicleType: filters.vehicleType === v ? "all" : v,
-                      vehicleMake: "all",
-                      vehicleModel: "all",
-                    })}
-                    className="border-primary data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                  />
-                  <span>{v}</span>
-                </label>
-              ))}
-            </div>
-
-            {/* Make dropdown — shown when type selected */}
-            {filters.vehicleType !== "all" && availableMakes.length > 0 && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Make</p>
-                <Select
-                  value={filters.vehicleMake}
-                  onValueChange={(val) => update({ vehicleMake: val, vehicleModel: "all" })}
-                >
-                  <SelectTrigger className="h-8 text-xs bg-background/50 border-border/60">
-                    <SelectValue placeholder="All Makes" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Makes</SelectItem>
-                    {availableMakes.map((m) => (
-                      <SelectItem key={m} value={m}>{m}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {/* Model dropdown — shown when make selected */}
-            {filters.vehicleMake !== "all" && availableModels.length > 0 && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Model</p>
-                <Select
-                  value={filters.vehicleModel}
-                  onValueChange={(val) => update({ vehicleModel: val })}
-                >
-                  <SelectTrigger className="h-8 text-xs bg-background/50 border-border/60">
-                    <SelectValue placeholder="All Models" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Models</SelectItem>
-                    {availableModels.map((m) => (
-                      <SelectItem key={m} value={m}>{m}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+        <CollapsibleSection title="Vehicle" defaultOpen={filters.vehicleSearch.length > 0}>
+          <div className="space-y-2">
+            <Input
+              placeholder="Search vehicle preference..."
+              value={filters.vehicleSearch}
+              onChange={(e) => update({ vehicleSearch: e.target.value })}
+              className="h-8 text-xs bg-background/50 border-border/60"
+            />
+            {filters.vehicleSearch && filteredVehicleOptions.length > 0 && (
+              <div className="space-y-1 max-h-32 overflow-y-auto">
+                {filteredVehicleOptions.map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => update({ vehicleSearch: v })}
+                    className={cn(
+                      "w-full text-left text-xs px-2 py-1.5 rounded hover:bg-accent/50 transition-colors",
+                      filters.vehicleSearch === v ? "bg-accent text-accent-foreground" : "text-muted-foreground"
+                    )}
+                  >
+                    {v}
+                  </button>
+                ))}
               </div>
             )}
           </div>
@@ -367,9 +316,7 @@ export function countActiveFilters(f: MarketplaceFilters): number {
   if (f.provinces.length) count++;
   if (f.documents.length) count++;
   if (f.grades.length) count++;
-  if (f.vehicleType !== "all") count++;
-  if (f.vehicleMake !== "all") count++;
-  if (f.vehicleModel !== "all") count++;
+  if (f.vehicleSearch) count++;
   if (f.maxAge !== "all") count++;
   if (f.priceMin > 0 || f.priceMax > 0) count++;
   return count;
@@ -399,28 +346,12 @@ export function applyFilters(leads: any[], filters: MarketplaceFilters, maxIncom
     );
   }
 
-  // Vehicle type filter
-  if (filters.vehicleType !== "all") {
-    result = result.filter((l) => {
-      const parsed = parseVehiclePref(l.vehicle_preference);
-      return parsed.type.toLowerCase() === filters.vehicleType.toLowerCase();
-    });
-  }
-
-  // Vehicle make filter
-  if (filters.vehicleMake !== "all") {
-    result = result.filter((l) => {
-      const parsed = parseVehiclePref(l.vehicle_preference);
-      return parsed.make.toLowerCase() === filters.vehicleMake.toLowerCase();
-    });
-  }
-
-  // Vehicle model filter
-  if (filters.vehicleModel !== "all") {
-    result = result.filter((l) => {
-      const parsed = parseVehiclePref(l.vehicle_preference);
-      return parsed.model.toLowerCase() === filters.vehicleModel.toLowerCase();
-    });
+  // Vehicle search filter — matches against vehicle_preference string
+  if (filters.vehicleSearch) {
+    const q = filters.vehicleSearch.toLowerCase();
+    result = result.filter((l) =>
+      (l.vehicle_preference ?? "").toLowerCase().includes(q)
+    );
   }
 
   if (filters.maxAge !== "all") {
