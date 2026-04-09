@@ -122,8 +122,8 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
             <span className="text-xs truncate min-w-0 text-foreground">{lead.phone}</span>
           ) : lead.phone ? (
             <>
-              <span className="text-xs text-foreground">{lead.phone.slice(0, 3)}</span>
-              <span className="text-xs text-muted-foreground select-none">*******</span>
+              <span className="text-xs text-foreground">{lead.phone.slice(0, -7)}</span>
+              <span className="text-xs text-muted-foreground select-none">{"*".repeat(Math.min(7, lead.phone.length))}</span>
               <Tooltip><TooltipTrigger asChild><Lock className="h-2.5 w-2.5 text-muted-foreground/60 cursor-help shrink-0" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Purchase to reveal</TooltipContent></Tooltip>
             </>
           ) : (
