@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
+import { Input } from "@/components/ui/input";
 import { Filter, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
