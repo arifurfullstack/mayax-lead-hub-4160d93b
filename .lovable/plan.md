@@ -1,82 +1,60 @@
 
 
-# Plan: MayaX UI Overhaul — 5 Changes
+# AI Score & Grade Auto-Calculation
 
-## 1. Admin Sidebar — Already Hidden for Non-Admins (Verify Only)
+## Summary
+Add a `notes` column to leads, create a shared `calculateAiScore` utility that computes AI score (65–100) and grade (D–A+) from lead data, and apply it everywhere leads are created: Admin Add Lead dialog, inbound webhook, and file uploader.
 
-The `AppSidebar.tsx` already checks `isAdmin` state and conditionally renders the Admin link. The `/admin` route uses `ProtectedRoute` with `requireAdmin`. No code change needed — just verification.
+## New Grade Scale
+Current system only has A+, A, B, C. New system adds B+, C+, D+, D:
 
-The login page already routes admins to `/admin` and dealers to `/dashboard`. The login view is shared (no separate admin login page). If you want a visually different admin login, clarify — otherwise this is already correct.
+| Score | Grade |
+|-------|-------|
+| 97–100 | A+ |
+| 93–96 | A |
+| 89–92 | B+ |
+| 85–88 | B |
+| 81–84 | C+ |
+| 77–80 | C |
+| 73–76 | D+ |
+| 65–72 | D |
 
----
+## Scoring Rules (base 65, cap 100)
+- **Income**: missing/<1800 → +0, 1800–4999 → +5, 5000+ → +10
+- **Vehicle**: none → +0, generic keyword (Car/SUV/Truck/Sedan/Van) → +5, specific (anything else) → +10
+- **Trade/Refinance**: buyer_type or notes mentions trade/refinance → +5
+- **Bankruptcy**: notes mentions bankruptcy → +5
+- **Appointment**: appointment_time is set → +5
+- **Completeness**: has BOTH income AND vehicle → +5
 
-## 2. Income Filter — Dual-Thumb Slider (0 to Max)
+## Changes
 
-**Files:** `MarketplaceFilters.tsx`, `Marketplace.tsx`
+### 1. Database Migration
+- Add `notes TEXT` column to `leads` table
+- Update `get_marketplace_leads` function to return the new column
 
-- Change `incomeMin`/`incomeMax` from strings to numbers (`incomeRange: [number, number]`)
-- In `Marketplace.tsx`, compute `maxIncome` from leads data and pass it as a prop to the filter components
-- Replace the current static income display with a `<Slider>` component (dual-thumb, min=0, max=maxIncome, step=1000)
-- Show formatted labels below the slider ($0 — $X,XXX)
-- Update `applyFilters` and `countActiveFilters` accordingly
+### 2. Shared Scoring Utility — `src/lib/leadScoring.ts`
+- `calculateAiScore(lead)` → returns `{ ai_score: number, quality_grade: string }`
+- Pure function, reusable on client and can be ported to edge functions
 
----
+### 3. Duplicate Scoring for Edge Function — `supabase/functions/inbound-webhook/index.ts`
+- Inline the same scoring logic (edge functions can't import from `src/`)
+- Accept `notes` field in inbound payload
+- Auto-compute `ai_score` and `quality_grade` instead of trusting input values
+- Remove manual `ai_score` / `quality_grade` from accepted fields
 
-## 3. Vehicle Filter — Type → Make → Model Cascade
+### 4. Admin Add Lead Dialog — `src/components/AdminAddLeadDialog.tsx`
+- Add `notes` textarea field (for trade/refinance/bankruptcy mentions)
+- Remove manual AI Score and Quality Grade inputs — they auto-calculate on submit
+- Show computed score + grade as a live preview while filling the form
 
-**Files:** `MarketplaceFilters.tsx`, `Marketplace.tsx`
+### 5. Lead Card / UI Updates
+- Update `gradeColors` in `LeadCard.tsx` to include B+, C+, D+, D colors
 
-Current data format: `"SUV - Ford Escape"` (Type - Make Model). No separate DB columns needed — we parse `vehicle_preference` client-side.
+### 6. File Uploader — `src/components/LeadFileUploader.tsx`
+- Apply scoring after CSV parse before insert
 
-- Step 1: User picks vehicle type (SUV, Sedan, Truck, etc.) — existing checkboxes
-- Step 2: Once type selected, extract unique makes from leads matching that type and show a make dropdown/select
-- Step 3: Once make selected, extract unique models and show model dropdown (optional)
-- Add `vehicleMake` and `vehicleModel` string fields to `MarketplaceFilters`
-- Reset model when make changes; reset make when type changes
-- Update `applyFilters` to match on parsed make/model
-- Pass leads data to filter component so it can derive available makes/models
-
-Also fix the `get_marketplace_leads` DB function — it references `l.vehicle_make` and `l.vehicle_model` which don't exist. Remove those columns from the function return.
-
----
-
-## 4. Smaller Lead Cards — More Per Row
-
-**Files:** `LeadCard.tsx`, `Marketplace.tsx`
-
-- Reduce card padding from `p-5` to `p-3.5`
-- Reduce font sizes slightly (credit score from `text-xl` to `text-lg`, price stays prominent)
-- Tighten vertical margins (`mb-3` → `mb-2`, `mb-1.5` → `mb-1`)
-- Change grid to `xl:grid-cols-4` in `Marketplace.tsx`
-- Reduce icon sizes where needed (keep readability)
-
----
-
-## 5. Blur Logic — Only Contact Info Hidden
-
-**Files:** `LeadCard.tsx`
-
-Remove CSS blur from:
-- Credit score range — show clearly
-- Location (city, province) — show clearly
-- Income — show clearly
-- Vehicle preference — show clearly
-- Vehicle mileage — show clearly
-
-Add blurred contact fields to card:
-- Name (first_name + last_name initial) — blurred with lock icon
-- Phone — blurred with lock icon
-- Email — blurred with lock icon
-
-After purchase (when `lead.sold_to_dealer_id` matches requesting dealer), these fields are already unmasked by the `get_marketplace_leads` DB function, so the card just checks if the values are real (not `***` / `+XX-XXX-XXXX`) to decide whether to blur.
-
----
-
-## Implementation Order
-
-1. Fix `get_marketplace_leads` function (remove nonexistent columns) — DB migration
-2. Lead card blur changes (step 5)
-3. Smaller lead cards (step 4)
-4. Income slider filter (step 2)
-5. Vehicle cascading filter (step 3)
+## Technical Notes
+- The `notes` field is hidden from marketplace display (PII-like); the `get_marketplace_leads` function will NOT expose it to non-purchasing dealers
+- AI score and grade fields remain on the table but are now always auto-computed — admin cannot manually override them
 
