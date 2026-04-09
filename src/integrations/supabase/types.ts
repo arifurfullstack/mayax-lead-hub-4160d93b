@@ -276,6 +276,7 @@ export type Database = {
           id: string
           income: number | null
           last_name: string
+          notes: string | null
           phone: string | null
           price: number
           province: string | null
@@ -303,6 +304,7 @@ export type Database = {
           id?: string
           income?: number | null
           last_name: string
+          notes?: string | null
           phone?: string | null
           price: number
           province?: string | null
@@ -330,6 +332,7 @@ export type Database = {
           id?: string
           income?: number | null
           last_name?: string
+          notes?: string | null
           phone?: string | null
           price?: number
           province?: string | null
