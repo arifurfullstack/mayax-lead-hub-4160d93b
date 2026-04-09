@@ -15,7 +15,9 @@ interface DealerInfo {
 
 const AppLayout = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [dealer, setDealer] = useState<DealerInfo | null>(null);
+  const isMarketplace = location.pathname === "/marketplace";
 
   useEffect(() => {
     let dealerId: string | null = null;
