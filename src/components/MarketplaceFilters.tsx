@@ -57,7 +57,6 @@ const documentOptions = [
 ];
 
 const provinceOptions = ["Ontario", "British Columbia", "Alberta", "Quebec", "Manitoba", "Saskatchewan", "Nova Scotia", "Newfoundland"];
-const vehicleTypes = ["SUV", "Sedan", "Truck", "Compact", "Luxury"];
 const ageOptions = [
   { value: "all", label: "Any Age" },
   { value: "1", label: "< 1 day" },
