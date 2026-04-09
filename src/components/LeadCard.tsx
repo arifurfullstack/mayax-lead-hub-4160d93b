@@ -12,6 +12,7 @@ interface LeadCardProps {
   onSelect?: (lead: any) => void;
   index?: number;
   promoPrice?: number | null;
+  promoType?: "flat" | "percentage" | null;
 }
 
 function getLeadType(lead: any): { label: string; icon: React.ReactNode } {
