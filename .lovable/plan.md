@@ -1,60 +1,98 @@
 
 
-# AI Score & Grade Auto-Calculation
+# Dynamic Lead Pricing System
 
-## Summary
-Add a `notes` column to leads, create a shared `calculateAiScore` utility that computes AI score (65–100) and grade (D–A+) from lead data, and apply it everywhere leads are created: Admin Add Lead dialog, inbound webhook, and file uploader.
+## Overview
+Replace the current grade-based pricing with an additive, field-based pricing model. Each lead starts at a base price and gains add-ons based on what data it contains. All pricing values are admin-editable via `platform_settings`.
 
-## New Grade Scale
-Current system only has A+, A, B, C. New system adds B+, C+, D+, D:
+## Current State
+- Pricing is hardcoded in `leadScoring.ts` via `GRADE_PRICES` (grade → fixed price)
+- The same logic is duplicated in the `inbound-webhook` edge function
+- AI score/grade system remains unchanged — only the **price calculation** changes
 
-| Score | Grade |
-|-------|-------|
-| 97–100 | A+ |
-| 93–96 | A |
-| 89–92 | B+ |
-| 85–88 | B |
-| 81–84 | C+ |
-| 77–80 | C |
-| 73–76 | D+ |
-| 65–72 | D |
+## Architecture
 
-## Scoring Rules (base 65, cap 100)
-- **Income**: missing/<1800 → +0, 1800–4999 → +5, 5000+ → +10
-- **Vehicle**: none → +0, generic keyword (Car/SUV/Truck/Sedan/Van) → +5, specific (anything else) → +10
-- **Trade/Refinance**: buyer_type or notes mentions trade/refinance → +5
-- **Bankruptcy**: notes mentions bankruptcy → +5
-- **Appointment**: appointment_time is set → +5
-- **Completeness**: has BOTH income AND vehicle → +5
+```text
+Lead arrives (webhook or admin form)
+  → Parse notes for keywords (trade, bankruptcy, appointment)
+  → Set boolean flags: has_trade_in, has_bankruptcy, has_appointment
+  → Calculate price = base + income_addon + vehicle + trade + bankruptcy + appointment
+  → AI score/grade still calculated independently (unchanged)
+```
 
-## Changes
+## Plan
 
-### 1. Database Migration
-- Add `notes TEXT` column to `leads` table
-- Update `get_marketplace_leads` function to return the new column
+### 1. Seed default pricing settings in `platform_settings`
 
-### 2. Shared Scoring Utility — `src/lib/leadScoring.ts`
-- `calculateAiScore(lead)` → returns `{ ai_score: number, quality_grade: string }`
-- Pure function, reusable on client and can be ported to edge functions
+Add 7 rows via migration:
 
-### 3. Duplicate Scoring for Edge Function — `supabase/functions/inbound-webhook/index.ts`
-- Inline the same scoring logic (edge functions can't import from `src/`)
-- Accept `notes` field in inbound payload
-- Auto-compute `ai_score` and `quality_grade` instead of trusting input values
-- Remove manual `ai_score` / `quality_grade` from accepted fields
+| key | value |
+|-----|-------|
+| `lead_price_base` | `15` |
+| `lead_price_income_tier1` | `5` |
+| `lead_price_income_tier2` | `10` |
+| `lead_price_vehicle` | `5` |
+| `lead_price_trade` | `15` |
+| `lead_price_bankruptcy` | `15` |
+| `lead_price_appointment` | `10` |
 
-### 4. Admin Add Lead Dialog — `src/components/AdminAddLeadDialog.tsx`
-- Add `notes` textarea field (for trade/refinance/bankruptcy mentions)
-- Remove manual AI Score and Quality Grade inputs — they auto-calculate on submit
-- Show computed score + grade as a live preview while filling the form
+### 2. Add `has_bankruptcy` column to `leads` table
 
-### 5. Lead Card / UI Updates
-- Update `gradeColors` in `LeadCard.tsx` to include B+, C+, D+, D colors
+Currently `trade_in` and `appointment_time` exist. Add a `has_bankruptcy boolean default false` column so the detected bankruptcy flag is persisted (hidden conditional field).
 
-### 6. File Uploader — `src/components/LeadFileUploader.tsx`
-- Apply scoring after CSV parse before insert
+### 3. Update pricing logic in `src/lib/leadScoring.ts`
 
-## Technical Notes
-- The `notes` field is hidden from marketplace display (PII-like); the `get_marketplace_leads` function will NOT expose it to non-purchasing dealers
-- AI score and grade fields remain on the table but are now always auto-computed — admin cannot manually override them
+- Keep `calculateAiScore` unchanged (score/grade unaffected)
+- Replace `getGradePrice` with `calculateLeadPrice(lead, settings)` that:
+  - Starts at `settings.lead_price_base` (default 15)
+  - Adds income tier add-ons (< 1800 = $0, 1800–4999 = tier1, 5000+ = tier1 + tier2)
+  - Adds vehicle price if `vehicle_preference` is non-empty
+  - Adds trade price if `trade_in` is true
+  - Adds bankruptcy price if `has_bankruptcy` is true
+  - Adds appointment price if `appointment_time` is present
+- Add `parseNotesFlags(notes)` helper that detects trade/bankruptcy/appointment keywords and returns `{ trade_in, has_bankruptcy, has_appointment }`
+
+### 4. Update `inbound-webhook` edge function
+
+- Fetch pricing settings from `platform_settings` (already fetches settings for webhook secret)
+- Use the new additive pricing logic instead of grade-based pricing
+- Parse `notes` field for keywords → set `trade_in`, `has_bankruptcy` flags
+- Detect appointment keywords in notes → populate `appointment_time` if not already set
+- Insert `has_bankruptcy` in the lead record
+
+### 5. Update `AdminAddLeadDialog`
+
+- Use new `calculateLeadPrice` with settings from `usePlatformSettings`
+- Show live price preview using additive logic
+- Add `has_bankruptcy` detection from notes field
+- Auto-detect and show conditional fields (trade-in, bankruptcy, appointment) when keywords found in notes
+
+### 6. Create `AdminLeadPricingSettings` component
+
+New admin panel tab/section with editable fields for all 7 pricing values:
+- Base Price, Income Tier 1, Income Tier 2, Vehicle, Trade-In, Bankruptcy, Appointment
+- Each field is an `Input type="number"` with a label and description
+- Save button upserts to `platform_settings`
+- Shows a sample price breakdown preview
+
+### 7. Add "Lead Pricing" tab to `AdminDashboard`
+
+Add a new tab with a `DollarSign` icon between existing tabs, rendering the `AdminLeadPricingSettings` component.
+
+### 8. Update `get_marketplace_leads` DB function
+
+Add `has_bankruptcy` to the returned columns (only visible to the purchasing dealer, like notes).
+
+## Files Changed
+
+| File | Change |
+|------|--------|
+| `supabase/migrations/...` | Add `has_bankruptcy` column, seed pricing settings |
+| `src/lib/leadScoring.ts` | New `calculateLeadPrice`, `parseNotesFlags` functions |
+| `supabase/functions/inbound-webhook/index.ts` | Use dynamic pricing from settings, parse notes |
+| `src/components/AdminLeadPricingSettings.tsx` | New component — admin pricing editor |
+| `src/pages/AdminDashboard.tsx` | Add Lead Pricing tab |
+| `src/components/AdminAddLeadDialog.tsx` | Use new pricing with settings |
+| `src/components/OrderDetailModal.tsx` | Show bankruptcy field if present |
+| DB function `get_marketplace_leads` | Add `has_bankruptcy` to output |
 
