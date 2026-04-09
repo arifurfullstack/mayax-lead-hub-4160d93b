@@ -45,6 +45,17 @@ export interface AdminLead {
   sold_status: string;
   created_at: string;
   document_files: LeadFileEntry[];
+  buyer_type: string | null;
+  vehicle_preference: string | null;
+  vehicle_price: number | null;
+  vehicle_mileage: number | null;
+  income: number | null;
+  credit_range_min: number | null;
+  credit_range_max: number | null;
+  notes: string | null;
+  appointment_time: string | null;
+  trade_in: boolean | null;
+  has_bankruptcy: boolean | null;
 }
 
 const gradeColors: Record<string, string> = {

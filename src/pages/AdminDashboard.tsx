@@ -187,6 +187,9 @@ const AdminDashboard = () => {
     first_name: "", last_name: "", email: "", phone: "",
     city: "", province: "", quality_grade: "B", ai_score: "",
     price: "", sold_status: "available",
+    buyer_type: "online", vehicle_preference: "", vehicle_price: "",
+    vehicle_mileage: "", income: "", credit_range_min: "", credit_range_max: "",
+    notes: "", appointment_time: "", trade_in: false, has_bankruptcy: false,
   });
 
   const saveLeadEdits = async () => {
