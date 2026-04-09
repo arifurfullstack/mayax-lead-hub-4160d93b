@@ -341,6 +341,9 @@ const AdminDashboard = () => {
           <TabsTrigger value="promos" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
             <Tag className="h-4 w-4" /> Promo Codes
           </TabsTrigger>
+          <TabsTrigger value="lead-pricing" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
+            <TrendingUp className="h-4 w-4" /> Lead Pricing
+          </TabsTrigger>
           <TabsTrigger value="webhooks" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
             <Webhook className="h-4 w-4" /> Webhooks
           </TabsTrigger>
