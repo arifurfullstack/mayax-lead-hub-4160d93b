@@ -1,8 +1,10 @@
-import { useState } from "react";
-import { Plus } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Plus, Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -19,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { calculateAiScore } from "@/lib/leadScoring";
 
 const provinces = [
   "Ontario",
@@ -30,8 +33,6 @@ const provinces = [
   "Nova Scotia",
   "Newfoundland",
 ];
-
-const grades = ["A+", "A", "B", "C"];
 
 interface Props {
   onLeadAdded: () => void;
@@ -48,9 +49,7 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
     phone: "",
     city: "",
     province: "",
-    quality_grade: "B",
     price: "",
-    ai_score: "",
     buyer_type: "online",
     vehicle_preference: "",
     vehicle_price: "",
@@ -58,10 +57,22 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
     income: "",
     credit_range_min: "",
     credit_range_max: "",
+    notes: "",
+    appointment_time: "",
   });
 
   const update = (key: string, value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }));
+
+  const computed = useMemo(() => {
+    return calculateAiScore({
+      income: form.income ? Number(form.income) : null,
+      vehicle_preference: form.vehicle_preference || null,
+      buyer_type: form.buyer_type,
+      notes: form.notes || null,
+      appointment_time: form.appointment_time || null,
+    });
+  }, [form.income, form.vehicle_preference, form.buyer_type, form.notes, form.appointment_time]);
 
   const generateRefCode = () => {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -85,9 +96,9 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
       phone: form.phone || null,
       city: form.city || null,
       province: form.province || null,
-      quality_grade: form.quality_grade,
+      quality_grade: computed.quality_grade,
       price: Number(form.price),
-      ai_score: form.ai_score ? Number(form.ai_score) : 0,
+      ai_score: computed.ai_score,
       buyer_type: form.buyer_type,
       vehicle_preference: form.vehicle_preference || null,
       vehicle_price: form.vehicle_price ? Number(form.vehicle_price) : null,
@@ -95,6 +106,8 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
       income: form.income ? Number(form.income) : null,
       credit_range_min: form.credit_range_min ? Number(form.credit_range_min) : null,
       credit_range_max: form.credit_range_max ? Number(form.credit_range_max) : null,
+      notes: form.notes || null,
+      appointment_time: form.appointment_time || null,
     });
 
     setSaving(false);
@@ -105,9 +118,9 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
       toast({ title: "Lead added", description: "New lead created successfully." });
       setForm({
         first_name: "", last_name: "", email: "", phone: "", city: "", province: "",
-        quality_grade: "B", price: "", ai_score: "", buyer_type: "online",
+        price: "", buyer_type: "online",
         vehicle_preference: "", vehicle_price: "", vehicle_mileage: "", income: "",
-        credit_range_min: "", credit_range_max: "",
+        credit_range_min: "", credit_range_max: "", notes: "", appointment_time: "",
       });
       setOpen(false);
       onLeadAdded();
@@ -127,6 +140,16 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
         </DialogHeader>
 
         <div className="space-y-5 pt-2">
+          {/* AI Score Preview */}
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border/50">
+            <Brain className="h-5 w-5 text-primary shrink-0" />
+            <div className="flex items-center gap-2 flex-1">
+              <span className="text-xs text-muted-foreground">Auto-calculated:</span>
+              <Badge variant="secondary" className="font-mono text-xs">AI {computed.ai_score}</Badge>
+              <Badge variant="outline" className="font-mono text-xs font-bold">{computed.quality_grade}</Badge>
+            </div>
+          </div>
+
           {/* Personal Info */}
           <div>
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Personal Information</p>
@@ -174,27 +197,10 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
             </div>
           </div>
 
-          {/* Lead Quality & Pricing */}
+          {/* Pricing */}
           <div>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Quality & Pricing</p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Quality Grade</Label>
-                <Select value={form.quality_grade} onValueChange={(v) => update("quality_grade", v)}>
-                  <SelectTrigger className="bg-background border-border">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {grades.map((g) => (
-                      <SelectItem key={g} value={g}>{g}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">AI Score (0-100)</Label>
-                <Input type="number" min={0} max={100} value={form.ai_score} onChange={(e) => update("ai_score", e.target.value)} className="bg-background border-border" />
-              </div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Pricing</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Price ($) *</Label>
                 <Input type="number" min={0} step="0.01" value={form.price} onChange={(e) => update("price", e.target.value)} className="bg-background border-border" />
@@ -227,7 +233,7 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Vehicle Preference</Label>
-                <Input value={form.vehicle_preference} onChange={(e) => update("vehicle_preference", e.target.value)} placeholder="e.g. SUV, Sedan" className="bg-background border-border" />
+                <Input value={form.vehicle_preference} onChange={(e) => update("vehicle_preference", e.target.value)} placeholder="e.g. Honda Civic, SUV" className="bg-background border-border" />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Vehicle Price ($)</Label>
@@ -240,20 +246,40 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
             </div>
           </div>
 
-          {/* Buyer Type */}
+          {/* Buyer Type & Appointment */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Buyer Type</Label>
+              <Select value={form.buyer_type} onValueChange={(v) => update("buyer_type", v)}>
+                <SelectTrigger className="bg-background border-border">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="online">Online</SelectItem>
+                  <SelectItem value="walk-in">Walk-in</SelectItem>
+                  <SelectItem value="referral">Referral</SelectItem>
+                  <SelectItem value="phone">Phone</SelectItem>
+                  <SelectItem value="trade">Trade-in</SelectItem>
+                  <SelectItem value="refinance">Refinance</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Appointment Time</Label>
+              <Input type="datetime-local" value={form.appointment_time} onChange={(e) => update("appointment_time", e.target.value)} className="bg-background border-border" />
+            </div>
+          </div>
+
+          {/* Notes */}
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Buyer Type</Label>
-            <Select value={form.buyer_type} onValueChange={(v) => update("buyer_type", v)}>
-              <SelectTrigger className="bg-background border-border w-[200px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="online">Online</SelectItem>
-                <SelectItem value="walk-in">Walk-in</SelectItem>
-                <SelectItem value="referral">Referral</SelectItem>
-                <SelectItem value="phone">Phone</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label className="text-xs text-muted-foreground">Notes (hidden from marketplace)</Label>
+            <Textarea
+              value={form.notes}
+              onChange={(e) => update("notes", e.target.value)}
+              placeholder="e.g. trade-in vehicle, bankruptcy mentioned, refinance request..."
+              className="bg-background border-border min-h-[60px]"
+            />
+            <p className="text-[10px] text-muted-foreground/60">Mentioning trade, refinance, or bankruptcy here affects the AI score.</p>
           </div>
 
           {/* Submit */}

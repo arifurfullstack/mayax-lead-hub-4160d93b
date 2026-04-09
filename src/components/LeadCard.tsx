@@ -25,8 +25,12 @@ function getLeadType(lead: any): { label: string; icon: React.ReactNode } {
 const gradeColors: Record<string, string> = {
   "a+": "border-[hsl(var(--gold))] text-[hsl(var(--gold))] bg-[hsl(var(--gold))/0.1]",
   a: "border-emerald-500 text-emerald-400 bg-emerald-500/10",
+  "b+": "border-teal-500 text-teal-400 bg-teal-500/10",
   b: "border-sky-500 text-sky-400 bg-sky-500/10",
+  "c+": "border-indigo-400 text-indigo-300 bg-indigo-500/10",
   c: "border-muted-foreground text-muted-foreground bg-muted/30",
+  "d+": "border-orange-500 text-orange-400 bg-orange-500/10",
+  d: "border-red-500/60 text-red-400/80 bg-red-500/10",
 };
 
 function useCountdown(targetMs: number) {
