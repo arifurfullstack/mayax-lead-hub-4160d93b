@@ -76,7 +76,7 @@ const AppLayout = () => {
   };
 
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={!isMarketplace} key={isMarketplace ? "collapsed" : "expanded"}>
       <div className="min-h-screen flex w-full starfield">
         <AppSidebar
           walletBalance={dealer?.wallet_balance ?? 0}
