@@ -6,7 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Trash2, Pencil, Tag } from "lucide-react";
+import { Plus, Trash2, Pencil, Tag, UserPlus } from "lucide-react";
+import AdminPromoAssignDialog from "@/components/AdminPromoAssignDialog";
 import {
   Dialog,
   DialogContent,
