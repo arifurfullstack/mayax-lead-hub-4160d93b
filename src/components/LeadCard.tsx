@@ -208,7 +208,7 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
                 {promoType === "percentage" && (
                   <span className="text-xs text-muted-foreground line-through font-mono-timer">${Number(lead.price).toFixed(0)}</span>
                 )}
-                <span className="text-base font-bold text-primary font-mono-timer">${promoPrice.toFixed(0)}</span>
+                <span className={cn("text-base font-bold font-mono-timer", promoType === "percentage" ? "text-primary" : "text-foreground")}>${promoPrice.toFixed(0)}</span>
               </>
             ) : (
               <span className="text-base font-bold text-foreground font-mono-timer">${Number(lead.price).toFixed(0)}</span>
