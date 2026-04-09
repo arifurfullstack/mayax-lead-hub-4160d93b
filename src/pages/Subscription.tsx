@@ -247,7 +247,7 @@ const Subscription = () => {
                 >
                   <AlertCircle className="h-4 w-4 text-cyan" />
                   <span className="text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>Leads:</span>
-                  <span className="text-sm font-bold text-foreground">{usage.leads_used}/{usage.leads_limit} used</span>
+                  <span className="text-sm font-bold text-foreground">{usage.leads_used}/{usage.leads_limit === 0 ? "Unlimited" : usage.leads_limit} used</span>
                 </div>
               )}
             </div>
