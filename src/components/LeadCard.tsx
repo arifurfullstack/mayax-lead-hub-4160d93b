@@ -55,7 +55,7 @@ function isRevealed(lead: any): boolean {
   return lead.first_name !== "***" && lead.email !== "xxx@xxxx.com";
 }
 
-export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, index = 0, promoPrice }: LeadCardProps) {
+export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, index = 0, promoPrice, promoType }: LeadCardProps) {
   const { remaining, display } = useCountdown(unlockAt);
   const leadType = getLeadType(lead);
   const buyerLabel = lead.buyer_type === "walk-in" ? "In-Store Buyer" : "Online Buyer";
