@@ -1,10 +1,11 @@
 import { useState, useMemo } from "react";
-import { Plus, Brain } from "lucide-react";
+import { Plus, Brain, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -21,7 +22,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { calculateAiScore } from "@/lib/leadScoring";
+import { calculateAiScore, getGradePrice } from "@/lib/leadScoring";
 
 const provinces = [
   "Ontario",
@@ -49,7 +50,6 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
     phone: "",
     city: "",
     province: "",
-    price: "",
     buyer_type: "online",
     vehicle_preference: "",
     vehicle_price: "",
@@ -59,20 +59,23 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
     credit_range_max: "",
     notes: "",
     appointment_time: "",
+    trade_in: false,
   });
 
-  const update = (key: string, value: string) =>
+  const update = (key: string, value: string | boolean) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
   const computed = useMemo(() => {
-    return calculateAiScore({
+    const result = calculateAiScore({
       income: form.income ? Number(form.income) : null,
       vehicle_preference: form.vehicle_preference || null,
       buyer_type: form.buyer_type,
       notes: form.notes || null,
       appointment_time: form.appointment_time || null,
+      trade_in: form.trade_in,
     });
-  }, [form.income, form.vehicle_preference, form.buyer_type, form.notes, form.appointment_time]);
+    return { ...result, price: getGradePrice(result.quality_grade) };
+  }, [form.income, form.vehicle_preference, form.buyer_type, form.notes, form.appointment_time, form.trade_in]);
 
   const generateRefCode = () => {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -82,8 +85,8 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
   };
 
   const handleSubmit = async () => {
-    if (!form.first_name || !form.last_name || !form.price) {
-      toast({ title: "Missing fields", description: "First name, last name, and price are required.", variant: "destructive" });
+    if (!form.first_name || !form.last_name) {
+      toast({ title: "Missing fields", description: "First name and last name are required.", variant: "destructive" });
       return;
     }
 
@@ -97,7 +100,7 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
       city: form.city || null,
       province: form.province || null,
       quality_grade: computed.quality_grade,
-      price: Number(form.price),
+      price: computed.price,
       ai_score: computed.ai_score,
       buyer_type: form.buyer_type,
       vehicle_preference: form.vehicle_preference || null,
@@ -108,6 +111,7 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
       credit_range_max: form.credit_range_max ? Number(form.credit_range_max) : null,
       notes: form.notes || null,
       appointment_time: form.appointment_time || null,
+      trade_in: form.trade_in,
     });
 
     setSaving(false);
@@ -118,9 +122,10 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
       toast({ title: "Lead added", description: "New lead created successfully." });
       setForm({
         first_name: "", last_name: "", email: "", phone: "", city: "", province: "",
-        price: "", buyer_type: "online",
+        buyer_type: "online",
         vehicle_preference: "", vehicle_price: "", vehicle_mileage: "", income: "",
         credit_range_min: "", credit_range_max: "", notes: "", appointment_time: "",
+        trade_in: false,
       });
       setOpen(false);
       onLeadAdded();
@@ -140,13 +145,17 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
         </DialogHeader>
 
         <div className="space-y-5 pt-2">
-          {/* AI Score Preview */}
+          {/* AI Score & Price Preview */}
           <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border/50">
             <Brain className="h-5 w-5 text-primary shrink-0" />
             <div className="flex items-center gap-2 flex-1">
               <span className="text-xs text-muted-foreground">Auto-calculated:</span>
               <Badge variant="secondary" className="font-mono text-xs">AI {computed.ai_score}</Badge>
               <Badge variant="outline" className="font-mono text-xs font-bold">{computed.quality_grade}</Badge>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <DollarSign className="h-4 w-4 text-primary" />
+              <span className="text-sm font-bold text-foreground">${computed.price}</span>
             </div>
           </div>
 
@@ -197,17 +206,6 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
             </div>
           </div>
 
-          {/* Pricing */}
-          <div>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Pricing</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Price ($) *</Label>
-                <Input type="number" min={0} step="0.01" value={form.price} onChange={(e) => update("price", e.target.value)} className="bg-background border-border" />
-              </div>
-            </div>
-          </div>
-
           {/* Financial */}
           <div>
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Financial</p>
@@ -246,8 +244,8 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
             </div>
           </div>
 
-          {/* Buyer Type & Appointment */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Buyer Type, Trade-In & Appointment */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Buyer Type</Label>
               <Select value={form.buyer_type} onValueChange={(v) => update("buyer_type", v)}>
@@ -268,6 +266,13 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
               <Label className="text-xs text-muted-foreground">Appointment Time</Label>
               <Input type="datetime-local" value={form.appointment_time} onChange={(e) => update("appointment_time", e.target.value)} className="bg-background border-border" />
             </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Trade-In</Label>
+              <div className="flex items-center gap-2 h-9">
+                <Switch checked={form.trade_in} onCheckedChange={(v) => update("trade_in", v)} />
+                <span className="text-xs text-muted-foreground">{form.trade_in ? "Yes" : "No"}</span>
+              </div>
+            </div>
           </div>
 
           {/* Notes */}
@@ -276,7 +281,7 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
             <Textarea
               value={form.notes}
               onChange={(e) => update("notes", e.target.value)}
-              placeholder="e.g. trade-in vehicle, bankruptcy mentioned, refinance request..."
+              placeholder="e.g. bankruptcy mentioned, refinance request..."
               className="bg-background border-border min-h-[60px]"
             />
             <p className="text-[10px] text-muted-foreground/60">Mentioning trade, refinance, or bankruptcy here affects the AI score.</p>
