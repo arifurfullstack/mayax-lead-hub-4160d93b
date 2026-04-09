@@ -642,7 +642,8 @@ const AdminDashboard = () => {
                 <div><span className="text-muted-foreground text-xs">Name</span><p className="text-foreground">{selectedLead.first_name} {selectedLead.last_name}</p></div>
                 <div><span className="text-muted-foreground text-xs">Email</span><p className="text-foreground">{selectedLead.email ?? "—"}</p></div>
                 <div><span className="text-muted-foreground text-xs">Phone</span><p className="text-foreground">{selectedLead.phone ?? "—"}</p></div>
-                <div><span className="text-muted-foreground text-xs">Location</span><p className="text-foreground">{selectedLead.city && selectedLead.province ? `${selectedLead.city}, ${selectedLead.province}` : selectedLead.province ?? "—"}</p></div>
+                <div><span className="text-muted-foreground text-xs">City</span><p className="text-foreground">{selectedLead.city ?? "—"}</p></div>
+                <div><span className="text-muted-foreground text-xs">Province</span><p className="text-foreground">{selectedLead.province ?? "—"}</p></div>
                 <div><span className="text-muted-foreground text-xs">Grade</span>
                   <Badge className={cn("border-0 text-[10px] mt-1", gradeColors[selectedLead.quality_grade ?? ""] ?? "bg-muted text-muted-foreground")}>
                     {selectedLead.quality_grade ?? "—"}
