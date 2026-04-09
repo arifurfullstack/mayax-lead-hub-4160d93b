@@ -146,6 +146,14 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
         </div>
       )}
 
+      {/* Trade-In */}
+      {lead.trade_in && (
+        <div className="flex items-center gap-1.5 mb-0.5 text-muted-foreground">
+          <Car className="h-3.5 w-3.5" />
+          <span className="text-xs text-emerald-400 font-medium">Trade-In</span>
+        </div>
+      )}
+
       {/* Vehicle mileage */}
       {lead.vehicle_mileage != null && (
         <div className="flex items-center gap-1.5 mb-0.5 text-muted-foreground">
