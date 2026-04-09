@@ -247,7 +247,7 @@ const Subscription = () => {
                 >
                   <AlertCircle className="h-4 w-4 text-cyan" />
                   <span className="text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>Leads:</span>
-                  <span className="text-sm font-bold text-foreground">{usage.leads_used}/{usage.leads_limit} used</span>
+                  <span className="text-sm font-bold text-foreground">{usage.leads_used}/{usage.leads_limit === 0 ? "Unlimited" : usage.leads_limit} used</span>
                 </div>
               )}
             </div>
@@ -383,7 +383,7 @@ const Subscription = () => {
                     <li className="flex items-center gap-2.5 text-[13px]" style={{ color: "rgba(255,255,255,0.75)" }}>
                       <Check className="w-4 h-4 shrink-0" style={{ color: tier.accent_color }} />
                       <span>
-                        <span className="font-bold text-foreground">{tier.leads_per_month}</span>{" "}
+                        <span className="font-bold text-foreground">{tier.leads_per_month === 0 ? "Unlimited" : tier.leads_per_month}</span>{" "}
                         <span>Leads / mo</span>
                       </span>
                     </li>
@@ -471,7 +471,7 @@ const Subscription = () => {
                 </li>
                 <li className="flex items-center gap-2 text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>
                   <Check className="w-3.5 h-3.5 shrink-0" style={{ color: confirmPlan.accent_color }} />
-                  <span><strong className="text-foreground">{confirmPlan.leads_per_month}</strong> leads per month</span>
+                  <span><strong className="text-foreground">{confirmPlan.leads_per_month === 0 ? "Unlimited" : confirmPlan.leads_per_month}</strong> leads per month</span>
                 </li>
                 {confirmPlan.plan_features.map((f) => (
                   <li key={f.id} className="flex items-center gap-2 text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>
