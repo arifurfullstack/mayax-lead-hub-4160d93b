@@ -6,7 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Trash2, Pencil, Tag } from "lucide-react";
+import { Plus, Trash2, Pencil, Tag, UserPlus } from "lucide-react";
+import AdminPromoAssignDialog from "@/components/AdminPromoAssignDialog";
 import {
   Dialog,
   DialogContent,
@@ -40,6 +41,7 @@ const AdminPromoCodeManager = () => {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [assignPromo, setAssignPromo] = useState<{ id: string; code: string } | null>(null);
   const [form, setForm] = useState({
     code: "",
     discount_type: "flat",
@@ -187,6 +189,9 @@ const AdminPromoCodeManager = () => {
                 </td>
                 <td className="p-3 text-right">
                   <div className="flex items-center justify-end gap-1">
+                    <Button variant="ghost" size="icon" className="h-7 w-7" title="Assign to dealers" onClick={() => setAssignPromo({ id: pc.id, code: pc.code })}>
+                      <UserPlus className="h-3.5 w-3.5" />
+                    </Button>
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(pc)}>
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
@@ -253,6 +258,14 @@ const AdminPromoCodeManager = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {assignPromo && (
+        <AdminPromoAssignDialog
+          promoCodeId={assignPromo.id}
+          promoCode={assignPromo.code}
+          open={!!assignPromo}
+          onOpenChange={(open) => { if (!open) setAssignPromo(null); }}
+        />
+      )}
     </div>
   );
 };
