@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import TopNavbar from "@/components/TopNavbar";
@@ -15,7 +15,9 @@ interface DealerInfo {
 
 const AppLayout = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [dealer, setDealer] = useState<DealerInfo | null>(null);
+  const isMarketplace = location.pathname === "/marketplace";
 
   useEffect(() => {
     let dealerId: string | null = null;
@@ -74,7 +76,7 @@ const AppLayout = () => {
   };
 
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={!isMarketplace} key={isMarketplace ? "collapsed" : "expanded"}>
       <div className="min-h-screen flex w-full starfield">
         <AppSidebar
           walletBalance={dealer?.wallet_balance ?? 0}
