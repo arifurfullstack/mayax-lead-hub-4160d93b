@@ -49,12 +49,10 @@ export const defaultFilters: MarketplaceFilters = {
   provinces: [],
   documents: [],
   grades: [],
-  vehicleType: "all",
-  vehicleMake: "all",
-  vehicleModel: "all",
+  vehicleSearch: "",
   maxAge: "all",
   priceMin: 0,
-  priceMax: 0, // 0 means "use maxPrice"
+  priceMax: 0,
 };
 
 const documentOptions = [
