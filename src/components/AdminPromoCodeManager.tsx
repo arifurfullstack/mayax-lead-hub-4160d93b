@@ -41,6 +41,7 @@ const AdminPromoCodeManager = () => {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [assignPromo, setAssignPromo] = useState<{ id: string; code: string } | null>(null);
   const [form, setForm] = useState({
     code: "",
     discount_type: "flat",
