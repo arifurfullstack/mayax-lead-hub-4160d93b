@@ -119,9 +119,9 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
         <div className="flex items-center gap-1.5 min-w-0">
           <Phone className="h-3 w-3 text-muted-foreground shrink-0" />
           <span className={cn("text-xs truncate min-w-0", revealed ? "text-foreground" : "text-muted-foreground select-none")} style={!revealed ? { filter: "blur(5px)" } : undefined}>
-            {lead.phone}
+            {revealed ? lead.phone : lead.phone ? `${lead.phone.slice(0, 3)}*******` : "—"}
           </span>
-          {!revealed && <Tooltip><TooltipTrigger asChild><Lock className="h-2.5 w-2.5 text-muted-foreground/60 cursor-help shrink-0" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Purchase to reveal</TooltipContent></Tooltip>}
+          {!revealed && lead.phone && <Tooltip><TooltipTrigger asChild><Lock className="h-2.5 w-2.5 text-muted-foreground/60 cursor-help shrink-0" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Purchase to reveal</TooltipContent></Tooltip>}
         </div>
         <div className="flex items-center gap-1.5 min-w-0">
           <Mail className="h-3 w-3 text-muted-foreground shrink-0" />
