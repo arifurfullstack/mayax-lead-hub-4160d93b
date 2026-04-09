@@ -17,12 +17,15 @@ import {
   Check,
   Camera,
   Loader2,
+  Tag,
+  X,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
@@ -52,6 +55,15 @@ interface DealerProfile {
   profile_picture_url: string | null;
 }
 
+interface ActivePromo {
+  id: string;
+  code: string;
+  discount_type: string;
+  flat_price: number;
+  discount_value: number;
+  expires_at: string | null;
+}
+
 const provinces = [
   "Alberta", "British Columbia", "Manitoba", "New Brunswick",
   "Newfoundland and Labrador", "Nova Scotia", "Ontario",
@@ -69,6 +81,12 @@ const Settings = () => {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Promo state
+  const [promoInput, setPromoInput] = useState("");
+  const [applyingPromo, setApplyingPromo] = useState(false);
+  const [activePromo, setActivePromo] = useState<ActivePromo | null>(null);
+  const [removingPromo, setRemovingPromo] = useState(false);
+
   // Form state
   const [form, setForm] = useState({
     dealership_name: "",
@@ -83,6 +101,38 @@ const Settings = () => {
     webhook_url: "",
     webhook_secret: "",
   });
+
+  const loadActivePromo = async (dealerId: string) => {
+    const { data: dealerPromo } = await supabase
+      .from("dealer_promo_codes")
+      .select("promo_code_id")
+      .eq("dealer_id", dealerId)
+      .maybeSingle();
+
+    if (dealerPromo) {
+      const { data: promo } = await supabase
+        .from("promo_codes")
+        .select("id, code, flat_price, discount_type, discount_value, expires_at, is_active")
+        .eq("id", dealerPromo.promo_code_id)
+        .single();
+
+      if (promo && promo.is_active) {
+        const notExpired = !promo.expires_at || new Date(promo.expires_at) > new Date();
+        if (notExpired) {
+          setActivePromo({
+            id: promo.id,
+            code: promo.code,
+            discount_type: (promo as any).discount_type || "flat",
+            flat_price: Number(promo.flat_price),
+            discount_value: Number((promo as any).discount_value || 0),
+            expires_at: promo.expires_at,
+          });
+          return;
+        }
+      }
+    }
+    setActivePromo(null);
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -111,6 +161,7 @@ const Settings = () => {
           webhook_url: data.webhook_url || "",
           webhook_secret: data.webhook_secret || "",
         });
+        await loadActivePromo(data.id);
       }
       setLoading(false);
     };
@@ -241,6 +292,73 @@ const Settings = () => {
     toast({ title: "Updated", description: "Profile picture updated successfully." });
   };
 
+  const applyPromoCode = async () => {
+    if (!dealer || !promoInput.trim()) return;
+    setApplyingPromo(true);
+
+    // Look up the promo code
+    const { data: promo, error } = await supabase
+      .from("promo_codes")
+      .select("id, code, flat_price, discount_type, discount_value, is_active, max_uses, times_used, expires_at")
+      .eq("code", promoInput.trim().toUpperCase())
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (error || !promo) {
+      toast({ title: "Invalid Code", description: "Promo code not found or inactive.", variant: "destructive" });
+      setApplyingPromo(false);
+      return;
+    }
+
+    // Check expiry
+    if (promo.expires_at && new Date(promo.expires_at) <= new Date()) {
+      toast({ title: "Expired", description: "This promo code has expired.", variant: "destructive" });
+      setApplyingPromo(false);
+      return;
+    }
+
+    // Check max uses
+    if (promo.max_uses !== null && promo.times_used >= promo.max_uses) {
+      toast({ title: "Maxed Out", description: "This promo code has reached its usage limit.", variant: "destructive" });
+      setApplyingPromo(false);
+      return;
+    }
+
+    // Remove existing promo if any
+    await supabase.from("dealer_promo_codes").delete().eq("dealer_id", dealer.id);
+
+    // Apply new promo
+    const { error: insertErr } = await supabase.from("dealer_promo_codes").insert({
+      dealer_id: dealer.id,
+      promo_code_id: promo.id,
+    });
+
+    if (insertErr) {
+      toast({ title: "Error", description: "Failed to apply promo code.", variant: "destructive" });
+    } else {
+      setActivePromo({
+        id: promo.id,
+        code: promo.code,
+        discount_type: (promo as any).discount_type || "flat",
+        flat_price: Number(promo.flat_price),
+        discount_value: Number((promo as any).discount_value || 0),
+        expires_at: promo.expires_at,
+      });
+      setPromoInput("");
+      toast({ title: "Applied!", description: `Promo code ${promo.code} is now active on your account.` });
+    }
+    setApplyingPromo(false);
+  };
+
+  const removePromoCode = async () => {
+    if (!dealer) return;
+    setRemovingPromo(true);
+    await supabase.from("dealer_promo_codes").delete().eq("dealer_id", dealer.id);
+    setActivePromo(null);
+    setRemovingPromo(false);
+    toast({ title: "Removed", description: "Promo code removed from your account." });
+  };
+
   if (loading) {
     return (
       <div className="p-6 space-y-6 animate-pulse">
@@ -265,6 +383,10 @@ const Settings = () => {
           <TabsTrigger value="profile" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
             <User className="h-4 w-4" />
             Profile
+          </TabsTrigger>
+          <TabsTrigger value="promo" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
+            <Tag className="h-4 w-4" />
+            Promo Code
           </TabsTrigger>
           <TabsTrigger value="notifications" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
             <Bell className="h-4 w-4" />
@@ -418,6 +540,73 @@ const Settings = () => {
               <Save className="h-4 w-4" />
               {saving ? "Saving…" : "Save Profile"}
             </Button>
+          </div>
+        </TabsContent>
+
+        {/* Promo Code Tab */}
+        <TabsContent value="promo" className="space-y-6">
+          <div className="glass-card p-6 space-y-5">
+            <div className="flex items-center gap-2 mb-1">
+              <Tag className="h-4 w-4 text-secondary" />
+              <h2 className="text-sm font-semibold text-foreground">Promo Code</h2>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Enter a promo code to get discounted pricing on lead purchases. The discount applies automatically when you buy leads.
+            </p>
+
+            {activePromo ? (
+              <div className="border border-primary/30 rounded-lg p-4 bg-primary/5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Badge className="font-mono text-sm px-3 py-1 bg-primary/20 text-primary border-primary/30">
+                      {activePromo.code}
+                    </Badge>
+                    <Badge variant="outline" className="text-xs capitalize">
+                      {activePromo.discount_type === "percentage" ? `${activePromo.discount_value}% off` : `$${activePromo.flat_price.toFixed(2)} flat`}
+                    </Badge>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive hover:text-destructive gap-1"
+                    onClick={removePromoCode}
+                    disabled={removingPromo}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                    Remove
+                  </Button>
+                </div>
+                {activePromo.expires_at && (
+                  <p className="text-xs text-muted-foreground">
+                    Expires: {new Date(activePromo.expires_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
+                  </p>
+                )}
+                <p className="text-xs text-primary/80">
+                  ✓ This promo is active and will be applied automatically when you purchase leads.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <Label className="text-xs text-muted-foreground">Enter Promo Code</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={promoInput}
+                    onChange={(e) => setPromoInput(e.target.value)}
+                    placeholder="e.g. SUMMER25"
+                    className="bg-card border-border uppercase flex-1"
+                    onKeyDown={(e) => e.key === "Enter" && applyPromoCode()}
+                  />
+                  <Button
+                    onClick={applyPromoCode}
+                    disabled={applyingPromo || !promoInput.trim()}
+                    className="gap-2"
+                  >
+                    {applyingPromo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Tag className="h-4 w-4" />}
+                    Apply
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </TabsContent>
 

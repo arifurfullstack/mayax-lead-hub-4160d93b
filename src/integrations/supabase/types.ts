@@ -540,6 +540,8 @@ export type Database = {
         Row: {
           code: string
           created_at: string
+          discount_type: string
+          discount_value: number | null
           expires_at: string | null
           flat_price: number
           id: string
@@ -551,6 +553,8 @@ export type Database = {
         Insert: {
           code: string
           created_at?: string
+          discount_type?: string
+          discount_value?: number | null
           expires_at?: string | null
           flat_price: number
           id?: string
@@ -562,6 +566,8 @@ export type Database = {
         Update: {
           code?: string
           created_at?: string
+          discount_type?: string
+          discount_value?: number | null
           expires_at?: string | null
           flat_price?: number
           id?: string

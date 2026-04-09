@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
     }
 
     // Check if dealer has an active promo code
-    let promoFlatPrice: number | null = null;
+    let promoInfo: { id: string; type: string; flat_price: number; discount_value: number } | null = null;
     const { data: dealerPromo } = await admin
       .from("dealer_promo_codes")
       .select("promo_code_id")
@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
     if (dealerPromo) {
       const { data: promo } = await admin
         .from("promo_codes")
-        .select("id, flat_price, is_active, max_uses, times_used, expires_at")
+        .select("id, flat_price, discount_type, discount_value, is_active, max_uses, times_used, expires_at")
         .eq("id", dealerPromo.promo_code_id)
         .single();
 
@@ -78,7 +78,12 @@ Deno.serve(async (req) => {
         const notExpired = !promo.expires_at || new Date(promo.expires_at) > new Date();
         const notMaxed = promo.max_uses === null || promo.times_used < promo.max_uses;
         if (notExpired && notMaxed) {
-          promoFlatPrice = Number(promo.flat_price);
+          promoInfo = {
+            id: promo.id,
+            type: promo.discount_type || "flat",
+            flat_price: Number(promo.flat_price),
+            discount_value: Number(promo.discount_value || 0),
+          };
         }
       }
     }
@@ -92,12 +97,10 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
-    // Fallback to hardcoded delays if no subscription record
     const fallbackDelays: Record<string, number> = { vip: 0, elite: 6, pro: 12, basic: 24 };
     const delayHours = activeSub?.delay_hours ?? fallbackDelays[dealer.subscription_tier] ?? 24;
     const leadsLimit = activeSub?.leads_per_month ?? null;
 
-    // Check monthly usage if we have a limit
     const now = new Date();
     const periodStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
 
@@ -148,13 +151,23 @@ Deno.serve(async (req) => {
         }
       }
 
-      const price = promoFlatPrice !== null ? promoFlatPrice : Number(lead.price);
+      // Calculate price based on promo type
+      const originalPrice = Number(lead.price);
+      let price = originalPrice;
+      if (promoInfo) {
+        if (promoInfo.type === "percentage") {
+          price = Math.max(0, originalPrice * (1 - promoInfo.discount_value / 100));
+          price = Math.round(price * 100) / 100; // round to cents
+        } else {
+          price = promoInfo.flat_price;
+        }
+      }
+
       if (currentBalance < price) {
         results.push({ lead_id: leadId, success: false, error: "Insufficient wallet balance" });
         continue;
       }
 
-      // Check if adding this purchase would exceed limit
       if (leadsLimit !== null && currentUsage + purchasedCount + 1 > leadsLimit) {
         results.push({ lead_id: leadId, success: false, error: "Monthly lead limit reached" });
         continue;
@@ -189,7 +202,7 @@ Deno.serve(async (req) => {
         type: "purchase",
         amount: -price,
         balance_after: currentBalance,
-        description: `Purchased lead ${lead.reference_code}${promoFlatPrice !== null ? " (promo)" : ""}`,
+        description: `Purchased lead ${lead.reference_code}${promoInfo ? " (promo)" : ""}`,
         reference_id: leadId,
       });
 
@@ -204,20 +217,19 @@ Deno.serve(async (req) => {
       });
 
       // Increment promo usage and log it if applicable
-      if (promoFlatPrice !== null && dealerPromo) {
+      if (promoInfo && dealerPromo) {
         const { data: currentPromo } = await admin.from("promo_codes").select("times_used").eq("id", dealerPromo.promo_code_id).single();
         await admin
           .from("promo_codes")
           .update({ times_used: (currentPromo?.times_used ?? 0) + 1 })
           .eq("id", dealerPromo.promo_code_id);
 
-        // Log promo usage
         await admin.from("promo_code_usage").insert({
           dealer_id: dealer.id,
           promo_code_id: dealerPromo.promo_code_id,
           lead_id: leadId,
           price_paid: price,
-          original_price: Number(lead.price),
+          original_price: originalPrice,
         });
       }
 
