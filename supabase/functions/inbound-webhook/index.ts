@@ -173,7 +173,7 @@ Deno.serve(async (req) => {
       const trade_in = lead.trade_in === true || notesFlags.trade_in;
       const has_bankruptcy = notesFlags.has_bankruptcy;
       const has_appointment = notesFlags.has_appointment;
-      const appointment_time = lead.appointment_time ?? (has_appointment ? new Date().toISOString() : null);
+      const appointment_time = (lead.appointment_time && lead.appointment_time.trim() !== "") ? lead.appointment_time : (has_appointment ? new Date().toISOString() : null);
 
       // AI score (unchanged)
       const { ai_score, quality_grade } = calculateAiScore({
