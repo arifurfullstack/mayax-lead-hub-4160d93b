@@ -50,6 +50,7 @@ import AdminUserManager from "@/components/AdminUserManager";
 import AdminPromoCodeManager from "@/components/AdminPromoCodeManager";
 import AdminPromoUsageHistory from "@/components/AdminPromoUsageHistory";
 import AdminWebhookSettings from "@/components/AdminWebhookSettings";
+import AdminLeadPricingSettings from "@/components/AdminLeadPricingSettings";
 import LeadFileUploader from "@/components/LeadFileUploader";
 import AdminLeadTable, { type AdminLead } from "@/components/AdminLeadTable";
 

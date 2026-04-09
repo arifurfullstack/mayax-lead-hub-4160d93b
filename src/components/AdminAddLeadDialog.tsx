@@ -22,7 +22,8 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { calculateAiScore, getGradePrice } from "@/lib/leadScoring";
+import { calculateAiScore, calculateLeadPrice, parseNotesFlags, parsePricingSettings, type PricingSettings } from "@/lib/leadScoring";
+import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 
 const provinces = [
   "Ontario",
@@ -42,6 +43,9 @@ interface Props {
 export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const { data: rawSettings } = usePlatformSettings();
+
+  const pricing = useMemo(() => parsePricingSettings(rawSettings ?? {}), [rawSettings]);
 
   const [form, setForm] = useState({
     first_name: "",
@@ -65,17 +69,34 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
   const update = (key: string, value: string | boolean) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
+  // Parse notes for hidden conditional flags
+  const notesFlags = useMemo(() => parseNotesFlags(form.notes), [form.notes]);
+
+  // Merge explicit toggles with detected flags
+  const effectiveTradeIn = form.trade_in || notesFlags.trade_in;
+  const effectiveBankruptcy = notesFlags.has_bankruptcy;
+  const effectiveAppointment = !!form.appointment_time || notesFlags.has_appointment;
+
   const computed = useMemo(() => {
-    const result = calculateAiScore({
+    const aiResult = calculateAiScore({
       income: form.income ? Number(form.income) : null,
       vehicle_preference: form.vehicle_preference || null,
       buyer_type: form.buyer_type,
       notes: form.notes || null,
-      appointment_time: form.appointment_time || null,
-      trade_in: form.trade_in,
+      appointment_time: form.appointment_time || (notesFlags.has_appointment ? "auto" : null),
+      trade_in: effectiveTradeIn,
     });
-    return { ...result, price: getGradePrice(result.quality_grade) };
-  }, [form.income, form.vehicle_preference, form.buyer_type, form.notes, form.appointment_time, form.trade_in]);
+
+    const priceBreakdown = calculateLeadPrice({
+      income: form.income ? Number(form.income) : null,
+      vehicle_preference: form.vehicle_preference || null,
+      trade_in: effectiveTradeIn,
+      has_bankruptcy: effectiveBankruptcy,
+      appointment_time: form.appointment_time || (notesFlags.has_appointment ? "auto" : null),
+    }, pricing);
+
+    return { ...aiResult, price: priceBreakdown.total, breakdown: priceBreakdown };
+  }, [form.income, form.vehicle_preference, form.buyer_type, form.notes, form.appointment_time, form.trade_in, pricing, notesFlags, effectiveTradeIn, effectiveBankruptcy]);
 
   const generateRefCode = () => {
     const year = new Date().getFullYear();
@@ -110,7 +131,8 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
       credit_range_max: form.credit_range_max ? Number(form.credit_range_max) : null,
       notes: form.notes || null,
       appointment_time: form.appointment_time || null,
-      trade_in: form.trade_in,
+      trade_in: effectiveTradeIn,
+      has_bankruptcy: effectiveBankruptcy,
     });
 
     setSaving(false);
@@ -145,16 +167,27 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
 
         <div className="space-y-5 pt-2">
           {/* AI Score & Price Preview */}
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border/50">
-            <Brain className="h-5 w-5 text-primary shrink-0" />
-            <div className="flex items-center gap-2 flex-1">
-              <span className="text-xs text-muted-foreground">Auto-calculated:</span>
-              <Badge variant="secondary" className="font-mono text-xs">AI {computed.ai_score}</Badge>
-              <Badge variant="outline" className="font-mono text-xs font-bold">{computed.quality_grade}</Badge>
+          <div className="p-3 rounded-lg bg-muted/30 border border-border/50 space-y-2">
+            <div className="flex items-center gap-3">
+              <Brain className="h-5 w-5 text-primary shrink-0" />
+              <div className="flex items-center gap-2 flex-1">
+                <span className="text-xs text-muted-foreground">Auto-calculated:</span>
+                <Badge variant="secondary" className="font-mono text-xs">AI {computed.ai_score}</Badge>
+                <Badge variant="outline" className="font-mono text-xs font-bold">{computed.quality_grade}</Badge>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <DollarSign className="h-4 w-4 text-primary" />
+                <span className="text-sm font-bold text-foreground">${computed.price}</span>
+              </div>
             </div>
-            <div className="flex items-center gap-1.5">
-              <DollarSign className="h-4 w-4 text-primary" />
-              <span className="text-sm font-bold text-foreground">${computed.price}</span>
+            {/* Price breakdown */}
+            <div className="flex flex-wrap gap-1.5 pl-8">
+              {computed.breakdown.base > 0 && <Badge variant="outline" className="text-[10px] font-mono">Base ${computed.breakdown.base}</Badge>}
+              {computed.breakdown.income > 0 && <Badge variant="outline" className="text-[10px] font-mono">Income +${computed.breakdown.income}</Badge>}
+              {computed.breakdown.vehicle > 0 && <Badge variant="outline" className="text-[10px] font-mono">Vehicle +${computed.breakdown.vehicle}</Badge>}
+              {computed.breakdown.trade > 0 && <Badge variant="outline" className="text-[10px] font-mono">Trade +${computed.breakdown.trade}</Badge>}
+              {computed.breakdown.bankruptcy > 0 && <Badge variant="outline" className="text-[10px] font-mono">Bankruptcy +${computed.breakdown.bankruptcy}</Badge>}
+              {computed.breakdown.appointment > 0 && <Badge variant="outline" className="text-[10px] font-mono">Appt +${computed.breakdown.appointment}</Badge>}
             </div>
           </div>
 
@@ -243,7 +276,7 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
             </div>
           </div>
 
-          {/* Buyer Type, Trade-In & Appointment */}
+          {/* Buyer Type & Appointment */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Buyer Type</Label>
@@ -274,16 +307,26 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
             </div>
           </div>
 
+          {/* Detected flags from notes */}
+          {(notesFlags.trade_in || notesFlags.has_bankruptcy || notesFlags.has_appointment) && (
+            <div className="flex flex-wrap gap-2">
+              <span className="text-[10px] text-muted-foreground">Detected in notes:</span>
+              {notesFlags.trade_in && <Badge variant="secondary" className="text-[10px]">Trade-In</Badge>}
+              {notesFlags.has_bankruptcy && <Badge variant="secondary" className="text-[10px]">Bankruptcy</Badge>}
+              {notesFlags.has_appointment && <Badge variant="secondary" className="text-[10px]">Phone Appointment</Badge>}
+            </div>
+          )}
+
           {/* Notes */}
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Notes (hidden from marketplace)</Label>
             <Textarea
               value={form.notes}
               onChange={(e) => update("notes", e.target.value)}
-              placeholder="e.g. bankruptcy mentioned, refinance request..."
+              placeholder="e.g. bankruptcy mentioned, call me today, trade in 2006 Honda..."
               className="bg-background border-border min-h-[60px]"
             />
-            <p className="text-[10px] text-muted-foreground/60">Mentioning trade, refinance, or bankruptcy here affects the AI score.</p>
+            <p className="text-[10px] text-muted-foreground/60">Keywords like trade, bankruptcy, call me are auto-detected and affect pricing.</p>
           </div>
 
           {/* Submit */}
