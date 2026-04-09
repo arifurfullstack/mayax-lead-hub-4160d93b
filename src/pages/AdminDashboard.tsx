@@ -605,6 +605,17 @@ const AdminDashboard = () => {
                     ai_score: String(selectedLead.ai_score ?? ""),
                     price: String(selectedLead.price),
                     sold_status: selectedLead.sold_status,
+                    buyer_type: selectedLead.buyer_type ?? "online",
+                    vehicle_preference: selectedLead.vehicle_preference ?? "",
+                    vehicle_price: selectedLead.vehicle_price != null ? String(selectedLead.vehicle_price) : "",
+                    vehicle_mileage: selectedLead.vehicle_mileage != null ? String(selectedLead.vehicle_mileage) : "",
+                    income: selectedLead.income != null ? String(selectedLead.income) : "",
+                    credit_range_min: selectedLead.credit_range_min != null ? String(selectedLead.credit_range_min) : "",
+                    credit_range_max: selectedLead.credit_range_max != null ? String(selectedLead.credit_range_max) : "",
+                    notes: selectedLead.notes ?? "",
+                    appointment_time: selectedLead.appointment_time ? selectedLead.appointment_time.slice(0, 16) : "",
+                    trade_in: selectedLead.trade_in ?? false,
+                    has_bankruptcy: selectedLead.has_bankruptcy ?? false,
                   });
                   setEditingLead(true);
                 }}>
