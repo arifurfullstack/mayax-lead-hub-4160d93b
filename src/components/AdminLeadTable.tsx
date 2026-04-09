@@ -276,6 +276,7 @@ export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props
                 {([
                   ["reference_code", "Reference"],
                   ["first_name", "Name"],
+                  ["first_name", "Phone"],
                   ["province", "Location"],
                   ["quality_grade", "Grade"],
                   ["ai_score", "AI Score"],
