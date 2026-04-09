@@ -12,6 +12,7 @@ interface LeadCardProps {
   onSelect?: (lead: any) => void;
   index?: number;
   promoPrice?: number | null;
+  promoType?: "flat" | "percentage" | null;
 }
 
 function getLeadType(lead: any): { label: string; icon: React.ReactNode } {
@@ -54,7 +55,7 @@ function isRevealed(lead: any): boolean {
   return lead.first_name !== "***" && lead.email !== "xxx@xxxx.com";
 }
 
-export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, index = 0, promoPrice }: LeadCardProps) {
+export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, index = 0, promoPrice, promoType }: LeadCardProps) {
   const { remaining, display } = useCountdown(unlockAt);
   const leadType = getLeadType(lead);
   const buyerLabel = lead.buyer_type === "walk-in" ? "In-Store Buyer" : "Online Buyer";
@@ -200,7 +201,9 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
           <div className="flex items-center gap-2">
             {promoPrice != null ? (
               <>
-                <span className="text-xs text-muted-foreground line-through font-mono-timer">${Number(lead.price).toFixed(0)}</span>
+                {promoType === "percentage" && (
+                  <span className="text-xs text-muted-foreground line-through font-mono-timer">${Number(lead.price).toFixed(0)}</span>
+                )}
                 <span className="text-base font-bold text-primary font-mono-timer">${promoPrice.toFixed(0)}</span>
               </>
             ) : (
