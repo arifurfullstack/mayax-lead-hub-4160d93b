@@ -145,13 +145,6 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
         <span className="text-xs">{buyerLabel}</span>
       </div>
 
-      {/* Vehicle preference */}
-      {lead.vehicle_preference && (
-        <div className="flex items-center gap-1.5 mb-0.5 text-muted-foreground">
-          <Car className="h-3.5 w-3.5" />
-          <span className="text-xs">{lead.vehicle_preference}</span>
-        </div>
-      )}
 
       {/* Trade-In */}
       {lead.trade_in && (
