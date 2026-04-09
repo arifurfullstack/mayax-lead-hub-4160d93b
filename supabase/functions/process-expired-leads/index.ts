@@ -68,9 +68,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ─── 2. Process leads with upcoming appointments ───
-    if (appointmentWebhookUrl) {
-      // Find leads with appointment_time between now and now + preSendMinutes
+    // ─── 2. Process leads with upcoming appointments (only if enabled) ───
+    if (appointmentEnabled) {
       const windowStart = now.toISOString();
       const windowEnd = new Date(now.getTime() + preSendMinutes * 60 * 1000).toISOString();
 
@@ -84,24 +83,28 @@ Deno.serve(async (req) => {
       if (apptErr) {
         results.errors.push(`Fetch appointments: ${apptErr.message}`);
       } else if (appointmentLeads && appointmentLeads.length > 0) {
-        try {
-          const resp = await fetch(appointmentWebhookUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ type: "upcoming_appointments", leads: appointmentLeads }),
-          });
-          if (!resp.ok) {
-            results.errors.push(`Appointment webhook returned ${resp.status}`);
-          } else {
-            results.appointment_sent = appointmentLeads.length;
-            // Remove these leads from the system too
-            const ids = appointmentLeads.map((l: any) => l.id);
-            const { error: delErr } = await admin.from("leads").delete().in("id", ids);
-            if (delErr) results.errors.push(`Delete appointment leads: ${delErr.message}`);
+        // Send to webhook if URL configured
+        if (appointmentWebhookUrl) {
+          try {
+            const resp = await fetch(appointmentWebhookUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ type: "upcoming_appointments", leads: appointmentLeads }),
+            });
+            if (!resp.ok) {
+              results.errors.push(`Appointment webhook returned ${resp.status}`);
+            } else {
+              results.appointment_sent = appointmentLeads.length;
+            }
+          } catch (e) {
+            results.errors.push(`Appointment webhook error: ${e.message}`);
           }
-        } catch (e) {
-          results.errors.push(`Appointment webhook error: ${e.message}`);
         }
+        // Always delete appointment leads when feature is enabled
+        const ids = appointmentLeads.map((l: any) => l.id);
+        const { error: delErr } = await admin.from("leads").delete().in("id", ids);
+        if (delErr) results.errors.push(`Delete appointment leads: ${delErr.message}`);
+        else results.appointment_deleted = appointmentLeads.length;
       }
     }
 
