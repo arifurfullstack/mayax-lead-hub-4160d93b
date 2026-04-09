@@ -127,20 +127,17 @@ function FilterContent({ filters, onChange, onReset, activeCount, maxIncome, max
   const effectivePriceMax = maxPrice || 500;
   const sliderPriceMax = filters.priceMax === 0 ? effectivePriceMax : filters.priceMax;
 
-  // Derive makes/models from leads based on selected vehicle type
-  const { availableMakes, availableModels } = useMemo(() => {
-    const parsed = leads.map((l) => parseVehiclePref(l.vehicle_preference));
-    let filtered = parsed;
-    if (filters.vehicleType !== "all") {
-      filtered = parsed.filter((p) => p.type.toLowerCase() === filters.vehicleType.toLowerCase());
-    }
-    const makes = [...new Set(filtered.map((p) => p.make).filter(Boolean))].sort();
-    let models: string[] = [];
-    if (filters.vehicleMake !== "all") {
-      models = [...new Set(filtered.filter((p) => p.make.toLowerCase() === filters.vehicleMake.toLowerCase()).map((p) => p.model).filter(Boolean))].sort();
-    }
-    return { availableMakes: makes, availableModels: models };
-  }, [leads, filters.vehicleType, filters.vehicleMake]);
+  // Derive unique vehicle preferences from leads for search suggestions
+  const vehicleOptions = useMemo(() => {
+    const prefs = leads.map((l) => l.vehicle_preference).filter(Boolean) as string[];
+    return [...new Set(prefs)].sort();
+  }, [leads]);
+
+  const filteredVehicleOptions = useMemo(() => {
+    if (!filters.vehicleSearch) return [];
+    const q = filters.vehicleSearch.toLowerCase();
+    return vehicleOptions.filter((v) => v.toLowerCase().includes(q)).slice(0, 8);
+  }, [vehicleOptions, filters.vehicleSearch]);
 
   return (
     <div className="space-y-5 text-sm">
