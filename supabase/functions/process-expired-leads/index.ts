@@ -24,12 +24,14 @@ Deno.serve(async (req) => {
     const expiryWebhookUrl = cfg["expiry_webhook_url"]?.trim() ?? "";
     const appointmentWebhookUrl = cfg["appointment_webhook_url"]?.trim() ?? "";
     const preSendMinutes = Number(cfg["appointment_pre_send_minutes"]) || 20;
+    const expiryEnabled = cfg["lead_expiry_enabled"] === "true";
+    const appointmentEnabled = cfg["appointment_presend_enabled"] === "true";
 
     const now = new Date();
-    const results = { expired_sent: 0, appointment_sent: 0, errors: [] as string[] };
+    const results = { expired_sent: 0, expired_deleted: 0, appointment_sent: 0, appointment_deleted: 0, errors: [] as string[] };
 
-    // ─── 1. Process expired leads ───
-    if (expiryWebhookUrl) {
+    // ─── 1. Process expired leads (only if enabled) ───
+    if (expiryEnabled) {
       const expiryThreshold = new Date(now.getTime() - expiryHours * 60 * 60 * 1000).toISOString();
 
       const { data: expiredLeads, error: fetchErr } = await admin
