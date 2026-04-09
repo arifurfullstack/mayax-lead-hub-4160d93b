@@ -789,6 +789,7 @@ export type Database = {
         Args: { requesting_dealer_id?: string }
         Returns: {
           ai_score: number
+          appointment_time: string
           buyer_type: string
           city: string
           created_at: string
@@ -800,6 +801,7 @@ export type Database = {
           id: string
           income: number
           last_name: string
+          notes: string
           phone: string
           price: number
           province: string
@@ -808,6 +810,7 @@ export type Database = {
           sold_at: string
           sold_status: string
           sold_to_dealer_id: string
+          trade_in: boolean
           vehicle_mileage: number
           vehicle_preference: string
           vehicle_price: number
