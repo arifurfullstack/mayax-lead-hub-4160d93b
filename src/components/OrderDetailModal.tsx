@@ -124,6 +124,9 @@ const OrderDetailModal = ({ order, open, onOpenChange }: Props) => {
             <Row icon={Car} label="Preference" value={lead.vehicle_preference || "—"} iconColor="text-secondary" />
             <Row icon={Car} label="Budget" value={lead.vehicle_price ? `$${Number(lead.vehicle_price).toLocaleString()}` : "—"} iconColor="text-secondary" />
             <Row icon={Car} label="Max Mileage" value={lead.vehicle_mileage ? `${lead.vehicle_mileage.toLocaleString()} km` : "—"} iconColor="text-secondary" />
+            {lead.trade_in && (
+              <Row icon={ArrowRightLeft} label="Trade-In" value="Yes" iconColor="text-secondary" />
+            )}
             {lead.documents && lead.documents.length > 0 && (
               <div className="space-y-1">
                 <div className="flex items-center gap-2 text-sm">
@@ -150,7 +153,20 @@ const OrderDetailModal = ({ order, open, onOpenChange }: Props) => {
             {order.dealer_tier_at_purchase && (
               <Row icon={Package} label="Tier" value={order.dealer_tier_at_purchase} iconColor="text-primary" />
             )}
+            {lead.appointment_time && (
+              <Row icon={Calendar} label="Appointment" value={new Date(lead.appointment_time).toLocaleString()} iconColor="text-primary" />
+            )}
           </Section>
+
+          {/* Notes */}
+          {lead.notes && (
+            <Section title="Notes">
+              <div className="flex items-start gap-2 text-sm">
+                <StickyNote className="h-3.5 w-3.5 text-muted-foreground mt-0.5" />
+                <span className="text-foreground whitespace-pre-wrap">{lead.notes}</span>
+              </div>
+            </Section>
+          )}
 
           {/* Downloadable Files */}
           {files.length > 0 && (
