@@ -176,6 +176,52 @@ export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props
     if (selected.size === 0) return;
     setBulkDeleting(true);
     const ids = Array.from(selected);
+
+    // 1. Find purchases linked to these leads
+    const { data: purchases } = await supabase
+      .from("purchases")
+      .select("id")
+      .in("lead_id", ids);
+    const purchaseIds = (purchases ?? []).map((p) => p.id);
+
+    // 2. Delete delivery_logs referencing those purchases
+    if (purchaseIds.length > 0) {
+      const { error: dlErr } = await supabase
+        .from("delivery_logs")
+        .delete()
+        .in("purchase_id", purchaseIds);
+      if (dlErr) {
+        setBulkDeleting(false);
+        toast({ title: "Error", description: dlErr.message, variant: "destructive" });
+        return;
+      }
+    }
+
+    // 3. Delete purchases referencing these leads
+    if (purchaseIds.length > 0) {
+      const { error: pErr } = await supabase
+        .from("purchases")
+        .delete()
+        .in("id", purchaseIds);
+      if (pErr) {
+        setBulkDeleting(false);
+        toast({ title: "Error", description: pErr.message, variant: "destructive" });
+        return;
+      }
+    }
+
+    // 4. Delete promo_code_usage referencing these leads
+    const { error: promoErr } = await supabase
+      .from("promo_code_usage")
+      .delete()
+      .in("lead_id", ids);
+    if (promoErr) {
+      setBulkDeleting(false);
+      toast({ title: "Error", description: promoErr.message, variant: "destructive" });
+      return;
+    }
+
+    // 5. Finally delete the leads
     const { error } = await supabase.from("leads").delete().in("id", ids);
     setBulkDeleting(false);
     if (error) {
