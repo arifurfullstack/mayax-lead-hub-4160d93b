@@ -111,7 +111,7 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
     }
 
     setSaving(true);
-    const { error } = await supabase.from("leads").insert({
+    const insertData = {
       reference_code: generateRefCode(),
       first_name: form.first_name,
       last_name: form.last_name,
@@ -133,7 +133,8 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
       appointment_time: form.appointment_time || null,
       trade_in: effectiveTradeIn,
       has_bankruptcy: effectiveBankruptcy,
-    });
+    } as any;
+    const { error } = await supabase.from("leads").insert(insertData);
 
     setSaving(false);
 
