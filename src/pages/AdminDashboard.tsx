@@ -50,6 +50,7 @@ import AdminUserManager from "@/components/AdminUserManager";
 import AdminPromoCodeManager from "@/components/AdminPromoCodeManager";
 import AdminPromoUsageHistory from "@/components/AdminPromoUsageHistory";
 import AdminWebhookSettings from "@/components/AdminWebhookSettings";
+import AdminLeadPricingSettings from "@/components/AdminLeadPricingSettings";
 import LeadFileUploader from "@/components/LeadFileUploader";
 import AdminLeadTable, { type AdminLead } from "@/components/AdminLeadTable";
 
@@ -340,6 +341,9 @@ const AdminDashboard = () => {
           <TabsTrigger value="promos" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
             <Tag className="h-4 w-4" /> Promo Codes
           </TabsTrigger>
+          <TabsTrigger value="lead-pricing" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
+            <TrendingUp className="h-4 w-4" /> Lead Pricing
+          </TabsTrigger>
           <TabsTrigger value="webhooks" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
             <Webhook className="h-4 w-4" /> Webhooks
           </TabsTrigger>
@@ -523,6 +527,14 @@ const AdminDashboard = () => {
             platformSettings={platformSettings}
             onSave={savePlatformSettings}
             saving={savingSettings}
+          />
+        </TabsContent>
+
+        {/* ─── Lead Pricing Tab ─── */}
+        <TabsContent value="lead-pricing" className="space-y-4">
+          <AdminLeadPricingSettings
+            platformSettings={platformSettings}
+            onSaved={fetchData}
           />
         </TabsContent>
       </Tabs>

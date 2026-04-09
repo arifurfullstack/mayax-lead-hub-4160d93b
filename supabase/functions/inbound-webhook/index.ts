@@ -47,14 +47,68 @@ function calculateAiScore(lead: {
   return { ai_score: score, quality_grade };
 }
 
-const GRADE_PRICES: Record<string, number> = {
-  "A+": 50, A: 40, "B+": 30, B: 25, "C+": 20, C: 15, "D+": 10, D: 5,
+// --- Dynamic pricing logic ---
+interface PricingSettings {
+  lead_price_base: number;
+  lead_price_income_tier1: number;
+  lead_price_income_tier2: number;
+  lead_price_vehicle: number;
+  lead_price_trade: number;
+  lead_price_bankruptcy: number;
+  lead_price_appointment: number;
+}
+
+const DEFAULT_PRICING: PricingSettings = {
+  lead_price_base: 15,
+  lead_price_income_tier1: 5,
+  lead_price_income_tier2: 10,
+  lead_price_vehicle: 5,
+  lead_price_trade: 15,
+  lead_price_bankruptcy: 15,
+  lead_price_appointment: 10,
 };
 
-function getGradePrice(grade: string): number {
-  return GRADE_PRICES[grade] ?? 15;
+function parsePricingFromRows(rows: { key: string; value: string | null }[]): PricingSettings {
+  const p = { ...DEFAULT_PRICING };
+  for (const row of rows) {
+    if (row.key in p && row.value) {
+      (p as any)[row.key] = Number(row.value);
+    }
+  }
+  return p;
 }
-// --- End scoring logic ---
+
+function calculateDynamicPrice(lead: {
+  income?: number | null;
+  vehicle_preference?: string | null;
+  trade_in?: boolean;
+  has_bankruptcy?: boolean;
+  appointment_time?: string | null;
+}, settings: PricingSettings): number {
+  let total = settings.lead_price_base;
+  const inc = lead.income ?? 0;
+  if (inc >= 5000) total += settings.lead_price_income_tier1 + settings.lead_price_income_tier2;
+  else if (inc >= 1800) total += settings.lead_price_income_tier1;
+  if ((lead.vehicle_preference ?? "").trim()) total += settings.lead_price_vehicle;
+  if (lead.trade_in) total += settings.lead_price_trade;
+  if (lead.has_bankruptcy) total += settings.lead_price_bankruptcy;
+  if (lead.appointment_time) total += settings.lead_price_appointment;
+  return total;
+}
+
+function parseNotesFlags(notes: string | null | undefined): {
+  trade_in: boolean;
+  has_bankruptcy: boolean;
+  has_appointment: boolean;
+} {
+  const text = (notes ?? "").toLowerCase();
+  return {
+    trade_in: /trade[-\s]?in|trade/.test(text),
+    has_bankruptcy: /bankrupt/.test(text),
+    has_appointment: /call\s?(me|today|at)|phone\s?appointment/.test(text),
+  };
+}
+// --- End pricing logic ---
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -73,14 +127,16 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const admin = createClient(supabaseUrl, serviceKey);
 
-    // Check webhook secret if configured
-    const { data: secretSetting } = await admin
+    // Fetch all platform_settings (webhook secret + pricing)
+    const { data: settingsRows } = await admin
       .from("platform_settings")
-      .select("value")
-      .eq("key", "inbound_webhook_secret")
-      .single();
+      .select("key, value");
 
-    const configuredSecret = secretSetting?.value?.trim();
+    const allSettings: Record<string, string> = {};
+    (settingsRows ?? []).forEach((r: any) => { allSettings[r.key] = r.value ?? ""; });
+
+    // Check webhook secret if configured
+    const configuredSecret = allSettings["inbound_webhook_secret"]?.trim();
     if (configuredSecret) {
       const providedSecret = req.headers.get("x-webhook-secret") ?? "";
       if (providedSecret !== configuredSecret) {
@@ -91,14 +147,14 @@ Deno.serve(async (req) => {
       }
     }
 
-    const body = await req.json();
+    // Parse pricing settings
+    const pricing = parsePricingFromRows(settingsRows ?? []);
 
-    // Support single lead or array of leads
+    const body = await req.json();
     const leadsInput = Array.isArray(body) ? body : [body];
     const results: { reference_code: string; status: string; ai_score?: number; quality_grade?: string; price?: number; error?: string }[] = [];
 
     for (const lead of leadsInput) {
-      // Validate required fields — price is NO LONGER required from input
       if (!lead.first_name || !lead.last_name) {
         results.push({
           reference_code: lead.reference_code ?? "unknown",
@@ -108,22 +164,35 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Generate short MX-YYYY-NNN reference code
       const year = new Date().getFullYear();
       const seq = String(Math.floor(Math.random() * 900) + 100);
       const referenceCode = lead.reference_code ?? `MX-${year}-${seq}`;
 
-      // Auto-compute AI score, grade, and price
+      // Parse notes for hidden flags
+      const notesFlags = parseNotesFlags(lead.notes);
+      const trade_in = lead.trade_in === true || notesFlags.trade_in;
+      const has_bankruptcy = notesFlags.has_bankruptcy;
+      const has_appointment = notesFlags.has_appointment;
+      const appointment_time = lead.appointment_time ?? (has_appointment ? new Date().toISOString() : null);
+
+      // AI score (unchanged)
       const { ai_score, quality_grade } = calculateAiScore({
         income: lead.income != null ? Number(lead.income) : null,
         vehicle_preference: lead.vehicle_preference ?? null,
         buyer_type: lead.buyer_type ?? "online",
         notes: lead.notes ?? null,
-        appointment_time: lead.appointment_time ?? null,
-        trade_in: lead.trade_in === true,
+        appointment_time,
+        trade_in,
       });
 
-      const price = getGradePrice(quality_grade);
+      // Dynamic price
+      const price = calculateDynamicPrice({
+        income: lead.income != null ? Number(lead.income) : null,
+        vehicle_preference: lead.vehicle_preference ?? null,
+        trade_in,
+        has_bankruptcy,
+        appointment_time,
+      }, pricing);
 
       const insertData: Record<string, unknown> = {
         reference_code: referenceCode,
@@ -141,12 +210,13 @@ Deno.serve(async (req) => {
         vehicle_mileage: lead.vehicle_mileage ?? null,
         vehicle_price: lead.vehicle_price ?? null,
         notes: lead.notes ?? null,
-        trade_in: lead.trade_in === true,
+        trade_in,
+        has_bankruptcy,
         quality_grade,
         ai_score,
         price,
         sold_status: "available",
-        appointment_time: lead.appointment_time ?? null,
+        appointment_time,
       };
 
       const { error } = await admin.from("leads").insert(insertData);
