@@ -92,14 +92,23 @@ export default function AdminWebhookSettings({ settingsForm, setSettingsForm, pl
         </div>
       </div>
 
-      {/* Expiry Webhook */}
+      {/* Expiry */}
       <div className="glass-card p-6 space-y-4">
-        <div className="flex items-center gap-2">
-          <Clock className="h-4 w-4 text-warning" />
-          <h2 className="text-sm font-semibold text-foreground">Unsold Lead Expiry</h2>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-warning" />
+            <h2 className="text-sm font-semibold text-foreground">Unsold Lead Expiry</h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">{settingsForm["lead_expiry_enabled"] === "true" ? "Enabled" : "Disabled"}</span>
+            <Switch
+              checked={settingsForm["lead_expiry_enabled"] === "true"}
+              onCheckedChange={(v) => update("lead_expiry_enabled", v ? "true" : "false")}
+            />
+          </div>
         </div>
         <p className="text-xs text-muted-foreground">
-          Leads that remain unsold for the configured time will be sent to the webhook below and removed from the system.
+          When enabled, leads that remain unsold for the configured time will be sent to the webhook below (if set) and removed from the system. When disabled, leads stay indefinitely.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
