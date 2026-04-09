@@ -224,65 +224,28 @@ function FilterContent({ filters, onChange, onReset, activeCount, maxIncome, max
           </div>
         </CollapsibleSection>
 
-        <CollapsibleSection title="Vehicle" defaultOpen={filters.vehicleType !== "all"}>
-          <div className="space-y-3">
-            {/* Vehicle Type */}
-            <div className="space-y-2">
-              {vehicleTypes.map((v) => (
-                <label key={v} className="flex items-center gap-2 cursor-pointer text-muted-foreground text-sm hover:text-foreground transition-colors">
-                  <Checkbox
-                    checked={filters.vehicleType === v}
-                    onCheckedChange={() => update({
-                      vehicleType: filters.vehicleType === v ? "all" : v,
-                      vehicleMake: "all",
-                      vehicleModel: "all",
-                    })}
-                    className="border-primary data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                  />
-                  <span>{v}</span>
-                </label>
-              ))}
-            </div>
-
-            {/* Make dropdown — shown when type selected */}
-            {filters.vehicleType !== "all" && availableMakes.length > 0 && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Make</p>
-                <Select
-                  value={filters.vehicleMake}
-                  onValueChange={(val) => update({ vehicleMake: val, vehicleModel: "all" })}
-                >
-                  <SelectTrigger className="h-8 text-xs bg-background/50 border-border/60">
-                    <SelectValue placeholder="All Makes" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Makes</SelectItem>
-                    {availableMakes.map((m) => (
-                      <SelectItem key={m} value={m}>{m}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {/* Model dropdown — shown when make selected */}
-            {filters.vehicleMake !== "all" && availableModels.length > 0 && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Model</p>
-                <Select
-                  value={filters.vehicleModel}
-                  onValueChange={(val) => update({ vehicleModel: val })}
-                >
-                  <SelectTrigger className="h-8 text-xs bg-background/50 border-border/60">
-                    <SelectValue placeholder="All Models" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Models</SelectItem>
-                    {availableModels.map((m) => (
-                      <SelectItem key={m} value={m}>{m}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+        <CollapsibleSection title="Vehicle" defaultOpen={filters.vehicleSearch.length > 0}>
+          <div className="space-y-2">
+            <Input
+              placeholder="Search vehicle preference..."
+              value={filters.vehicleSearch}
+              onChange={(e) => update({ vehicleSearch: e.target.value })}
+              className="h-8 text-xs bg-background/50 border-border/60"
+            />
+            {filters.vehicleSearch && filteredVehicleOptions.length > 0 && (
+              <div className="space-y-1 max-h-32 overflow-y-auto">
+                {filteredVehicleOptions.map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => update({ vehicleSearch: v })}
+                    className={cn(
+                      "w-full text-left text-xs px-2 py-1.5 rounded hover:bg-accent/50 transition-colors",
+                      filters.vehicleSearch === v ? "bg-accent text-accent-foreground" : "text-muted-foreground"
+                    )}
+                  >
+                    {v}
+                  </button>
+                ))}
               </div>
             )}
           </div>
