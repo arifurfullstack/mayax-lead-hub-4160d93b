@@ -139,11 +139,13 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
         </div>
       </div>
 
-      {/* Buyer type */}
-      <div className="flex items-center gap-1.5 mb-0.5 text-muted-foreground">
-        {buyerIcon}
-        <span className="text-xs">{buyerLabel}</span>
-      </div>
+      {/* Buyer type — only show walk-in */}
+      {lead.buyer_type === "walk-in" && (
+        <div className="flex items-center gap-1.5 mb-0.5 text-muted-foreground">
+          {buyerIcon}
+          <span className="text-xs">{buyerLabel}</span>
+        </div>
+      )}
 
       {/* Vehicle preference */}
       {lead.vehicle_preference && (
