@@ -529,6 +529,14 @@ const AdminDashboard = () => {
             saving={savingSettings}
           />
         </TabsContent>
+
+        {/* ─── Lead Pricing Tab ─── */}
+        <TabsContent value="lead-pricing" className="space-y-4">
+          <AdminLeadPricingSettings
+            platformSettings={platformSettings}
+            onSaved={fetchData}
+          />
+        </TabsContent>
       </Tabs>
 
       {/* ─── Dealer Detail Dialog ─── */}
