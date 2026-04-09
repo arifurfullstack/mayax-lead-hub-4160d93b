@@ -513,6 +513,17 @@ const AdminDashboard = () => {
           <AdminPromoCodeManager />
           <AdminPromoUsageHistory />
         </TabsContent>
+
+        {/* ─── Webhooks Tab ─── */}
+        <TabsContent value="webhooks" className="space-y-4">
+          <AdminWebhookSettings
+            settingsForm={settingsForm}
+            setSettingsForm={setSettingsForm}
+            platformSettings={platformSettings}
+            onSave={savePlatformSettings}
+            saving={savingSettings}
+          />
+        </TabsContent>
       </Tabs>
 
       {/* ─── Dealer Detail Dialog ─── */}
