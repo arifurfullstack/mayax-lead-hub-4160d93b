@@ -5,6 +5,48 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-secret",
 };
 
+// --- Inline scoring logic (must match src/lib/leadScoring.ts) ---
+const GENERIC_VEHICLES = ["car", "suv", "truck", "sedan", "van", "minivan", "coupe", "hatchback", "wagon", "pickup"];
+
+function calculateAiScore(lead: {
+  income?: number | null;
+  vehicle_preference?: string | null;
+  buyer_type?: string | null;
+  notes?: string | null;
+  appointment_time?: string | null;
+}): { ai_score: number; quality_grade: string } {
+  let score = 65;
+  const income = lead.income ?? 0;
+  if (income >= 5000) score += 10;
+  else if (income >= 1800) score += 5;
+
+  const veh = (lead.vehicle_preference ?? "").trim().toLowerCase();
+  if (veh) {
+    score += GENERIC_VEHICLES.some((g) => veh === g) ? 5 : 10;
+  }
+
+  const combined = `${lead.buyer_type ?? ""} ${lead.notes ?? ""}`.toLowerCase();
+  if (/trade|refinanc/.test(combined)) score += 5;
+  if (/bankrupt/.test(lead.notes ?? "")) score += 5;
+  if (lead.appointment_time) score += 5;
+  if ((lead.income ?? 0) > 0 && veh) score += 5;
+
+  score = Math.min(score, 100);
+
+  let quality_grade: string;
+  if (score >= 97) quality_grade = "A+";
+  else if (score >= 93) quality_grade = "A";
+  else if (score >= 89) quality_grade = "B+";
+  else if (score >= 85) quality_grade = "B";
+  else if (score >= 81) quality_grade = "C+";
+  else if (score >= 77) quality_grade = "C";
+  else if (score >= 73) quality_grade = "D+";
+  else quality_grade = "D";
+
+  return { ai_score: score, quality_grade };
+}
+// --- End scoring logic ---
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -61,6 +103,15 @@ Deno.serve(async (req) => {
       const referenceCode =
         lead.reference_code ?? `INB-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
 
+      // Auto-compute AI score and grade
+      const { ai_score, quality_grade } = calculateAiScore({
+        income: lead.income != null ? Number(lead.income) : null,
+        vehicle_preference: lead.vehicle_preference ?? null,
+        buyer_type: lead.buyer_type ?? "online",
+        notes: lead.notes ?? null,
+        appointment_time: lead.appointment_time ?? null,
+      });
+
       const insertData: Record<string, unknown> = {
         reference_code: referenceCode,
         first_name: lead.first_name,
@@ -76,8 +127,9 @@ Deno.serve(async (req) => {
         vehicle_preference: lead.vehicle_preference ?? null,
         vehicle_mileage: lead.vehicle_mileage ?? null,
         vehicle_price: lead.vehicle_price ?? null,
-        quality_grade: lead.quality_grade ?? "B",
-        ai_score: lead.ai_score ?? 0,
+        notes: lead.notes ?? null,
+        quality_grade,
+        ai_score,
         price: Number(lead.price),
         sold_status: "available",
         appointment_time: lead.appointment_time ?? null,
