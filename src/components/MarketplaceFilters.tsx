@@ -34,9 +34,7 @@ export interface MarketplaceFilters {
   provinces: string[];
   documents: string[];
   grades: string[];
-  vehicleType: string;
-  vehicleMake: string;
-  vehicleModel: string;
+  vehicleSearch: string;
   maxAge: string;
   priceMin: number;
   priceMax: number;
