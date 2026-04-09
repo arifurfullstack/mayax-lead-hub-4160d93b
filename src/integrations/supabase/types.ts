@@ -273,6 +273,7 @@ export type Database = {
           documents: string[] | null
           email: string | null
           first_name: string
+          has_bankruptcy: boolean | null
           id: string
           income: number | null
           last_name: string
@@ -302,6 +303,7 @@ export type Database = {
           documents?: string[] | null
           email?: string | null
           first_name: string
+          has_bankruptcy?: boolean | null
           id?: string
           income?: number | null
           last_name: string
@@ -331,6 +333,7 @@ export type Database = {
           documents?: string[] | null
           email?: string | null
           first_name?: string
+          has_bankruptcy?: boolean | null
           id?: string
           income?: number | null
           last_name?: string
