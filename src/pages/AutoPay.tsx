@@ -64,8 +64,6 @@ interface AutoPayData {
   price_range_min: number;
   price_range_max: number;
   loan_type: string;
-  age_range: string;
-  distance: string;
   make: string;
   model: string;
 }
@@ -83,8 +81,6 @@ const defaultSettings: AutoPayData = {
   price_range_min: 10,
   price_range_max: 100,
   loan_type: "",
-  age_range: "",
-  distance: "",
   make: "",
   model: "",
 };
@@ -144,8 +140,6 @@ const AutoPay = () => {
           price_range_min: ap.price_range_min ?? 10,
           price_range_max: ap.price_range_max ?? 100,
           loan_type: ap.loan_type ?? "",
-          age_range: ap.age_range ?? "",
-          distance: ap.distance ?? "",
           make: ap.make ?? "",
           model: ap.model ?? "",
         });
@@ -226,8 +220,6 @@ const AutoPay = () => {
       price_range_min: settings.price_range_min,
       price_range_max: settings.price_range_max,
       loan_type: settings.loan_type || null,
-      age_range: settings.age_range || null,
-      distance: settings.distance || null,
       make: settings.make || null,
       model: settings.model || null,
     };
@@ -609,39 +601,6 @@ const AutoPay = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Distance from Dealership</Label>
-                <Select value={settings.distance} onValueChange={(v) => update("distance", v)}>
-                  <SelectTrigger className="bg-card border-border">
-                    <SelectValue placeholder="Any distance" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="any">Any Distance</SelectItem>
-                    <SelectItem value="25km">Within 25 km</SelectItem>
-                    <SelectItem value="50km">Within 50 km</SelectItem>
-                    <SelectItem value="100km">Within 100 km</SelectItem>
-                    <SelectItem value="200km">Within 200 km</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Buyer Age Range</Label>
-                <Select value={settings.age_range} onValueChange={(v) => update("age_range", v)}>
-                  <SelectTrigger className="bg-card border-border">
-                    <SelectValue placeholder="Any age" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="any">Any Age</SelectItem>
-                    <SelectItem value="18-25">18–25</SelectItem>
-                    <SelectItem value="26-35">26–35</SelectItem>
-                    <SelectItem value="36-45">36–45</SelectItem>
-                    <SelectItem value="46-55">46–55</SelectItem>
-                    <SelectItem value="56+">56+</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
           </div>
         </div>
       </div>
