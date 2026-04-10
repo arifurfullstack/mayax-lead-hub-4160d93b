@@ -280,7 +280,10 @@ export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props
 
   // Time-based stats
   const timeStats = useMemo(() => {
-    const periodLeads = leads.filter((l) => new Date(l.created_at) >= timeStart);
+    const periodLeads = leads.filter((l) => {
+      const d = new Date(l.created_at);
+      return d >= timeRange.start && d <= timeRange.end;
+    });
     const soldPeriodLeads = periodLeads.filter((l) => l.sold_status === "sold");
     return {
       total: periodLeads.length,
@@ -288,7 +291,7 @@ export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props
       sold: soldPeriodLeads.length,
       revenue: soldPeriodLeads.reduce((sum, l) => sum + Number(l.price), 0),
     };
-  }, [leads, timeStart]);
+  }, [leads, timeRange]);
 
   return (
     <div className="space-y-4">
