@@ -61,6 +61,8 @@ interface AutoPayData {
   city: string;
   credit_score_min: number;
   credit_score_max: number;
+  income_min: number;
+  income_max: number;
   price_range_min: number;
   price_range_max: number;
   loan_type: string;
@@ -78,6 +80,8 @@ const defaultSettings: AutoPayData = {
   city: "",
   credit_score_min: 600,
   credit_score_max: 850,
+  income_min: 2000,
+  income_max: 5000,
   price_range_min: 10,
   price_range_max: 100,
   loan_type: "",
@@ -137,6 +141,8 @@ const AutoPay = () => {
           city: (ap as any).city ?? "",
           credit_score_min: ap.credit_score_min ?? 600,
           credit_score_max: ap.credit_score_max ?? 850,
+          income_min: (ap as any).income_min ?? 2000,
+          income_max: (ap as any).income_max ?? 5000,
           price_range_min: ap.price_range_min ?? 10,
           price_range_max: ap.price_range_max ?? 100,
           loan_type: ap.loan_type ?? "",
@@ -217,6 +223,8 @@ const AutoPay = () => {
       city: settings.city || null,
       credit_score_min: settings.credit_score_min,
       credit_score_max: settings.credit_score_max,
+      income_min: settings.income_min,
+      income_max: settings.income_max,
       price_range_min: settings.price_range_min,
       price_range_max: settings.price_range_max,
       loan_type: settings.loan_type || null,
@@ -503,6 +511,26 @@ const AutoPay = () => {
                 onValueChange={([min, max]) => {
                   update("credit_score_min", min);
                   update("credit_score_max", max);
+                }}
+                className="py-2"
+              />
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs text-muted-foreground">Income Range ($)</Label>
+                <span className="text-xs font-mono text-foreground">
+                  ${settings.income_min.toLocaleString()} – ${settings.income_max.toLocaleString()}
+                </span>
+              </div>
+              <Slider
+                min={0}
+                max={15000}
+                step={500}
+                value={[settings.income_min, settings.income_max]}
+                onValueChange={([min, max]) => {
+                  update("income_min", min);
+                  update("income_max", max);
                 }}
                 className="py-2"
               />

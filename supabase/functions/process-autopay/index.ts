@@ -175,6 +175,11 @@ Deno.serve(async (req) => {
         if (ap.credit_score_min != null && lead.credit_range_min != null && lead.credit_range_min < ap.credit_score_min) return false;
         if (ap.credit_score_max != null && lead.credit_range_max != null && lead.credit_range_max > ap.credit_score_max) return false;
 
+        // Income filter
+        const leadIncome = Number(lead.income ?? 0);
+        if (ap.income_min != null && leadIncome < Number(ap.income_min)) return false;
+        if (ap.income_max != null && leadIncome > Number(ap.income_max)) return false;
+
         // Province filter
         if (ap.state && lead.province && lead.province !== ap.state) return false;
 
