@@ -41,6 +41,11 @@ interface Props {
 }
 
 const parseNum = (v: string) => Number(v.replace(/,/g, ""));
+const formatAmount = (v: string) => {
+  const digits = v.replace(/[^0-9]/g, "");
+  if (!digits) return "";
+  return Number(digits).toLocaleString("en-US");
+};
 
 export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
   const [open, setOpen] = useState(false);
@@ -247,7 +252,7 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Income ($)</Label>
-                <Input type="text" inputMode="numeric" placeholder="e.g. 12,345" value={form.income} onChange={(e) => update("income", e.target.value.replace(/[^0-9,]/g, ""))} className="bg-background border-border" />
+                <Input type="text" inputMode="numeric" placeholder="e.g. 12,345" value={form.income} onChange={(e) => update("income", formatAmount(e.target.value))} className="bg-background border-border" />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Credit Min</Label>
@@ -270,11 +275,11 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Vehicle Price ($)</Label>
-                <Input type="text" inputMode="numeric" placeholder="e.g. 25,000" value={form.vehicle_price} onChange={(e) => update("vehicle_price", e.target.value.replace(/[^0-9,]/g, ""))} className="bg-background border-border" />
+                <Input type="text" inputMode="numeric" placeholder="e.g. 25,000" value={form.vehicle_price} onChange={(e) => update("vehicle_price", formatAmount(e.target.value))} className="bg-background border-border" />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Vehicle Mileage (km)</Label>
-                <Input type="text" inputMode="numeric" placeholder="e.g. 50,000" value={form.vehicle_mileage} onChange={(e) => update("vehicle_mileage", e.target.value.replace(/[^0-9,]/g, ""))} className="bg-background border-border" />
+                <Input type="text" inputMode="numeric" placeholder="e.g. 50,000" value={form.vehicle_mileage} onChange={(e) => update("vehicle_mileage", formatAmount(e.target.value))} className="bg-background border-border" />
               </div>
             </div>
           </div>
