@@ -127,7 +127,7 @@ const Login = () => {
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-[#050510]">
       {/* ── Blurred marketplace background ── */}
-      <div className="absolute inset-0" style={{ filter: "blur(4px) brightness(0.45) saturate(1.4)" }}>
+      <div className="absolute inset-0" style={{ filter: "blur(2px) brightness(0.7) saturate(1.5)" }}>
         <div className="absolute inset-0 bg-gradient-to-b from-[#0a1628]/60 via-transparent to-[#050510]" />
         <MarketplaceBg />
       </div>
