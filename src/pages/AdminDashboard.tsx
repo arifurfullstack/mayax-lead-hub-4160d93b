@@ -728,7 +728,7 @@ const AdminDashboard = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">Income ($)</Label>
-                  <Input type="number" min={0} value={editForm.income} onChange={(e) => setEditForm((f) => ({ ...f, income: e.target.value }))} className="bg-background border-border" />
+                  <Input type="text" inputMode="numeric" placeholder="e.g. 12,345" value={editForm.income} onChange={(e) => setEditForm((f) => ({ ...f, income: e.target.value.replace(/[^0-9,]/g, "") }))} className="bg-background border-border" />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">Credit Min</Label>
