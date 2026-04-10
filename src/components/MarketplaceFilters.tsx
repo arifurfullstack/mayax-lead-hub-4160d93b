@@ -25,6 +25,7 @@ export interface MarketplaceFilters {
   incomeMax: number;
   buyerTypes: string[];
   provinces: string[];
+  cities: string[];
   documents: string[];
   grades: string[];
   vehicleSearch: string;
@@ -40,6 +41,7 @@ export const defaultFilters: MarketplaceFilters = {
   incomeMax: 0,
   buyerTypes: [],
   provinces: [],
+  cities: [],
   documents: [],
   grades: [],
   vehicleSearch: "",
