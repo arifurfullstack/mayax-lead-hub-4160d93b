@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { startOfDay, startOfWeek, startOfMonth, startOfYear } from "date-fns";
+import { startOfDay, startOfWeek, startOfMonth, startOfYear, endOfDay, format } from "date-fns";
 import {
   Search,
   Eye,
@@ -28,6 +28,8 @@ import {
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import AdminAddLeadDialog from "@/components/AdminAddLeadDialog";
 
 interface LeadFileEntry {
@@ -89,6 +91,8 @@ export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props
   const [sortField, setSortField] = useState<SortField>("created_at");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [timePeriod, setTimePeriod] = useState<string>("today");
+  const [customFrom, setCustomFrom] = useState<Date | undefined>(undefined);
+  const [customTo, setCustomTo] = useState<Date | undefined>(undefined);
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
 
@@ -107,21 +111,32 @@ export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props
     [leads]
   );
 
-  // Time period start
-  const timeStart = useMemo(() => {
+  // Time period range
+  const timeRange = useMemo(() => {
     const now = new Date();
-    switch (timePeriod) {
-      case "today": return startOfDay(now);
-      case "week": return startOfWeek(now, { weekStartsOn: 1 });
-      case "month": return startOfMonth(now);
-      case "year": return startOfYear(now);
-      default: return new Date(0);
+    if (timePeriod === "custom") {
+      return {
+        start: customFrom ? startOfDay(customFrom) : new Date(0),
+        end: customTo ? endOfDay(customTo) : new Date(8640000000000000),
+      };
     }
-  }, [timePeriod]);
+    let start: Date;
+    switch (timePeriod) {
+      case "today": start = startOfDay(now); break;
+      case "week": start = startOfWeek(now, { weekStartsOn: 1 }); break;
+      case "month": start = startOfMonth(now); break;
+      case "year": start = startOfYear(now); break;
+      default: start = new Date(0);
+    }
+    return { start, end: new Date(8640000000000000) };
+  }, [timePeriod, customFrom, customTo]);
 
   // Filter
   const filtered = useMemo(() => {
-    let result = leads.filter((l) => new Date(l.created_at) >= timeStart);
+    let result = leads.filter((l) => {
+      const d = new Date(l.created_at);
+      return d >= timeRange.start && d <= timeRange.end;
+    });
     if (search) {
       const q = search.toLowerCase();
       result = result.filter(
@@ -136,7 +151,7 @@ export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props
     if (gradeFilter !== "all") result = result.filter((l) => l.quality_grade === gradeFilter);
     if (provinceFilter !== "all") result = result.filter((l) => l.province === provinceFilter);
     return result;
-  }, [leads, search, statusFilter, gradeFilter, provinceFilter, timeStart]);
+  }, [leads, search, statusFilter, gradeFilter, provinceFilter, timeRange]);
 
   // Sort
   const sorted = useMemo(() => {
@@ -265,7 +280,10 @@ export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props
 
   // Time-based stats
   const timeStats = useMemo(() => {
-    const periodLeads = leads.filter((l) => new Date(l.created_at) >= timeStart);
+    const periodLeads = leads.filter((l) => {
+      const d = new Date(l.created_at);
+      return d >= timeRange.start && d <= timeRange.end;
+    });
     const soldPeriodLeads = periodLeads.filter((l) => l.sold_status === "sold");
     return {
       total: periodLeads.length,
@@ -273,14 +291,14 @@ export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props
       sold: soldPeriodLeads.length,
       revenue: soldPeriodLeads.reduce((sum, l) => sum + Number(l.price), 0),
     };
-  }, [leads, timeStart]);
+  }, [leads, timeRange]);
 
   return (
     <div className="space-y-4">
       {/* Time Period Stats */}
       <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Select value={timePeriod} onValueChange={setTimePeriod}>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Select value={timePeriod} onValueChange={(v) => { setTimePeriod(v); setPage(0); }}>
             <SelectTrigger className="w-[140px] bg-card border-border h-8 text-xs">
               <CalendarDays className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
               <SelectValue />
@@ -291,8 +309,49 @@ export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props
               <SelectItem value="month">This Month</SelectItem>
               <SelectItem value="year">This Year</SelectItem>
               <SelectItem value="all">All Time</SelectItem>
+              <SelectItem value="custom">Custom Range</SelectItem>
             </SelectContent>
           </Select>
+
+          {timePeriod === "custom" && (
+            <div className="flex items-center gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className={cn("h-8 text-xs gap-1.5 bg-card border-border", !customFrom && "text-muted-foreground")}>
+                    <CalendarDays className="h-3.5 w-3.5" />
+                    {customFrom ? format(customFrom, "MMM d, yyyy") : "Start date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={customFrom}
+                    onSelect={setCustomFrom}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+              <span className="text-xs text-muted-foreground">to</span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className={cn("h-8 text-xs gap-1.5 bg-card border-border", !customTo && "text-muted-foreground")}>
+                    <CalendarDays className="h-3.5 w-3.5" />
+                    {customTo ? format(customTo, "MMM d, yyyy") : "End date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={customTo}
+                    onSelect={setCustomTo}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="glass-card p-4 space-y-1">
