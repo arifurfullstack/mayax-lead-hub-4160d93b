@@ -33,9 +33,6 @@ const Register = () => {
     businessType: "independent",
     province: "",
     heardAbout: "",
-    webhookUrl: "",
-    webhookSecret: "",
-    notificationEmail: "",
   });
 
   const updateField = (field: string, value: string) => setForm((p) => ({ ...p, [field]: value }));
