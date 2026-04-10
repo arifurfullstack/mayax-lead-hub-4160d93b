@@ -63,11 +63,39 @@ function parseNumericInput(value: unknown): number | null {
   if (typeof value === "number") return Number.isFinite(value) ? value : null;
   if (typeof value !== "string") return null;
 
-  const normalized = value.replace(/,/g, "").replace(/\s+/g, "").trim();
+  const normalized = value
+    .replace(/[$£€¥]/g, "")
+    .replace(/,/g, "")
+    .replace(/\s+/g, "")
+    .trim();
   if (!normalized) return null;
 
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function stripGroupingCommasFromJsonNumbers(raw: string): string {
+  return raw.replace(
+    /(:\s*)(-?\d{1,3}(?:,\d{3})+(?:\.\d+)?)(?=\s*[,}\]])/g,
+    (_match, prefix: string, numericValue: string) => `${prefix}${numericValue.replace(/,/g, "")}`,
+  );
+}
+
+function parseInboundPayload(raw: string): unknown {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    throw new Error("Request body is empty");
+  }
+
+  try {
+    return JSON.parse(trimmed);
+  } catch (originalError) {
+    const sanitized = stripGroupingCommasFromJsonNumbers(trimmed);
+    if (sanitized !== trimmed) {
+      return JSON.parse(sanitized);
+    }
+    throw originalError;
+  }
 }
 
 const DEFAULT_PRICING: PricingSettings = {
@@ -162,7 +190,17 @@ Deno.serve(async (req) => {
     // Parse pricing settings
     const pricing = parsePricingFromRows(settingsRows ?? []);
 
-    const body = await req.json();
+    let body: unknown;
+    try {
+      body = parseInboundPayload(await req.text());
+    } catch (_error) {
+      return new Response(JSON.stringify({
+        error: 'Invalid payload. Send amounts as plain numbers (12345) or quoted strings ("12,345").',
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     const leadsInput = Array.isArray(body) ? body : [body];
     const results: { reference_code: string; status: string; ai_score?: number; quality_grade?: string; price?: number; error?: string }[] = [];
 
@@ -250,9 +288,10 @@ Deno.serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "Internal server error";
     console.error("Inbound webhook error:", err);
     return new Response(
-      JSON.stringify({ error: err.message ?? "Internal server error" }),
+      JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
