@@ -62,9 +62,6 @@ const Register = () => {
         website: form.website || null,
         business_type: form.businessType,
         province: form.province || null,
-        webhook_url: form.webhookUrl || null,
-        webhook_secret: form.webhookSecret || null,
-        notification_email: form.notificationEmail || form.email,
       });
       if (dealerError) throw dealerError;
 
