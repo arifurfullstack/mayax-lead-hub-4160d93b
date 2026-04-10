@@ -520,7 +520,7 @@ const AutoPay = () => {
               <div className="flex items-center justify-between">
                 <Label className="text-xs text-muted-foreground">Income Range ($)</Label>
                 <span className="text-xs font-mono text-foreground">
-                  ${settings.income_min.toLocaleString()} – ${settings.income_max.toLocaleString()}
+                  ${(settings.income_min ?? 2000).toLocaleString()} – ${(settings.income_max ?? 5000).toLocaleString()}
                 </span>
               </div>
               <Slider
