@@ -270,11 +270,11 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Vehicle Price ($)</Label>
-                <Input type="number" min={0} value={form.vehicle_price} onChange={(e) => update("vehicle_price", e.target.value)} className="bg-background border-border" />
+                <Input type="text" inputMode="numeric" placeholder="e.g. 25,000" value={form.vehicle_price} onChange={(e) => update("vehicle_price", e.target.value.replace(/[^0-9,]/g, ""))} className="bg-background border-border" />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Vehicle Mileage (km)</Label>
-                <Input type="number" min={0} value={form.vehicle_mileage} onChange={(e) => update("vehicle_mileage", e.target.value)} className="bg-background border-border" />
+                <Input type="text" inputMode="numeric" placeholder="e.g. 50,000" value={form.vehicle_mileage} onChange={(e) => update("vehicle_mileage", e.target.value.replace(/[^0-9,]/g, ""))} className="bg-background border-border" />
               </div>
             </div>
           </div>
