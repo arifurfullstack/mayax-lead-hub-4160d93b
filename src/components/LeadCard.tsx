@@ -93,13 +93,13 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
       {/* Lead type + grade badge */}
       <div className="flex items-center gap-1.5 mb-1">
         <span className="text-muted-foreground">{leadType.icon}</span>
-        <span className="text-xs font-semibold text-foreground">{leadType.label}</span>
+        <span className="text-sm font-semibold text-foreground">{leadType.label}</span>
         {lead.reference_code && (
-          <span className="text-[9px] text-muted-foreground font-mono-timer">#{lead.reference_code}</span>
+          <span className="text-[10px] text-muted-foreground font-mono-timer">#{lead.reference_code}</span>
         )}
         {lead.quality_grade && promoPrice == null && (
           <span className={cn(
-            "ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider font-mono-timer",
+            "ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider font-mono-timer",
             gradeColors[lead.quality_grade.toLowerCase()] ?? gradeColors.c
           )}>
             {lead.quality_grade}
@@ -111,7 +111,7 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
       <div className="space-y-0.5 mb-1.5">
         <div className="flex items-center gap-1.5">
           <Tooltip><TooltipTrigger asChild><User className="h-3 w-3 text-muted-foreground cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Contact Name</TooltipContent></Tooltip>
-          <span className={cn("text-xs font-medium", revealed ? "text-foreground" : "text-muted-foreground select-none")} style={!revealed ? { filter: "blur(5px)" } : undefined}>
+          <span className={cn("text-sm font-medium", revealed ? "text-foreground" : "text-muted-foreground select-none")} style={!revealed ? { filter: "blur(5px)" } : undefined}>
             {lead.first_name} {lead.last_name?.charAt(0)}.
           </span>
           {!revealed && <Tooltip><TooltipTrigger asChild><Lock className="h-2.5 w-2.5 text-muted-foreground/60 cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Purchase to reveal</TooltipContent></Tooltip>}
@@ -119,20 +119,20 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
         <div className="flex items-center gap-1.5 min-w-0">
           <Tooltip><TooltipTrigger asChild><Phone className="h-3 w-3 text-muted-foreground shrink-0 cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Phone Number</TooltipContent></Tooltip>
           {revealed ? (
-            <span className="text-xs truncate min-w-0 text-foreground">{lead.phone}</span>
+            <span className="text-sm truncate min-w-0 text-foreground">{lead.phone}</span>
           ) : lead.phone ? (
             <>
-              <span className="text-xs text-foreground">{lead.phone.slice(0, -7)}</span>
-              <span className="text-xs text-muted-foreground select-none">{"*".repeat(Math.min(7, lead.phone.length))}</span>
+              <span className="text-sm text-foreground">{lead.phone.slice(0, -7)}</span>
+              <span className="text-sm text-muted-foreground select-none">{"*".repeat(Math.min(7, lead.phone.length))}</span>
               <Tooltip><TooltipTrigger asChild><Lock className="h-2.5 w-2.5 text-muted-foreground/60 cursor-help shrink-0" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Purchase to reveal</TooltipContent></Tooltip>
             </>
           ) : (
-            <span className="text-xs text-muted-foreground">—</span>
+            <span className="text-sm text-muted-foreground">—</span>
           )}
         </div>
         <div className="flex items-center gap-1.5 min-w-0">
           <Tooltip><TooltipTrigger asChild><Mail className="h-3 w-3 text-muted-foreground shrink-0 cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Email Address</TooltipContent></Tooltip>
-          <span className={cn("text-xs truncate min-w-0", revealed ? "text-foreground" : "text-muted-foreground select-none")} style={!revealed ? { filter: "blur(5px)" } : undefined}>
+          <span className={cn("text-sm truncate min-w-0", revealed ? "text-foreground" : "text-muted-foreground select-none")} style={!revealed ? { filter: "blur(5px)" } : undefined}>
             {lead.email}
           </span>
           {!revealed && <Tooltip><TooltipTrigger asChild><Lock className="h-2.5 w-2.5 text-muted-foreground/60 cursor-help shrink-0" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Purchase to reveal</TooltipContent></Tooltip>}
@@ -143,7 +143,7 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
       {lead.buyer_type === "walk-in" && (
         <div className="flex items-center gap-1.5 mb-0.5 text-muted-foreground">
           <Tooltip><TooltipTrigger asChild><span className="cursor-help">{buyerIcon}</span></TooltipTrigger><TooltipContent side="top" className="text-xs">Buyer Type</TooltipContent></Tooltip>
-          <Tooltip><TooltipTrigger asChild><span className="text-xs cursor-help">{buyerLabel}</span></TooltipTrigger><TooltipContent side="top" className="text-xs">Buyer Type: {buyerLabel}</TooltipContent></Tooltip>
+          <Tooltip><TooltipTrigger asChild><span className="text-sm cursor-help">{buyerLabel}</span></TooltipTrigger><TooltipContent side="top" className="text-xs">Buyer Type: {buyerLabel}</TooltipContent></Tooltip>
         </div>
       )}
 
@@ -151,7 +151,7 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
       {lead.vehicle_preference && (
         <div className="flex items-center gap-1.5 mb-0.5 text-muted-foreground">
           <Tooltip><TooltipTrigger asChild><Car className="h-3.5 w-3.5 cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Vehicle Preference</TooltipContent></Tooltip>
-          <Tooltip><TooltipTrigger asChild><span className="text-xs truncate cursor-help">{lead.vehicle_preference}</span></TooltipTrigger><TooltipContent side="top" className="text-xs">{lead.vehicle_preference}</TooltipContent></Tooltip>
+          <Tooltip><TooltipTrigger asChild><span className="text-sm truncate cursor-help">{lead.vehicle_preference}</span></TooltipTrigger><TooltipContent side="top" className="text-xs">{lead.vehicle_preference}</TooltipContent></Tooltip>
         </div>
       )}
 
@@ -159,7 +159,7 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
       {lead.trade_in && (
         <div className="flex items-center gap-1.5 mb-0.5 text-muted-foreground">
           <Tooltip><TooltipTrigger asChild><Car className="h-3.5 w-3.5 cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Trade-In Vehicle</TooltipContent></Tooltip>
-          <Tooltip><TooltipTrigger asChild><span className="text-xs text-emerald-400 font-medium cursor-help">Trade-In</span></TooltipTrigger><TooltipContent side="top" className="text-xs">Customer has a trade-in vehicle</TooltipContent></Tooltip>
+          <Tooltip><TooltipTrigger asChild><span className="text-sm text-emerald-400 font-medium cursor-help">Trade-In</span></TooltipTrigger><TooltipContent side="top" className="text-xs">Customer has a trade-in vehicle</TooltipContent></Tooltip>
         </div>
       )}
 
@@ -167,7 +167,7 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
       {lead.vehicle_mileage != null && (
         <div className="flex items-center gap-1.5 mb-0.5 text-muted-foreground">
           <Tooltip><TooltipTrigger asChild><Gauge className="h-3.5 w-3.5 cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Vehicle Mileage</TooltipContent></Tooltip>
-          <Tooltip><TooltipTrigger asChild><span className="text-xs font-mono-timer cursor-help">{Number(lead.vehicle_mileage).toLocaleString()} km</span></TooltipTrigger><TooltipContent side="top" className="text-xs">Mileage: {Number(lead.vehicle_mileage).toLocaleString()} km</TooltipContent></Tooltip>
+          <Tooltip><TooltipTrigger asChild><span className="text-sm font-mono-timer cursor-help">{Number(lead.vehicle_mileage).toLocaleString()} km</span></TooltipTrigger><TooltipContent side="top" className="text-xs">Mileage: {Number(lead.vehicle_mileage).toLocaleString()} km</TooltipContent></Tooltip>
         </div>
       )}
 
@@ -175,7 +175,7 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
       {location && (
         <div className="flex items-center gap-1.5 mb-0.5 text-muted-foreground">
           <Tooltip><TooltipTrigger asChild><MapPin className="h-3.5 w-3.5 cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Location</TooltipContent></Tooltip>
-          <Tooltip><TooltipTrigger asChild><span className="text-xs cursor-help">{location}</span></TooltipTrigger><TooltipContent side="top" className="text-xs">{location}</TooltipContent></Tooltip>
+          <Tooltip><TooltipTrigger asChild><span className="text-sm cursor-help">{location}</span></TooltipTrigger><TooltipContent side="top" className="text-xs">{location}</TooltipContent></Tooltip>
         </div>
       )}
 
@@ -183,7 +183,7 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
       {incomeDisplay && (
         <div className="flex items-center gap-1.5 mb-0.5 text-muted-foreground">
           <Tooltip><TooltipTrigger asChild><DollarSign className="h-3.5 w-3.5 cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Monthly Income</TooltipContent></Tooltip>
-          <Tooltip><TooltipTrigger asChild><span className="text-xs cursor-help">{incomeDisplay}</span></TooltipTrigger><TooltipContent side="top" className="text-xs">Monthly Income: {incomeDisplay}</TooltipContent></Tooltip>
+          <Tooltip><TooltipTrigger asChild><span className="text-sm cursor-help">{incomeDisplay}</span></TooltipTrigger><TooltipContent side="top" className="text-xs">Monthly Income: {incomeDisplay}</TooltipContent></Tooltip>
         </div>
       )}
 
@@ -204,7 +204,7 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
             </span>
           ))}
           {lead.ai_score != null && (
-            <span className="badge-blue text-[9px] font-bold px-1.5 py-0.5 rounded ml-auto font-mono-timer tracking-wider">
+            <span className="badge-blue text-[10px] font-bold px-1.5 py-0.5 rounded ml-auto font-mono-timer tracking-wider">
               AI {lead.ai_score}
             </span>
           )}
@@ -213,25 +213,25 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
         {/* Status + Price + Buy row */}
         <div className="flex items-center justify-between">
           {isLocked ? (
-            <span className="badge-amber text-[10px] font-medium px-2 py-1 rounded flex items-center gap-1 font-mono-timer">
-              <Clock className="h-2.5 w-2.5" /> {display}
+            <span className="badge-amber text-[11px] font-medium px-2 py-1 rounded flex items-center gap-1 font-mono-timer">
+              <Clock className="h-3 w-3" /> {display}
             </span>
           ) : (
-            <span className="badge-green text-[10px] font-medium px-1.5 py-0.5 rounded whitespace-nowrap">Available</span>
+            <span className="badge-green text-[11px] font-medium px-1.5 py-0.5 rounded whitespace-nowrap">Available</span>
           )}
           <div className="flex items-center gap-2">
             {promoPrice != null ? (
               <>
                 {promoType === "percentage" && (
-                  <span className="text-xs text-muted-foreground line-through font-mono-timer">${Number(lead.price).toFixed(0)}</span>
+                  <span className="text-sm text-muted-foreground line-through font-mono-timer">${Number(lead.price).toFixed(0)}</span>
                 )}
-                <span className={cn("text-base font-bold font-mono-timer", promoType === "percentage" ? "text-primary" : "text-foreground")}>${promoPrice.toFixed(0)}</span>
+                <span className={cn("text-lg font-bold font-mono-timer", promoType === "percentage" ? "text-primary" : "text-foreground")}>${promoPrice.toFixed(0)}</span>
               </>
             ) : (
-              <span className="text-base font-bold text-foreground font-mono-timer">${Number(lead.price).toFixed(0)}</span>
+              <span className="text-lg font-bold text-foreground font-mono-timer">${Number(lead.price).toFixed(0)}</span>
             )}
             <button
-              className="gradient-cta-buy text-foreground px-4 py-1.5 rounded text-[10px] font-semibold tracking-wide hover:opacity-90 transition-opacity"
+              className="gradient-cta-buy text-foreground px-4 py-1.5 rounded text-[11px] font-semibold tracking-wide hover:opacity-90 transition-opacity"
               onClick={(e) => { e.stopPropagation(); onBuy(lead); }}
             >
               BUY &nbsp;&rsaquo;
