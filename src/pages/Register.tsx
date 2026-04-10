@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Building2, User, Mail, Phone, MapPin, Globe, ChevronRight, ChevronLeft, Check, Webhook, Bell, Lock, Crosshair, Zap, ShieldCheck } from "lucide-react";
+import { Building2, User, Mail, Phone, MapPin, Globe, ChevronRight, ChevronLeft, Check, Bell, Lock, Crosshair, Zap, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
