@@ -75,55 +75,10 @@ function parseNumericInput(value: unknown): number | null {
 }
 
 function stripGroupingCommasFromJsonNumbers(raw: string): string {
-  let result = "";
-  let inString = false;
-  let escaped = false;
-
-  const previousNonWhitespaceChar = (index: number): string | null => {
-    for (let i = index - 1; i >= 0; i -= 1) {
-      const char = raw[i];
-      if (!/\s/.test(char)) return char;
-    }
-    return null;
-  };
-
-  const nextNonWhitespaceChar = (index: number): string | null => {
-    for (let i = index + 1; i < raw.length; i += 1) {
-      const char = raw[i];
-      if (!/\s/.test(char)) return char;
-    }
-    return null;
-  };
-
-  for (let i = 0; i < raw.length; i += 1) {
-    const char = raw[i];
-
-    if (inString) {
-      result += char;
-      if (escaped) escaped = false;
-      else if (char === "\\") escaped = true;
-      else if (char === '"') inString = false;
-      continue;
-    }
-
-    if (char === '"') {
-      inString = true;
-      result += char;
-      continue;
-    }
-
-    if (char === ",") {
-      const previous = previousNonWhitespaceChar(i);
-      const next = nextNonWhitespaceChar(i);
-      if (previous && next && /\d/.test(previous) && /\d/.test(next)) {
-        continue;
-      }
-    }
-
-    result += char;
-  }
-
-  return result;
+  return raw.replace(
+    /(:\s*)(-?\d{1,3}(?:,\d{3})+(?:\.\d+)?)(?=\s*[,}\]])/g,
+    (_match, prefix: string, numericValue: string) => `${prefix}${numericValue.replace(/,/g, "")}`,
+  );
 }
 
 function parseInboundPayload(raw: string): unknown {
