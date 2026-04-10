@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Building2, User, Mail, Phone, MapPin, Globe, ChevronRight, ChevronLeft, Check, Webhook, Bell, Lock, Crosshair, Zap, ShieldCheck } from "lucide-react";
+import { Building2, User, Mail, Phone, MapPin, Globe, ChevronRight, ChevronLeft, Check, Bell, Lock, Crosshair, Zap, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import logo from "@/assets/mayax-logo.jpg";
 
-const STEPS = ["Business Info", "Dealer Details", "Delivery Preferences"];
+const STEPS = ["Business Info", "Dealer Details"];
 
 const trustBadges = [
   { icon: Crosshair, label: "PREMIUM", sub: "Verified Leads" },
@@ -33,9 +33,6 @@ const Register = () => {
     businessType: "independent",
     province: "",
     heardAbout: "",
-    webhookUrl: "",
-    webhookSecret: "",
-    notificationEmail: "",
   });
 
   const updateField = (field: string, value: string) => setForm((p) => ({ ...p, [field]: value }));
@@ -65,9 +62,6 @@ const Register = () => {
         website: form.website || null,
         business_type: form.businessType,
         province: form.province || null,
-        webhook_url: form.webhookUrl || null,
-        webhook_secret: form.webhookSecret || null,
-        notification_email: form.notificationEmail || form.email,
       });
       if (dealerError) throw dealerError;
 
@@ -229,23 +223,6 @@ const Register = () => {
               </div>
             )}
 
-            {step === 2 && (
-              <div className="space-y-4">
-                <FormInput icon={Webhook} placeholder="CRM Webhook URL (optional)" value={form.webhookUrl} onChange={(v) => updateField("webhookUrl", v)} />
-                <div>
-                  <label className="text-sm text-muted-foreground mb-1.5 block">Webhook Secret (optional)</label>
-                  <Input
-                    type="password"
-                    placeholder="Webhook Secret"
-                    value={form.webhookSecret}
-                    onChange={(e) => updateField("webhookSecret", e.target.value)}
-                    className="h-12 bg-white/5 border-white/10 text-foreground placeholder:text-muted-foreground rounded-xl"
-                  />
-                </div>
-                <FormInput icon={Bell} placeholder={`Notification Email (default: ${form.email})`} value={form.notificationEmail} onChange={(v) => updateField("notificationEmail", v)} />
-              </div>
-            )}
-
             <div className="flex gap-3 mt-8">
               {step > 0 && (
                 <Button variant="outline" onClick={() => setStep(step - 1)} className="border-white/15 text-foreground hover:bg-white/5 rounded-xl">
@@ -253,7 +230,7 @@ const Register = () => {
                 </Button>
               )}
               <div className="flex-1" />
-              {step < 2 ? (
+              {step < 1 ? (
                 <Button
                   onClick={() => setStep(step + 1)}
                   disabled={!canNext()}
