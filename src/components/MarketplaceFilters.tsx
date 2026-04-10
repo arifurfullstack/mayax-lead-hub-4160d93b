@@ -219,20 +219,7 @@ function FilterContent({ filters, onChange, onReset, activeCount, maxIncome, max
 
       {/* Collapsible sections */}
       <div className="border-t border-border pt-3 space-y-1">
-        <CollapsibleSection title="Location">
-          <div className="space-y-2 max-h-32 overflow-y-auto">
-            {provinceOptions.map((p) => (
-              <label key={p} className="flex items-center gap-2 cursor-pointer text-muted-foreground text-sm hover:text-foreground transition-colors">
-                <Checkbox
-                  checked={filters.provinces.includes(p)}
-                  onCheckedChange={() => toggleArray("provinces", p)}
-                  className="border-primary data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                />
-                <span>{p}</span>
-              </label>
-            ))}
-          </div>
-        </CollapsibleSection>
+        <LocationFilter filters={filters} onChange={update} toggleArray={toggleArray} leads={leads} />
 
         <CollapsibleSection title="Vehicle" defaultOpen={filters.vehicleSearch.length > 0}>
           <div className="space-y-2">
