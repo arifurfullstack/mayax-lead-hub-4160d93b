@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import logo from "@/assets/mayax-logo.jpg";
 
-const STEPS = ["Business Info", "Dealer Details", "Delivery Preferences"];
+const STEPS = ["Business Info", "Dealer Details"];
 
 const trustBadges = [
   { icon: Crosshair, label: "PREMIUM", sub: "Verified Leads" },
