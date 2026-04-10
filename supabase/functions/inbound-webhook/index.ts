@@ -58,6 +58,18 @@ interface PricingSettings {
   lead_price_appointment: number;
 }
 
+function parseNumericInput(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value !== "string") return null;
+
+  const normalized = value.replace(/,/g, "").replace(/\s+/g, "").trim();
+  if (!normalized) return null;
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 const DEFAULT_PRICING: PricingSettings = {
   lead_price_base: 15,
   lead_price_income_tier1: 5,
@@ -174,10 +186,15 @@ Deno.serve(async (req) => {
       const has_bankruptcy = notesFlags.has_bankruptcy;
       const has_appointment = notesFlags.has_appointment;
       const appointment_time = (lead.appointment_time && lead.appointment_time.trim() !== "") ? lead.appointment_time : (has_appointment ? new Date().toISOString() : null);
+      const income = parseNumericInput(lead.income);
+      const credit_range_min = parseNumericInput(lead.credit_range_min);
+      const credit_range_max = parseNumericInput(lead.credit_range_max);
+      const vehicle_mileage = parseNumericInput(lead.vehicle_mileage);
+      const vehicle_price = parseNumericInput(lead.vehicle_price);
 
       // AI score (unchanged)
       const { ai_score, quality_grade } = calculateAiScore({
-        income: lead.income != null ? Number(lead.income) : null,
+        income,
         vehicle_preference: lead.vehicle_preference ?? null,
         buyer_type: lead.buyer_type ?? "online",
         notes: lead.notes ?? null,
@@ -187,7 +204,7 @@ Deno.serve(async (req) => {
 
       // Dynamic price
       const price = calculateDynamicPrice({
-        income: lead.income != null ? Number(lead.income) : null,
+        income,
         vehicle_preference: lead.vehicle_preference ?? null,
         trade_in,
         has_bankruptcy,
@@ -203,12 +220,12 @@ Deno.serve(async (req) => {
         city: lead.city ?? null,
         province: lead.province ?? null,
         buyer_type: lead.buyer_type ?? "online",
-        credit_range_min: lead.credit_range_min != null ? Number(lead.credit_range_min) : null,
-        credit_range_max: lead.credit_range_max != null ? Number(lead.credit_range_max) : null,
-        income: lead.income != null ? Number(lead.income) : null,
+        credit_range_min,
+        credit_range_max,
+        income,
         vehicle_preference: lead.vehicle_preference ?? null,
-        vehicle_mileage: lead.vehicle_mileage != null ? Number(lead.vehicle_mileage) : null,
-        vehicle_price: lead.vehicle_price != null ? Number(lead.vehicle_price) : null,
+        vehicle_mileage,
+        vehicle_price,
         notes: lead.notes ?? null,
         trade_in,
         has_bankruptcy,
