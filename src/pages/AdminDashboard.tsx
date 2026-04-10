@@ -733,7 +733,7 @@ const AdminDashboard = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">Income ($)</Label>
-                  <Input type="text" inputMode="numeric" placeholder="e.g. 12,345" value={editForm.income} onChange={(e) => setEditForm((f) => ({ ...f, income: e.target.value.replace(/[^0-9,]/g, "") }))} className="bg-background border-border" />
+                  <Input type="text" inputMode="numeric" placeholder="e.g. 12,345" value={editForm.income} onChange={(e) => setEditForm((f) => ({ ...f, income: formatAmount(e.target.value) }))} className="bg-background border-border" />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">Credit Min</Label>
@@ -753,11 +753,11 @@ const AdminDashboard = () => {
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">Vehicle Price ($)</Label>
-                  <Input type="text" inputMode="numeric" placeholder="e.g. 25,000" value={editForm.vehicle_price} onChange={(e) => setEditForm((f) => ({ ...f, vehicle_price: e.target.value.replace(/[^0-9,]/g, "") }))} className="bg-background border-border" />
+                  <Input type="text" inputMode="numeric" placeholder="e.g. 25,000" value={editForm.vehicle_price} onChange={(e) => setEditForm((f) => ({ ...f, vehicle_price: formatAmount(e.target.value) }))} className="bg-background border-border" />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">Vehicle Mileage (km)</Label>
-                  <Input type="text" inputMode="numeric" placeholder="e.g. 50,000" value={editForm.vehicle_mileage} onChange={(e) => setEditForm((f) => ({ ...f, vehicle_mileage: e.target.value.replace(/[^0-9,]/g, "") }))} className="bg-background border-border" />
+                  <Input type="text" inputMode="numeric" placeholder="e.g. 50,000" value={editForm.vehicle_mileage} onChange={(e) => setEditForm((f) => ({ ...f, vehicle_mileage: formatAmount(e.target.value) }))} className="bg-background border-border" />
                 </div>
               </div>
 
@@ -796,7 +796,7 @@ const AdminDashboard = () => {
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">Price ($)</Label>
-                  <Input type="text" inputMode="numeric" placeholder="e.g. 1,500" value={editForm.price} onChange={(e) => setEditForm((f) => ({ ...f, price: e.target.value.replace(/[^0-9,.]/g, "") }))} className="bg-background border-border" />
+                  <Input type="text" inputMode="numeric" placeholder="e.g. 1,500" value={editForm.price} onChange={(e) => setEditForm((f) => ({ ...f, price: formatAmount(e.target.value) }))} className="bg-background border-border" />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">Status</Label>
