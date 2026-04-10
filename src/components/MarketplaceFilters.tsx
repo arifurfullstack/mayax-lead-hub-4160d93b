@@ -105,6 +105,105 @@ function CollapsibleSection({ title, children, defaultOpen = false }: { title: s
   );
 }
 
+function LocationFilter({
+  filters,
+  onChange,
+  toggleArray,
+  leads,
+}: {
+  filters: MarketplaceFilters;
+  onChange: (partial: Partial<MarketplaceFilters>) => void;
+  toggleArray: (key: keyof MarketplaceFilters, value: string) => void;
+  leads: any[];
+}) {
+  const [provinceSearch, setProvinceSearch] = useState("");
+  const [citySearch, setCitySearch] = useState("");
+
+  const availableProvinces = useMemo(() => {
+    const provs = leads.map((l) => l.province).filter(Boolean) as string[];
+    return [...new Set([...provinceOptions, ...provs])].sort();
+  }, [leads]);
+
+  const filteredProvinces = useMemo(() => {
+    if (!provinceSearch) return availableProvinces;
+    const q = provinceSearch.toLowerCase();
+    return availableProvinces.filter((p) => p.toLowerCase().includes(q));
+  }, [availableProvinces, provinceSearch]);
+
+  const availableCities = useMemo(() => {
+    const cities = leads
+      .filter((l) => l.city && (filters.provinces.length === 0 || filters.provinces.includes(l.province)))
+      .map((l) => l.city as string);
+    return [...new Set(cities)].sort();
+  }, [leads, filters.provinces]);
+
+  const filteredCities = useMemo(() => {
+    if (!citySearch) return availableCities;
+    const q = citySearch.toLowerCase();
+    return availableCities.filter((c) => c.toLowerCase().includes(q));
+  }, [availableCities, citySearch]);
+
+  return (
+    <CollapsibleSection title="Location" defaultOpen={filters.provinces.length > 0 || filters.cities.length > 0}>
+      <div className="space-y-3">
+        {/* Province */}
+        <CollapsibleSection title="Province" defaultOpen={filters.provinces.length > 0}>
+          <div className="space-y-2">
+            <Input
+              placeholder="Search province..."
+              value={provinceSearch}
+              onChange={(e) => setProvinceSearch(e.target.value)}
+              className="h-8 text-xs bg-background/50 border-border/60"
+            />
+            <div className="space-y-2 max-h-32 overflow-y-auto">
+              {filteredProvinces.map((p) => (
+                <label key={p} className="flex items-center gap-2 cursor-pointer text-muted-foreground text-sm hover:text-foreground transition-colors">
+                  <Checkbox
+                    checked={filters.provinces.includes(p)}
+                    onCheckedChange={() => toggleArray("provinces", p)}
+                    className="border-primary data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                  />
+                  <span>{p}</span>
+                </label>
+              ))}
+              {filteredProvinces.length === 0 && (
+                <p className="text-xs text-muted-foreground/60 py-1">No provinces found</p>
+              )}
+            </div>
+          </div>
+        </CollapsibleSection>
+
+        {/* City */}
+        <CollapsibleSection title="City" defaultOpen={filters.cities.length > 0}>
+          <div className="space-y-2">
+            <Input
+              placeholder="Search city..."
+              value={citySearch}
+              onChange={(e) => setCitySearch(e.target.value)}
+              className="h-8 text-xs bg-background/50 border-border/60"
+            />
+            <div className="space-y-2 max-h-32 overflow-y-auto">
+              {filteredCities.map((c) => (
+                <label key={c} className="flex items-center gap-2 cursor-pointer text-muted-foreground text-sm hover:text-foreground transition-colors">
+                  <Checkbox
+                    checked={filters.cities.includes(c)}
+                    onCheckedChange={() => toggleArray("cities", c)}
+                    className="border-primary data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                  />
+                  <span>{c}</span>
+                </label>
+              ))}
+              {filteredCities.length === 0 && (
+                <p className="text-xs text-muted-foreground/60 py-1">No cities found</p>
+              )}
+            </div>
+          </div>
+        </CollapsibleSection>
+      </div>
+    </CollapsibleSection>
+  );
+}
+
 function FilterContent({ filters, onChange, onReset, activeCount, maxIncome, maxPrice, leads }: FilterSidebarProps) {
   const update = (partial: Partial<MarketplaceFilters>) =>
     onChange({ ...filters, ...partial });
