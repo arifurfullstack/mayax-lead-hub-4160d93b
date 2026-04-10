@@ -41,6 +41,11 @@ interface Props {
 }
 
 const parseNum = (v: string) => Number(v.replace(/,/g, ""));
+const formatAmount = (v: string) => {
+  const digits = v.replace(/[^0-9]/g, "");
+  if (!digits) return "";
+  return Number(digits).toLocaleString("en-US");
+};
 
 export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
   const [open, setOpen] = useState(false);
