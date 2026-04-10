@@ -418,6 +418,7 @@ export function countActiveFilters(f: MarketplaceFilters): number {
   if (f.incomeMin > 0 || (f.incomeMax > 0)) count++;
   if (f.buyerTypes.length) count++;
   if (f.provinces.length) count++;
+  if (f.cities.length) count++;
   if (f.documents.length) count++;
   if (f.grades.length) count++;
   if (f.vehicleSearch) count++;
@@ -442,6 +443,10 @@ export function applyFilters(leads: any[], filters: MarketplaceFilters, maxIncom
 
   if (filters.provinces.length) {
     result = result.filter((l) => filters.provinces.includes(l.province));
+  }
+
+  if (filters.cities.length) {
+    result = result.filter((l) => filters.cities.includes(l.city));
   }
 
   if (filters.documents.length) {
