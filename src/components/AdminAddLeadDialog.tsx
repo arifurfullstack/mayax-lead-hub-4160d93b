@@ -40,6 +40,8 @@ interface Props {
   onLeadAdded: () => void;
 }
 
+const parseNum = (v: string) => Number(v.replace(/,/g, ""));
+
 export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
