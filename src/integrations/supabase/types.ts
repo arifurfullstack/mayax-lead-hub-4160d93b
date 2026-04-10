@@ -28,6 +28,8 @@ export type Database = {
           enabled: boolean | null
           end_time: string | null
           id: string
+          income_max: number | null
+          income_min: number | null
           leads_per_day: number | null
           loan_type: string | null
           make: string | null
@@ -51,6 +53,8 @@ export type Database = {
           enabled?: boolean | null
           end_time?: string | null
           id?: string
+          income_max?: number | null
+          income_min?: number | null
           leads_per_day?: number | null
           loan_type?: string | null
           make?: string | null
@@ -74,6 +78,8 @@ export type Database = {
           enabled?: boolean | null
           end_time?: string | null
           id?: string
+          income_max?: number | null
+          income_min?: number | null
           leads_per_day?: number | null
           loan_type?: string | null
           make?: string | null
