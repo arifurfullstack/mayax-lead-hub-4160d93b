@@ -63,11 +63,84 @@ function parseNumericInput(value: unknown): number | null {
   if (typeof value === "number") return Number.isFinite(value) ? value : null;
   if (typeof value !== "string") return null;
 
-  const normalized = value.replace(/,/g, "").replace(/\s+/g, "").trim();
+  const normalized = value
+    .replace(/[$£€¥]/g, "")
+    .replace(/,/g, "")
+    .replace(/\s+/g, "")
+    .trim();
   if (!normalized) return null;
 
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function stripGroupingCommasFromJsonNumbers(raw: string): string {
+  let result = "";
+  let inString = false;
+  let escaped = false;
+
+  const previousNonWhitespaceChar = (index: number): string | null => {
+    for (let i = index - 1; i >= 0; i -= 1) {
+      const char = raw[i];
+      if (!/\s/.test(char)) return char;
+    }
+    return null;
+  };
+
+  const nextNonWhitespaceChar = (index: number): string | null => {
+    for (let i = index + 1; i < raw.length; i += 1) {
+      const char = raw[i];
+      if (!/\s/.test(char)) return char;
+    }
+    return null;
+  };
+
+  for (let i = 0; i < raw.length; i += 1) {
+    const char = raw[i];
+
+    if (inString) {
+      result += char;
+      if (escaped) escaped = false;
+      else if (char === "\\") escaped = true;
+      else if (char === '"') inString = false;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+      result += char;
+      continue;
+    }
+
+    if (char === ",") {
+      const previous = previousNonWhitespaceChar(i);
+      const next = nextNonWhitespaceChar(i);
+      if (previous && next && /\d/.test(previous) && /\d/.test(next)) {
+        continue;
+      }
+    }
+
+    result += char;
+  }
+
+  return result;
+}
+
+function parseInboundPayload(raw: string): unknown {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    throw new Error("Request body is empty");
+  }
+
+  try {
+    return JSON.parse(trimmed);
+  } catch (originalError) {
+    const sanitized = stripGroupingCommasFromJsonNumbers(trimmed);
+    if (sanitized !== trimmed) {
+      return JSON.parse(sanitized);
+    }
+    throw originalError;
+  }
 }
 
 const DEFAULT_PRICING: PricingSettings = {
@@ -162,7 +235,17 @@ Deno.serve(async (req) => {
     // Parse pricing settings
     const pricing = parsePricingFromRows(settingsRows ?? []);
 
-    const body = await req.json();
+    let body: unknown;
+    try {
+      body = parseInboundPayload(await req.text());
+    } catch (_error) {
+      return new Response(JSON.stringify({
+        error: 'Invalid payload. Send amounts as plain numbers (12345) or quoted strings ("12,345").',
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     const leadsInput = Array.isArray(body) ? body : [body];
     const results: { reference_code: string; status: string; ai_score?: number; quality_grade?: string; price?: number; error?: string }[] = [];
 
