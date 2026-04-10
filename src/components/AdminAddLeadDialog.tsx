@@ -81,7 +81,7 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
 
   const computed = useMemo(() => {
     const aiResult = calculateAiScore({
-      income: form.income ? Number(form.income) : null,
+      income: form.income ? parseNum(form.income) : null,
       vehicle_preference: form.vehicle_preference || null,
       buyer_type: form.buyer_type,
       notes: form.notes || null,
@@ -90,7 +90,7 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
     });
 
     const priceBreakdown = calculateLeadPrice({
-      income: form.income ? Number(form.income) : null,
+      income: form.income ? parseNum(form.income) : null,
       vehicle_preference: form.vehicle_preference || null,
       trade_in: effectiveTradeIn,
       has_bankruptcy: effectiveBankruptcy,
