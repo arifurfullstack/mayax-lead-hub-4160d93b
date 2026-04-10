@@ -297,8 +297,8 @@ export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props
     <div className="space-y-4">
       {/* Time Period Stats */}
       <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Select value={timePeriod} onValueChange={setTimePeriod}>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Select value={timePeriod} onValueChange={(v) => { setTimePeriod(v); setPage(0); }}>
             <SelectTrigger className="w-[140px] bg-card border-border h-8 text-xs">
               <CalendarDays className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
               <SelectValue />
@@ -309,8 +309,49 @@ export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props
               <SelectItem value="month">This Month</SelectItem>
               <SelectItem value="year">This Year</SelectItem>
               <SelectItem value="all">All Time</SelectItem>
+              <SelectItem value="custom">Custom Range</SelectItem>
             </SelectContent>
           </Select>
+
+          {timePeriod === "custom" && (
+            <div className="flex items-center gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className={cn("h-8 text-xs gap-1.5 bg-card border-border", !customFrom && "text-muted-foreground")}>
+                    <CalendarDays className="h-3.5 w-3.5" />
+                    {customFrom ? format(customFrom, "MMM d, yyyy") : "Start date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={customFrom}
+                    onSelect={setCustomFrom}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+              <span className="text-xs text-muted-foreground">to</span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className={cn("h-8 text-xs gap-1.5 bg-card border-border", !customTo && "text-muted-foreground")}>
+                    <CalendarDays className="h-3.5 w-3.5" />
+                    {customTo ? format(customTo, "MMM d, yyyy") : "End date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={customTo}
+                    onSelect={setCustomTo}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="glass-card p-4 space-y-1">
