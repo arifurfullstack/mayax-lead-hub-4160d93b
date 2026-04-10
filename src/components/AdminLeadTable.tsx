@@ -107,9 +107,21 @@ export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props
     [leads]
   );
 
+  // Time period start
+  const timeStart = useMemo(() => {
+    const now = new Date();
+    switch (timePeriod) {
+      case "today": return startOfDay(now);
+      case "week": return startOfWeek(now, { weekStartsOn: 1 });
+      case "month": return startOfMonth(now);
+      case "year": return startOfYear(now);
+      default: return new Date(0);
+    }
+  }, [timePeriod]);
+
   // Filter
   const filtered = useMemo(() => {
-    let result = leads;
+    let result = leads.filter((l) => new Date(l.created_at) >= timeStart);
     if (search) {
       const q = search.toLowerCase();
       result = result.filter(
@@ -124,7 +136,7 @@ export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props
     if (gradeFilter !== "all") result = result.filter((l) => l.quality_grade === gradeFilter);
     if (provinceFilter !== "all") result = result.filter((l) => l.province === provinceFilter);
     return result;
-  }, [leads, search, statusFilter, gradeFilter, provinceFilter]);
+  }, [leads, search, statusFilter, gradeFilter, provinceFilter, timeStart]);
 
   // Sort
   const sorted = useMemo(() => {
