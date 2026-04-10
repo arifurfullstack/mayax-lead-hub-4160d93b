@@ -45,6 +45,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -107,6 +108,13 @@ const AdminDashboard = () => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedDealer, setSelectedDealer] = useState<Dealer | null>(null);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [editingDealer, setEditingDealer] = useState(false);
+  const [deletingDealer, setDeletingDealer] = useState(false);
+  const [dealerEditForm, setDealerEditForm] = useState({
+    dealership_name: "", contact_person: "", email: "", phone: "",
+    province: "", approval_status: "pending", subscription_tier: "basic",
+  });
+  const [savingDealer, setSavingDealer] = useState(false);
 
   // Platform settings state
   const [platformSettings, setPlatformSettings] = useState<Record<string, string>>({});
@@ -153,7 +161,64 @@ const AdminDashboard = () => {
     }
   };
 
-  /* ─── Platform Settings Actions ─── */
+  const openEditDealer = (d: Dealer) => {
+    setSelectedDealer(d);
+    setDealerEditForm({
+      dealership_name: d.dealership_name,
+      contact_person: d.contact_person,
+      email: d.email,
+      phone: d.phone ?? "",
+      province: d.province ?? "",
+      approval_status: d.approval_status,
+      subscription_tier: d.subscription_tier,
+    });
+    setEditingDealer(true);
+  };
+
+  const saveEditDealer = async () => {
+    if (!selectedDealer) return;
+    setSavingDealer(true);
+    const { error } = await supabase.from("dealers").update({
+      dealership_name: dealerEditForm.dealership_name,
+      contact_person: dealerEditForm.contact_person,
+      email: dealerEditForm.email,
+      phone: dealerEditForm.phone || null,
+      province: dealerEditForm.province || null,
+      approval_status: dealerEditForm.approval_status,
+      subscription_tier: dealerEditForm.subscription_tier,
+    }).eq("id", selectedDealer.id);
+    setSavingDealer(false);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Updated", description: `${dealerEditForm.dealership_name} updated successfully.` });
+      setEditingDealer(false);
+      setSelectedDealer(null);
+      fetchData();
+    }
+  };
+
+  const openDeleteDealer = (d: Dealer) => {
+    setSelectedDealer(d);
+    setDeletingDealer(true);
+  };
+
+  const confirmDeleteDealer = async () => {
+    if (!selectedDealer) return;
+    setSavingDealer(true);
+    const { error } = await supabase.from("dealers").delete().eq("id", selectedDealer.id);
+    setSavingDealer(false);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Deleted", description: `${selectedDealer.dealership_name} has been removed.` });
+      setDealers((prev) => prev.filter((d) => d.id !== selectedDealer.id));
+      setDeletingDealer(false);
+      setSelectedDealer(null);
+    }
+  };
+
+
   const savePlatformSettings = async () => {
     setSavingSettings(true);
     const entries = Object.entries(settingsForm);
@@ -443,9 +508,17 @@ const AdminDashboard = () => {
                         </td>
                         <td className="p-3 text-right font-mono text-foreground">${Number(d.wallet_balance).toFixed(2)}</td>
                         <td className="p-3 text-right">
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelectedDealer(d)}>
-                            <Eye className="h-4 w-4 text-muted-foreground" />
-                          </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" title="View" onClick={() => setSelectedDealer(d)}>
+                              <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" title="Edit" onClick={() => openEditDealer(d)}>
+                              <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" title="Delete" onClick={() => openDeleteDealer(d)}>
+                              <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -604,7 +677,82 @@ const AdminDashboard = () => {
         </DialogContent>
       </Dialog>
 
-      {/* ─── Lead Detail / Edit Dialog ─── */}
+      {/* ─── Edit Dealer Dialog ─── */}
+      <Dialog open={editingDealer} onOpenChange={() => { setEditingDealer(false); setSelectedDealer(null); }}>
+        <DialogContent className="bg-card border-border max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Edit Dealer</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Dealership Name</Label>
+              <Input value={dealerEditForm.dealership_name} onChange={(e) => setDealerEditForm(f => ({ ...f, dealership_name: e.target.value }))} className="bg-background border-border" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Contact Person</Label>
+              <Input value={dealerEditForm.contact_person} onChange={(e) => setDealerEditForm(f => ({ ...f, contact_person: e.target.value }))} className="bg-background border-border" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Email</Label>
+              <Input value={dealerEditForm.email} onChange={(e) => setDealerEditForm(f => ({ ...f, email: e.target.value }))} className="bg-background border-border" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Phone</Label>
+              <Input value={dealerEditForm.phone} onChange={(e) => setDealerEditForm(f => ({ ...f, phone: e.target.value }))} className="bg-background border-border" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Province</Label>
+              <Input value={dealerEditForm.province} onChange={(e) => setDealerEditForm(f => ({ ...f, province: e.target.value }))} className="bg-background border-border" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Status</Label>
+              <Select value={dealerEditForm.approval_status} onValueChange={(v) => setDealerEditForm(f => ({ ...f, approval_status: v }))}>
+                <SelectTrigger className="bg-background border-border"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="approved">Approved</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                  <SelectItem value="suspended">Suspended</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Tier</Label>
+              <Select value={dealerEditForm.subscription_tier} onValueChange={(v) => setDealerEditForm(f => ({ ...f, subscription_tier: v }))}>
+                <SelectTrigger className="bg-background border-border"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="basic">Basic</SelectItem>
+                  <SelectItem value="pro">Pro</SelectItem>
+                  <SelectItem value="elite">Elite</SelectItem>
+                  <SelectItem value="vip">VIP</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setEditingDealer(false); setSelectedDealer(null); }}>Cancel</Button>
+            <Button onClick={saveEditDealer} disabled={savingDealer}>{savingDealer ? "Saving..." : "Save Changes"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Delete Dealer Confirmation ─── */}
+      <Dialog open={deletingDealer} onOpenChange={() => { setDeletingDealer(false); setSelectedDealer(null); }}>
+        <DialogContent className="bg-card border-border max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Delete Dealer</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Are you sure you want to delete <strong className="text-foreground">{selectedDealer?.dealership_name}</strong>? This action cannot be undone.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setDeletingDealer(false); setSelectedDealer(null); }}>Cancel</Button>
+            <Button variant="destructive" onClick={confirmDeleteDealer} disabled={savingDealer}>{savingDealer ? "Deleting..." : "Delete"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
       <Dialog open={!!selectedLead} onOpenChange={() => { setSelectedLead(null); setConfirmDelete(false); setEditingLead(false); }}>
         <DialogContent className="bg-card border-border max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
