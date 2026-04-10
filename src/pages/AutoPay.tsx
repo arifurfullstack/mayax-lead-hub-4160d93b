@@ -58,11 +58,11 @@ interface AutoPayData {
   end_time: string;
   active_days: string[];
   state: string;
+  city: string;
   credit_score_min: number;
   credit_score_max: number;
   price_range_min: number;
   price_range_max: number;
-  car_type: string[];
   loan_type: string;
   age_range: string;
   distance: string;
@@ -77,11 +77,11 @@ const defaultSettings: AutoPayData = {
   end_time: "18:00",
   active_days: ["monday", "tuesday", "wednesday", "thursday", "friday"],
   state: "All Provinces",
+  city: "",
   credit_score_min: 600,
   credit_score_max: 850,
   price_range_min: 10,
   price_range_max: 100,
-  car_type: [],
   loan_type: "",
   age_range: "",
   distance: "",
