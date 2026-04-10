@@ -71,7 +71,7 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
   const isLocked = locked && remaining > 0;
   const staggerDelay = `${index * 80}ms`;
   const revealed = isRevealed(lead);
-  const incomeDisplay = lead.income != null && Number(lead.income) >= 1500 ? `$${Number(lead.income).toLocaleString()}` : null;
+  const incomeDisplay = lead.income != null && Number(lead.income) > 0 ? `$${Number(lead.income).toLocaleString()}` : null;
 
   return (
     <div
