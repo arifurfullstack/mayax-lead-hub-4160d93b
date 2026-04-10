@@ -8,6 +8,67 @@ import { toast } from "@/hooks/use-toast";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import fallbackLogo from "@/assets/mayax-logo.jpg";
 
+/* ── Fake marketplace rows for the blurred background ── */
+const fakeLeads = [
+  { ref: "CACI # AGGSTON", grade: "A", price: "$45", income: "$8,200", city: "Toronto" },
+  { ref: "CACI & LORBEN", grade: "B+", price: "$35", income: "$5,100", city: "Vancouver" },
+  { ref: "FXCI & LORBEN", grade: "A+", price: "$55", income: "$9,400", city: "Calgary" },
+  { ref: "FXCI & MAPREDIANR", grade: "B", price: "$30", income: "$4,800", city: "Montreal" },
+  { ref: "CACI & NORMION", grade: "C+", price: "$25", income: "$3,200", city: "Ottawa" },
+  { ref: "TSUF # XERSION", grade: "A", price: "$50", income: "$7,600", city: "Edmonton" },
+  { ref: "CICI & CAMP", grade: "B+", price: "$40", income: "$6,100", city: "Winnipeg" },
+  { ref: "FXCI # MAPESONR", grade: "C", price: "$22", income: "$2,900", city: "Halifax" },
+  { ref: "CACI & MEDITION", grade: "A+", price: "$58", income: "$9,900", city: "Victoria" },
+  { ref: "TUAF # XERLUN", grade: "B", price: "$32", income: "$4,500", city: "Saskatoon" },
+  { ref: "CACI & LORBEN", grade: "A", price: "$48", income: "$7,200", city: "Hamilton" },
+  { ref: "FXCI # MAPESONR", grade: "B+", price: "$38", income: "$5,800", city: "Quebec" },
+];
+
+const MarketplaceBg = () => (
+  <div className="absolute inset-0 overflow-hidden select-none pointer-events-none" aria-hidden>
+    {/* Header row */}
+    <div className="flex items-center justify-between px-6 py-3 border-b border-white/5">
+      <span className="text-sm font-bold text-white/40 tracking-wide">Leads Marketplace</span>
+      <div className="flex gap-3">
+        <div className="h-7 w-24 rounded bg-white/5" />
+        <div className="h-7 w-28 rounded bg-white/5" />
+      </div>
+    </div>
+    {/* Table header */}
+    <div className="grid grid-cols-6 gap-2 px-6 py-2 text-[10px] uppercase tracking-widest text-white/25 border-b border-white/5">
+      <span>Type</span><span>Reference</span><span>Price</span><span>Income</span><span>City</span><span>Grade</span>
+    </div>
+    {/* Rows */}
+    {fakeLeads.map((l, i) => (
+      <div
+        key={i}
+        className="grid grid-cols-6 gap-2 px-6 py-2.5 text-[11px] text-white/20 border-b border-white/[0.03]"
+      >
+        <span className="truncate">{l.ref}</span>
+        <span>{l.ref.slice(0, 8)}</span>
+        <span>{l.price}</span>
+        <span>{l.income}</span>
+        <span>{l.city}</span>
+        <span className="font-semibold">{l.grade}</span>
+      </div>
+    ))}
+    {/* Duplicate rows offset for fullness */}
+    {fakeLeads.map((l, i) => (
+      <div
+        key={`dup-${i}`}
+        className="grid grid-cols-6 gap-2 px-6 py-2.5 text-[11px] text-white/15 border-b border-white/[0.02]"
+      >
+        <span className="truncate">{l.ref}</span>
+        <span>{l.ref.slice(0, 8)}</span>
+        <span>{l.price}</span>
+        <span>{l.income}</span>
+        <span>{l.city}</span>
+        <span className="font-semibold">{l.grade}</span>
+      </div>
+    ))}
+  </div>
+);
+
 const Login = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
@@ -64,140 +125,157 @@ const Login = () => {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row bg-[#050510] relative overflow-hidden">
-      {/* Starfield */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {Array.from({ length: 80 }).map((_, i) => (
-          <div
-            key={i}
-            className="absolute rounded-full"
-            style={{
-              width: `${Math.random() * 2.5 + 0.5}px`,
-              height: `${Math.random() * 2.5 + 0.5}px`,
-              top: `${Math.random() * 100}%`,
-              left: `${Math.random() * 100}%`,
-              opacity: Math.random() * 0.6 + 0.1,
-              backgroundColor: "rgba(255,255,255,0.7)",
-            }}
-          />
-        ))}
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-[#050510]">
+      {/* ── Blurred marketplace background ── */}
+      <div className="absolute inset-0" style={{ filter: "blur(4px) brightness(0.45) saturate(1.4)" }}>
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0a1628]/60 via-transparent to-[#050510]" />
+        <MarketplaceBg />
       </div>
 
-      {/* Left Brand Section */}
-      <div className="flex-1 flex flex-col items-center justify-center p-8 lg:p-16 relative z-10">
-        <div className="text-center max-w-lg">
-          {/* Logo */}
-          <div className="mb-6">
-            <img
-              src={logoSrc}
-              alt={settings?.theme_website_name || "MayaX Lead Hub"}
-              className="w-56 h-56 lg:w-72 lg:h-72 object-contain mx-auto drop-shadow-[0_0_40px_rgba(139,92,246,0.3)]"
-            />
-          </div>
+      {/* Blue/purple ambient glow */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-1/4 left-1/3 w-[500px] h-[500px] rounded-full bg-primary/8 blur-[120px]" />
+        <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] rounded-full bg-purple/8 blur-[100px]" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-cyan/5 blur-[150px]" />
+      </div>
 
-          <h2 className="text-2xl lg:text-3xl font-bold text-foreground mb-3">
+      {/* ── Liquid Glass Card ── */}
+      <div
+        className="relative z-10 w-full max-w-[960px] mx-4 rounded-3xl border border-white/[0.12] flex flex-col lg:flex-row overflow-hidden"
+        style={{
+          background: "linear-gradient(135deg, rgba(15,23,42,0.55) 0%, rgba(20,30,60,0.45) 50%, rgba(10,18,40,0.55) 100%)",
+          backdropFilter: "blur(40px) saturate(1.6)",
+          WebkitBackdropFilter: "blur(40px) saturate(1.6)",
+          boxShadow:
+            "0 0 80px rgba(59,130,246,0.12), 0 0 160px rgba(139,92,246,0.06), inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(255,255,255,0.03)",
+        }}
+      >
+        {/* Animated top border glow */}
+        <div
+          className="absolute top-0 left-0 right-0 h-[1px]"
+          style={{
+            background:
+              "linear-gradient(90deg, transparent 5%, hsl(192,91%,42%) 25%, hsl(263,70%,60%) 50%, hsl(217,91%,60%) 75%, transparent 95%)",
+          }}
+        />
+        {/* Bottom border glow */}
+        <div
+          className="absolute bottom-0 left-0 right-0 h-[1px]"
+          style={{
+            background:
+              "linear-gradient(90deg, transparent 10%, hsl(217,91%,50%,0.3) 40%, hsl(192,91%,42%,0.3) 60%, transparent 90%)",
+          }}
+        />
+
+        {/* ── Left: Brand ── */}
+        <div className="flex-1 flex flex-col items-center justify-center p-8 lg:p-12 relative">
+          {/* Divider line on desktop */}
+          <div className="hidden lg:block absolute right-0 top-[10%] bottom-[10%] w-[1px] bg-gradient-to-b from-transparent via-white/10 to-transparent" />
+
+          <img
+            src={logoSrc}
+            alt={settings?.theme_website_name || "MayaX Lead Hub"}
+            className="w-44 h-44 lg:w-56 lg:h-56 object-contain drop-shadow-[0_0_50px_rgba(139,92,246,0.35)] mb-4"
+          />
+
+          <h2 className="text-xl lg:text-2xl font-bold text-foreground mb-2 text-center">
             Buy Verified Auto Leads Instantly
           </h2>
-          <p className="text-muted-foreground mb-10 leading-relaxed text-sm lg:text-base">
-            AI-verified buyers. Real income. Real intent.{"\n"}Delivered directly to your CRM.
+          <p className="text-muted-foreground text-center text-xs lg:text-sm leading-relaxed mb-8 max-w-xs">
+            AI-verified buyers. Real income. Real intent.
+            <br />
+            Delivered directly to your CRM.
           </p>
 
-          <div className="flex flex-wrap justify-center gap-4">
+          <div className="flex flex-wrap justify-center gap-3">
             {trustBadges.map((badge) => (
               <div
                 key={badge.label}
-                className="flex items-center gap-2.5 rounded-xl px-4 py-3 border border-white/10 bg-white/5 backdrop-blur-sm"
+                className="flex items-center gap-2 rounded-xl px-3.5 py-2.5 border border-white/[0.08] bg-white/[0.04] backdrop-blur-sm"
               >
                 <badge.icon className="w-4 h-4 text-primary" />
                 <div className="text-left">
-                  <p className="text-[11px] font-bold text-primary tracking-wide">{badge.label}</p>
-                  <p className="text-[11px] text-muted-foreground">{badge.sub}</p>
+                  <p className="text-[10px] font-bold text-primary tracking-wide">{badge.label}</p>
+                  <p className="text-[10px] text-muted-foreground">{badge.sub}</p>
                 </div>
               </div>
             ))}
           </div>
         </div>
-      </div>
 
-      {/* Right Login Section */}
-      <div className="flex-1 flex items-center justify-center p-6 lg:p-16 relative z-10">
-        <div
-          className="w-full max-w-md rounded-2xl p-8 border border-primary/20 relative overflow-hidden"
-          style={{
-            background: "linear-gradient(145deg, rgba(15,23,41,0.95), rgba(10,15,30,0.98))",
-            boxShadow: "0 0 60px rgba(59,130,246,0.08), 0 0 120px rgba(139,92,246,0.05), inset 0 1px 0 rgba(255,255,255,0.05)",
-          }}
-        >
-          {/* Top glow line */}
-          <div
-            className="absolute top-0 left-1/4 right-1/4 h-[1px]"
-            style={{ background: "linear-gradient(90deg, transparent, hsl(192,91%,42%), hsl(263,70%,66%), transparent)" }}
-          />
+        {/* ── Right: Login Form ── */}
+        <div className="flex-1 flex items-center justify-center p-8 lg:p-12">
+          <div className="w-full max-w-sm">
+            <h3 className="text-2xl font-bold text-foreground text-center mb-1">Sign In or Create Account</h3>
+            <p className="text-muted-foreground text-center text-sm mb-8">Access your dealer dashboard</p>
 
-          <h3 className="text-2xl font-bold text-foreground text-center mb-2">Sign In or Create Account</h3>
-          <p className="text-muted-foreground text-center text-sm mb-8">Access your dealer dashboard</p>
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div className="relative">
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  type="email"
+                  placeholder="Enter your email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="pl-11 h-12 bg-white/[0.04] border-white/[0.1] text-foreground placeholder:text-muted-foreground rounded-xl focus:border-primary/50 focus:bg-white/[0.06] transition-colors"
+                  required
+                />
+              </div>
 
-          <form onSubmit={handleLogin} className="space-y-5">
-            <div className="relative">
-              <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="pl-11 h-12 bg-white/5 border-white/10 text-foreground placeholder:text-muted-foreground rounded-xl focus:border-primary/40"
-                required
-              />
-            </div>
+              <div className="relative">
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  type="password"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pl-11 h-12 bg-white/[0.04] border-white/[0.1] text-foreground placeholder:text-muted-foreground rounded-xl focus:border-primary/50 focus:bg-white/[0.06] transition-colors"
+                  required
+                />
+              </div>
 
-            <div className="relative">
-              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="pl-11 h-12 bg-white/5 border-white/10 text-foreground placeholder:text-muted-foreground rounded-xl focus:border-primary/40"
-                required
-              />
-            </div>
+              <div className="text-right">
+                <Link
+                  to="/forgot-password"
+                  className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                >
+                  Forgot password?
+                </Link>
+              </div>
 
-            <div className="text-right">
-              <Link to="/forgot-password" className="text-sm text-muted-foreground hover:text-primary transition-colors">
-                Forgot password?
-              </Link>
+              <Button
+                type="submit"
+                disabled={loading}
+                className="w-full h-12 text-base font-semibold rounded-xl border-0 text-white"
+                style={{
+                  background: "linear-gradient(135deg, hsl(263,70%,50%), hsl(217,91%,50%), hsl(192,91%,42%))",
+                }}
+              >
+                {loading ? "Signing in..." : "Login to Dashboard"}
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </form>
+
+            <div className="flex items-center my-6">
+              <div className="flex-1 border-t border-white/[0.08]" />
+              <span className="px-4 text-sm text-muted-foreground">OR</span>
+              <div className="flex-1 border-t border-white/[0.08]" />
             </div>
 
             <Button
-              type="submit"
-              disabled={loading}
-              className="w-full h-12 text-base font-semibold rounded-xl border-0 text-white"
-              style={{ background: "linear-gradient(135deg, hsl(263,70%,50%), hsl(217,91%,50%), hsl(192,91%,42%))" }}
+              variant="outline"
+              className="w-full h-12 text-base border-white/[0.1] text-foreground hover:bg-white/[0.06] rounded-xl"
+              onClick={() => navigate("/register")}
             >
-              {loading ? "Signing in..." : "Login to Dashboard"}
-              <ArrowRight className="w-4 h-4 ml-2" />
+              Create Dealer Account
             </Button>
-          </form>
 
-          <div className="flex items-center my-6">
-            <div className="flex-1 border-t border-white/10" />
-            <span className="px-4 text-sm text-muted-foreground">OR</span>
-            <div className="flex-1 border-t border-white/10" />
-          </div>
-
-          <Button
-            variant="outline"
-            className="w-full h-12 text-base border-white/15 text-foreground hover:bg-white/5 rounded-xl"
-            onClick={() => navigate("/register")}
-          >
-            Create Dealer Account
-          </Button>
-
-          <div className="mt-8 flex items-center justify-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-primary" />
-            <div className="text-left">
-              <p className="text-xs font-bold text-foreground">TRUSTED</p>
-              <p className="text-[10px] text-muted-foreground">Quality Buyers</p>
+            <div className="mt-8 flex items-center justify-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-primary" />
+              <div className="text-left">
+                <p className="text-xs font-bold text-foreground">TRUSTED</p>
+                <p className="text-[10px] text-muted-foreground">Quality Buyers</p>
+              </div>
             </div>
           </div>
         </div>
