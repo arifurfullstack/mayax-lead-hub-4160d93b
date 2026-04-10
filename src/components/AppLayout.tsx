@@ -3,6 +3,7 @@ import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import TopNavbar from "@/components/TopNavbar";
+import WelcomeDialog from "@/components/WelcomeDialog";
 import { supabase } from "@/integrations/supabase/client";
 
 interface DealerInfo {
@@ -11,6 +12,7 @@ interface DealerInfo {
   subscription_tier: string;
   wallet_balance: number;
   profile_picture_url: string | null;
+  terms_accepted_at: string | null;
 }
 
 const AppLayout = () => {
