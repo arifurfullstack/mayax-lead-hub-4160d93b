@@ -169,6 +169,7 @@ export type Database = {
           profile_picture_url: string | null
           province: string | null
           subscription_tier: string
+          terms_accepted_at: string | null
           updated_at: string
           user_id: string
           wallet_balance: number
@@ -191,6 +192,7 @@ export type Database = {
           profile_picture_url?: string | null
           province?: string | null
           subscription_tier?: string
+          terms_accepted_at?: string | null
           updated_at?: string
           user_id: string
           wallet_balance?: number
@@ -213,6 +215,7 @@ export type Database = {
           profile_picture_url?: string | null
           province?: string | null
           subscription_tier?: string
+          terms_accepted_at?: string | null
           updated_at?: string
           user_id?: string
           wallet_balance?: number
