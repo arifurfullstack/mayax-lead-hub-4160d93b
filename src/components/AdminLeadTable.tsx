@@ -463,8 +463,8 @@ export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props
                   <td className="p-3 font-mono text-foreground text-xs">{l.reference_code}</td>
                   <td className="p-3 text-foreground">{l.first_name} {l.last_name}</td>
                   <td className="p-3 text-muted-foreground text-xs">{l.phone ?? "—"}</td>
-                  <td className="p-3 text-muted-foreground">
-                    {l.city && l.province ? `${l.city}, ${l.province}` : l.province ?? "—"}
+                  <td className="p-3 text-muted-foreground text-xs">
+                    {[l.city, l.province].filter(Boolean).join(", ") || "—"}
                   </td>
                   <td className="p-3">
                     <Badge className={cn("border-0 text-[10px]", gradeColors[l.quality_grade ?? ""] ?? "bg-muted text-muted-foreground")}>
