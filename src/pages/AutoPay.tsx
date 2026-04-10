@@ -49,16 +49,6 @@ const daysOfWeek = [
   { label: "Sun", value: "sunday" },
 ];
 
-const carTypes = [
-  { label: "Sedan", value: "sedan" },
-  { label: "SUV", value: "suv" },
-  { label: "Truck", value: "truck" },
-  { label: "Coupe", value: "coupe" },
-  { label: "Hatchback", value: "hatchback" },
-  { label: "Van", value: "van" },
-  { label: "Luxury", value: "luxury" },
-  { label: "Electric", value: "electric" },
-];
 
 interface AutoPayData {
   id?: string;
