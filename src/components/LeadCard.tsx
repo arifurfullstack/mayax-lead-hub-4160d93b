@@ -143,7 +143,7 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
       {lead.buyer_type === "walk-in" && (
         <div className="flex items-center gap-1.5 mb-0.5 text-muted-foreground">
           <Tooltip><TooltipTrigger asChild><span className="cursor-help">{buyerIcon}</span></TooltipTrigger><TooltipContent side="top" className="text-xs">Buyer Type</TooltipContent></Tooltip>
-          <span className="text-xs">{buyerLabel}</span>
+          <Tooltip><TooltipTrigger asChild><span className="text-xs cursor-help">{buyerLabel}</span></TooltipTrigger><TooltipContent side="top" className="text-xs">Buyer Type: {buyerLabel}</TooltipContent></Tooltip>
         </div>
       )}
 
@@ -151,7 +151,7 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
       {lead.vehicle_preference && (
         <div className="flex items-center gap-1.5 mb-0.5 text-muted-foreground">
           <Tooltip><TooltipTrigger asChild><Car className="h-3.5 w-3.5 cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Vehicle Preference</TooltipContent></Tooltip>
-          <span className="text-xs truncate">{lead.vehicle_preference}</span>
+          <Tooltip><TooltipTrigger asChild><span className="text-xs truncate cursor-help">{lead.vehicle_preference}</span></TooltipTrigger><TooltipContent side="top" className="text-xs">{lead.vehicle_preference}</TooltipContent></Tooltip>
         </div>
       )}
 
@@ -159,7 +159,7 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
       {lead.trade_in && (
         <div className="flex items-center gap-1.5 mb-0.5 text-muted-foreground">
           <Tooltip><TooltipTrigger asChild><Car className="h-3.5 w-3.5 cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Trade-In Vehicle</TooltipContent></Tooltip>
-          <span className="text-xs text-emerald-400 font-medium">Trade-In</span>
+          <Tooltip><TooltipTrigger asChild><span className="text-xs text-emerald-400 font-medium cursor-help">Trade-In</span></TooltipTrigger><TooltipContent side="top" className="text-xs">Customer has a trade-in vehicle</TooltipContent></Tooltip>
         </div>
       )}
 
@@ -167,7 +167,7 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
       {lead.vehicle_mileage != null && (
         <div className="flex items-center gap-1.5 mb-0.5 text-muted-foreground">
           <Tooltip><TooltipTrigger asChild><Gauge className="h-3.5 w-3.5 cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Vehicle Mileage</TooltipContent></Tooltip>
-          <span className="text-xs font-mono-timer">{Number(lead.vehicle_mileage).toLocaleString()} km</span>
+          <Tooltip><TooltipTrigger asChild><span className="text-xs font-mono-timer cursor-help">{Number(lead.vehicle_mileage).toLocaleString()} km</span></TooltipTrigger><TooltipContent side="top" className="text-xs">Mileage: {Number(lead.vehicle_mileage).toLocaleString()} km</TooltipContent></Tooltip>
         </div>
       )}
 
@@ -175,7 +175,7 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
       {location && (
         <div className="flex items-center gap-1.5 mb-0.5 text-muted-foreground">
           <Tooltip><TooltipTrigger asChild><MapPin className="h-3.5 w-3.5 cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Location</TooltipContent></Tooltip>
-          <span className="text-xs">{location}</span>
+          <Tooltip><TooltipTrigger asChild><span className="text-xs cursor-help">{location}</span></TooltipTrigger><TooltipContent side="top" className="text-xs">{location}</TooltipContent></Tooltip>
         </div>
       )}
 
@@ -183,7 +183,7 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
       {incomeDisplay && (
         <div className="flex items-center gap-1.5 mb-0.5 text-muted-foreground">
           <Tooltip><TooltipTrigger asChild><DollarSign className="h-3.5 w-3.5 cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Monthly Income</TooltipContent></Tooltip>
-          <span className="text-xs">{incomeDisplay}</span>
+          <Tooltip><TooltipTrigger asChild><span className="text-xs cursor-help">{incomeDisplay}</span></TooltipTrigger><TooltipContent side="top" className="text-xs">Monthly Income: {incomeDisplay}</TooltipContent></Tooltip>
         </div>
       )}
 
