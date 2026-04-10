@@ -1,4 +1,9 @@
 const parseNum = (v: string) => Number(v.replace(/,/g, ""));
+const formatAmount = (v: string) => {
+  const digits = v.replace(/[^0-9]/g, "");
+  if (!digits) return "";
+  return Number(digits).toLocaleString("en-US");
+};
 import { useState, useEffect } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
