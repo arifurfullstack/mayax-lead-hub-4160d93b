@@ -40,6 +40,8 @@ interface Props {
   onLeadAdded: () => void;
 }
 
+const parseNum = (v: string) => Number(v.replace(/,/g, ""));
+
 export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -79,7 +81,7 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
 
   const computed = useMemo(() => {
     const aiResult = calculateAiScore({
-      income: form.income ? Number(form.income) : null,
+      income: form.income ? parseNum(form.income) : null,
       vehicle_preference: form.vehicle_preference || null,
       buyer_type: form.buyer_type,
       notes: form.notes || null,
@@ -88,7 +90,7 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
     });
 
     const priceBreakdown = calculateLeadPrice({
-      income: form.income ? Number(form.income) : null,
+      income: form.income ? parseNum(form.income) : null,
       vehicle_preference: form.vehicle_preference || null,
       trade_in: effectiveTradeIn,
       has_bankruptcy: effectiveBankruptcy,
@@ -124,11 +126,11 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
       ai_score: computed.ai_score,
       buyer_type: form.buyer_type,
       vehicle_preference: form.vehicle_preference || null,
-      vehicle_price: form.vehicle_price ? Number(form.vehicle_price) : null,
-      vehicle_mileage: form.vehicle_mileage ? Number(form.vehicle_mileage) : null,
-      income: form.income ? Number(form.income) : null,
-      credit_range_min: form.credit_range_min ? Number(form.credit_range_min) : null,
-      credit_range_max: form.credit_range_max ? Number(form.credit_range_max) : null,
+      vehicle_price: form.vehicle_price ? parseNum(form.vehicle_price) : null,
+      vehicle_mileage: form.vehicle_mileage ? parseNum(form.vehicle_mileage) : null,
+      income: form.income ? parseNum(form.income) : null,
+      credit_range_min: form.credit_range_min ? parseNum(form.credit_range_min) : null,
+      credit_range_max: form.credit_range_max ? parseNum(form.credit_range_max) : null,
       notes: form.notes || null,
       appointment_time: form.appointment_time || null,
       trade_in: effectiveTradeIn,

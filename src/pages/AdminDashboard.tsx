@@ -1,3 +1,4 @@
+const parseNum = (v: string) => Number(v.replace(/,/g, ""));
 import { useState, useEffect } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -204,16 +205,16 @@ const AdminDashboard = () => {
       city: editForm.city || null,
       province: editForm.province || null,
       quality_grade: editForm.quality_grade,
-      ai_score: editForm.ai_score ? Number(editForm.ai_score) : 0,
-      price: Number(editForm.price),
+      ai_score: editForm.ai_score ? parseNum(editForm.ai_score) : 0,
+      price: parseNum(editForm.price),
       sold_status: editForm.sold_status,
       buyer_type: editForm.buyer_type || null,
       vehicle_preference: editForm.vehicle_preference || null,
-      vehicle_price: editForm.vehicle_price ? Number(editForm.vehicle_price) : null,
-      vehicle_mileage: editForm.vehicle_mileage ? Number(editForm.vehicle_mileage) : null,
-      income: editForm.income ? Number(editForm.income) : null,
-      credit_range_min: editForm.credit_range_min ? Number(editForm.credit_range_min) : null,
-      credit_range_max: editForm.credit_range_max ? Number(editForm.credit_range_max) : null,
+      vehicle_price: editForm.vehicle_price ? parseNum(editForm.vehicle_price) : null,
+      vehicle_mileage: editForm.vehicle_mileage ? parseNum(editForm.vehicle_mileage) : null,
+      income: editForm.income ? parseNum(editForm.income) : null,
+      credit_range_min: editForm.credit_range_min ? parseNum(editForm.credit_range_min) : null,
+      credit_range_max: editForm.credit_range_max ? parseNum(editForm.credit_range_max) : null,
       notes: editForm.notes || null,
       appointment_time: editForm.appointment_time || null,
       trade_in: editForm.trade_in,
