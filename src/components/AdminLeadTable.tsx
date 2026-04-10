@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { startOfDay, startOfWeek, startOfMonth, startOfYear } from "date-fns";
 import {
   Search,
   Eye,
@@ -8,6 +9,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Trash2,
+  FileText,
+  CalendarDays,
+  DollarSign,
+  TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -83,6 +88,7 @@ export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props
   const [provinceFilter, setProvinceFilter] = useState("all");
   const [sortField, setSortField] = useState<SortField>("created_at");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [timePeriod, setTimePeriod] = useState<string>("today");
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
 
@@ -245,8 +251,80 @@ export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props
     }
   };
 
+  // Time-based stats
+  const timeStats = useMemo(() => {
+    const now = new Date();
+    const getStart = (period: string) => {
+      switch (period) {
+        case "today": return startOfDay(now);
+        case "week": return startOfWeek(now, { weekStartsOn: 1 });
+        case "month": return startOfMonth(now);
+        case "year": return startOfYear(now);
+        default: return new Date(0);
+      }
+    };
+    const start = getStart(timePeriod);
+    const periodLeads = leads.filter((l) => new Date(l.created_at) >= start);
+    const soldPeriodLeads = periodLeads.filter((l) => l.sold_status === "sold");
+    return {
+      total: periodLeads.length,
+      available: periodLeads.filter((l) => l.sold_status === "available").length,
+      sold: soldPeriodLeads.length,
+      revenue: soldPeriodLeads.reduce((sum, l) => sum + Number(l.price), 0),
+    };
+  }, [leads, timePeriod]);
+
   return (
     <div className="space-y-4">
+      {/* Time Period Stats */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Select value={timePeriod} onValueChange={setTimePeriod}>
+            <SelectTrigger className="w-[140px] bg-card border-border h-8 text-xs">
+              <CalendarDays className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="today">Today</SelectItem>
+              <SelectItem value="week">This Week</SelectItem>
+              <SelectItem value="month">This Month</SelectItem>
+              <SelectItem value="year">This Year</SelectItem>
+              <SelectItem value="all">All Time</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="glass-card p-4 space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Total Leads</span>
+              <FileText className="h-3.5 w-3.5 text-primary" />
+            </div>
+            <p className="text-xl font-bold text-foreground">{timeStats.total}</p>
+          </div>
+          <div className="glass-card p-4 space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Available</span>
+              <TrendingUp className="h-3.5 w-3.5 text-cyan" />
+            </div>
+            <p className="text-xl font-bold text-cyan">{timeStats.available}</p>
+          </div>
+          <div className="glass-card p-4 space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Sold</span>
+              <TrendingUp className="h-3.5 w-3.5 text-success" />
+            </div>
+            <p className="text-xl font-bold text-success">{timeStats.sold}</p>
+          </div>
+          <div className="glass-card p-4 space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Revenue</span>
+              <DollarSign className="h-3.5 w-3.5 text-gold" />
+            </div>
+            <p className="text-xl font-bold text-gold">${timeStats.revenue.toFixed(2)}</p>
+          </div>
+        </div>
+      </div>
+
       {/* Filters row */}
       <div className="flex flex-col sm:flex-row gap-3 flex-wrap items-start">
         <AdminAddLeadDialog onLeadAdded={onRefresh} />
