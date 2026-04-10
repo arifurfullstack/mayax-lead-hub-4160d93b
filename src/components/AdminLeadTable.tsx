@@ -151,7 +151,7 @@ export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props
     if (gradeFilter !== "all") result = result.filter((l) => l.quality_grade === gradeFilter);
     if (provinceFilter !== "all") result = result.filter((l) => l.province === provinceFilter);
     return result;
-  }, [leads, search, statusFilter, gradeFilter, provinceFilter, timeStart]);
+  }, [leads, search, statusFilter, gradeFilter, provinceFilter, timeRange]);
 
   // Sort
   const sorted = useMemo(() => {
