@@ -32,13 +32,12 @@ export type Database = {
           income_min: number | null
           leads_per_day: number | null
           loan_type: string | null
-          make: string | null
-          model: string | null
           price_range_max: number | null
           price_range_min: number | null
           start_time: string | null
           state: string | null
           updated_at: string
+          vehicle_search: string | null
         }
         Insert: {
           active_days?: string[] | null
@@ -57,13 +56,12 @@ export type Database = {
           income_min?: number | null
           leads_per_day?: number | null
           loan_type?: string | null
-          make?: string | null
-          model?: string | null
           price_range_max?: number | null
           price_range_min?: number | null
           start_time?: string | null
           state?: string | null
           updated_at?: string
+          vehicle_search?: string | null
         }
         Update: {
           active_days?: string[] | null
@@ -82,13 +80,12 @@ export type Database = {
           income_min?: number | null
           leads_per_day?: number | null
           loan_type?: string | null
-          make?: string | null
-          model?: string | null
           price_range_max?: number | null
           price_range_min?: number | null
           start_time?: string | null
           state?: string | null
           updated_at?: string
+          vehicle_search?: string | null
         }
         Relationships: [
           {
