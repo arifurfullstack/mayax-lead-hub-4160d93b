@@ -88,6 +88,7 @@ export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props
   const [provinceFilter, setProvinceFilter] = useState("all");
   const [sortField, setSortField] = useState<SortField>("created_at");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [timePeriod, setTimePeriod] = useState<string>("today");
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
 
