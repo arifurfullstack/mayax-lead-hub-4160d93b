@@ -78,27 +78,40 @@ const AppLayout = () => {
   };
 
   return (
-    <SidebarProvider defaultOpen={!isMarketplace} key={isMarketplace ? "collapsed" : "expanded"}>
-      <div className="min-h-screen flex w-full starfield">
-        <AppSidebar
-          walletBalance={dealer?.wallet_balance ?? 0}
-          onLogout={handleLogout}
+    <>
+      {dealer && !dealer.terms_accepted_at && (
+        <WelcomeDialog
+          dealerName={dealer.dealership_name}
+          dealerId={dealer.id}
+          onAccepted={() =>
+            setDealer((prev) =>
+              prev ? { ...prev, terms_accepted_at: new Date().toISOString() } : prev
+            )
+          }
         />
-        <div className="flex-1 flex flex-col min-w-0">
-          <TopNavbar
-            dealerName={dealer?.dealership_name}
-            tier={dealer?.subscription_tier}
+      )}
+      <SidebarProvider defaultOpen={!isMarketplace} key={isMarketplace ? "collapsed" : "expanded"}>
+        <div className="min-h-screen flex w-full starfield">
+          <AppSidebar
             walletBalance={dealer?.wallet_balance ?? 0}
             onLogout={handleLogout}
-            profilePictureUrl={dealer?.profile_picture_url}
-            dealerId={dealer?.id ?? null}
           />
-          <main className="flex-1 overflow-auto">
-            <Outlet />
-          </main>
+          <div className="flex-1 flex flex-col min-w-0">
+            <TopNavbar
+              dealerName={dealer?.dealership_name}
+              tier={dealer?.subscription_tier}
+              walletBalance={dealer?.wallet_balance ?? 0}
+              onLogout={handleLogout}
+              profilePictureUrl={dealer?.profile_picture_url}
+              dealerId={dealer?.id ?? null}
+            />
+            <main className="flex-1 overflow-auto">
+              <Outlet />
+            </main>
+          </div>
         </div>
-      </div>
-    </SidebarProvider>
+      </SidebarProvider>
+    </>
   );
 };
 
