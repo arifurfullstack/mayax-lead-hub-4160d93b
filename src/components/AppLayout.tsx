@@ -3,6 +3,7 @@ import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import TopNavbar from "@/components/TopNavbar";
+import WelcomeDialog from "@/components/WelcomeDialog";
 import { supabase } from "@/integrations/supabase/client";
 
 interface DealerInfo {
@@ -11,6 +12,7 @@ interface DealerInfo {
   subscription_tier: string;
   wallet_balance: number;
   profile_picture_url: string | null;
+  terms_accepted_at: string | null;
 }
 
 const AppLayout = () => {
@@ -30,7 +32,7 @@ const AppLayout = () => {
 
       const { data } = await supabase
         .from("dealers")
-        .select("id, dealership_name, subscription_tier, wallet_balance, profile_picture_url")
+        .select("id, dealership_name, subscription_tier, wallet_balance, profile_picture_url, terms_accepted_at")
         .eq("user_id", session.user.id)
         .single();
 
@@ -76,27 +78,40 @@ const AppLayout = () => {
   };
 
   return (
-    <SidebarProvider defaultOpen={!isMarketplace} key={isMarketplace ? "collapsed" : "expanded"}>
-      <div className="min-h-screen flex w-full starfield">
-        <AppSidebar
-          walletBalance={dealer?.wallet_balance ?? 0}
-          onLogout={handleLogout}
+    <>
+      {dealer && !dealer.terms_accepted_at && (
+        <WelcomeDialog
+          dealerName={dealer.dealership_name}
+          dealerId={dealer.id}
+          onAccepted={() =>
+            setDealer((prev) =>
+              prev ? { ...prev, terms_accepted_at: new Date().toISOString() } : prev
+            )
+          }
         />
-        <div className="flex-1 flex flex-col min-w-0">
-          <TopNavbar
-            dealerName={dealer?.dealership_name}
-            tier={dealer?.subscription_tier}
+      )}
+      <SidebarProvider defaultOpen={!isMarketplace} key={isMarketplace ? "collapsed" : "expanded"}>
+        <div className="min-h-screen flex w-full starfield">
+          <AppSidebar
             walletBalance={dealer?.wallet_balance ?? 0}
             onLogout={handleLogout}
-            profilePictureUrl={dealer?.profile_picture_url}
-            dealerId={dealer?.id ?? null}
           />
-          <main className="flex-1 overflow-auto">
-            <Outlet />
-          </main>
+          <div className="flex-1 flex flex-col min-w-0">
+            <TopNavbar
+              dealerName={dealer?.dealership_name}
+              tier={dealer?.subscription_tier}
+              walletBalance={dealer?.wallet_balance ?? 0}
+              onLogout={handleLogout}
+              profilePictureUrl={dealer?.profile_picture_url}
+              dealerId={dealer?.id ?? null}
+            />
+            <main className="flex-1 overflow-auto">
+              <Outlet />
+            </main>
+          </div>
         </div>
-      </div>
-    </SidebarProvider>
+      </SidebarProvider>
+    </>
   );
 };
 
