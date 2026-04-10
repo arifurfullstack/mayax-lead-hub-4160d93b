@@ -111,21 +111,32 @@ export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props
     [leads]
   );
 
-  // Time period start
-  const timeStart = useMemo(() => {
+  // Time period range
+  const timeRange = useMemo(() => {
     const now = new Date();
-    switch (timePeriod) {
-      case "today": return startOfDay(now);
-      case "week": return startOfWeek(now, { weekStartsOn: 1 });
-      case "month": return startOfMonth(now);
-      case "year": return startOfYear(now);
-      default: return new Date(0);
+    if (timePeriod === "custom") {
+      return {
+        start: customFrom ? startOfDay(customFrom) : new Date(0),
+        end: customTo ? endOfDay(customTo) : new Date(8640000000000000),
+      };
     }
-  }, [timePeriod]);
+    let start: Date;
+    switch (timePeriod) {
+      case "today": start = startOfDay(now); break;
+      case "week": start = startOfWeek(now, { weekStartsOn: 1 }); break;
+      case "month": start = startOfMonth(now); break;
+      case "year": start = startOfYear(now); break;
+      default: start = new Date(0);
+    }
+    return { start, end: new Date(8640000000000000) };
+  }, [timePeriod, customFrom, customTo]);
 
   // Filter
   const filtered = useMemo(() => {
-    let result = leads.filter((l) => new Date(l.created_at) >= timeStart);
+    let result = leads.filter((l) => {
+      const d = new Date(l.created_at);
+      return d >= timeRange.start && d <= timeRange.end;
+    });
     if (search) {
       const q = search.toLowerCase();
       result = result.filter(
