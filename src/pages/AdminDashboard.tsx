@@ -676,7 +676,82 @@ const AdminDashboard = () => {
         </DialogContent>
       </Dialog>
 
-      {/* ─── Lead Detail / Edit Dialog ─── */}
+      {/* ─── Edit Dealer Dialog ─── */}
+      <Dialog open={editingDealer} onOpenChange={() => { setEditingDealer(false); setSelectedDealer(null); }}>
+        <DialogContent className="bg-card border-border max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Edit Dealer</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Dealership Name</Label>
+              <Input value={dealerEditForm.dealership_name} onChange={(e) => setDealerEditForm(f => ({ ...f, dealership_name: e.target.value }))} className="bg-background border-border" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Contact Person</Label>
+              <Input value={dealerEditForm.contact_person} onChange={(e) => setDealerEditForm(f => ({ ...f, contact_person: e.target.value }))} className="bg-background border-border" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Email</Label>
+              <Input value={dealerEditForm.email} onChange={(e) => setDealerEditForm(f => ({ ...f, email: e.target.value }))} className="bg-background border-border" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Phone</Label>
+              <Input value={dealerEditForm.phone} onChange={(e) => setDealerEditForm(f => ({ ...f, phone: e.target.value }))} className="bg-background border-border" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Province</Label>
+              <Input value={dealerEditForm.province} onChange={(e) => setDealerEditForm(f => ({ ...f, province: e.target.value }))} className="bg-background border-border" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Status</Label>
+              <Select value={dealerEditForm.approval_status} onValueChange={(v) => setDealerEditForm(f => ({ ...f, approval_status: v }))}>
+                <SelectTrigger className="bg-background border-border"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="approved">Approved</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                  <SelectItem value="suspended">Suspended</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Tier</Label>
+              <Select value={dealerEditForm.subscription_tier} onValueChange={(v) => setDealerEditForm(f => ({ ...f, subscription_tier: v }))}>
+                <SelectTrigger className="bg-background border-border"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="basic">Basic</SelectItem>
+                  <SelectItem value="pro">Pro</SelectItem>
+                  <SelectItem value="elite">Elite</SelectItem>
+                  <SelectItem value="vip">VIP</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setEditingDealer(false); setSelectedDealer(null); }}>Cancel</Button>
+            <Button onClick={saveEditDealer} disabled={savingDealer}>{savingDealer ? "Saving..." : "Save Changes"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Delete Dealer Confirmation ─── */}
+      <Dialog open={deletingDealer} onOpenChange={() => { setDeletingDealer(false); setSelectedDealer(null); }}>
+        <DialogContent className="bg-card border-border max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Delete Dealer</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Are you sure you want to delete <strong className="text-foreground">{selectedDealer?.dealership_name}</strong>? This action cannot be undone.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setDeletingDealer(false); setSelectedDealer(null); }}>Cancel</Button>
+            <Button variant="destructive" onClick={confirmDeleteDealer} disabled={savingDealer}>{savingDealer ? "Deleting..." : "Delete"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
       <Dialog open={!!selectedLead} onOpenChange={() => { setSelectedLead(null); setConfirmDelete(false); setEditingLead(false); }}>
         <DialogContent className="bg-card border-border max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
