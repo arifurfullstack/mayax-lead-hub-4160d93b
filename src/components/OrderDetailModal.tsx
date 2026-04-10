@@ -70,11 +70,11 @@ interface Props {
 const OrderDetailModal = ({ order, open, onOpenChange }: Props) => {
   const [downloading, setDownloading] = useState<string | null>(null);
 
-  if (!order || !order.leads) return null;
-  const lead = order.leads;
-  const files = (lead.document_files ?? []) as LeadFileEntry[];
+  const lead = order?.leads ?? null;
+  const files = (lead?.document_files ?? []) as LeadFileEntry[];
 
   const handleDownloadPdf = useCallback(async () => {
+    if (!order || !lead) return;
     const { default: jsPDF } = await import("jspdf");
     const doc = new jsPDF({ unit: "mm", format: "letter" });
     const w = doc.internal.pageSize.getWidth();
@@ -174,6 +174,7 @@ const OrderDetailModal = ({ order, open, onOpenChange }: Props) => {
   }, [order, lead]);
 
   const handleDownload = async (file: LeadFileEntry) => {
+    if (!lead) return;
     setDownloading(file.path);
     const { data, error } = await supabase.storage
       .from("lead-documents")
@@ -187,6 +188,8 @@ const OrderDetailModal = ({ order, open, onOpenChange }: Props) => {
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  if (!order || !lead) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
