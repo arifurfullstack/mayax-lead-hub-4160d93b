@@ -19,6 +19,7 @@ export type Database = {
           active_days: string[] | null
           age_range: string | null
           car_type: string[] | null
+          city: string | null
           created_at: string
           credit_score_max: number | null
           credit_score_min: number | null
@@ -41,6 +42,7 @@ export type Database = {
           active_days?: string[] | null
           age_range?: string | null
           car_type?: string[] | null
+          city?: string | null
           created_at?: string
           credit_score_max?: number | null
           credit_score_min?: number | null
@@ -63,6 +65,7 @@ export type Database = {
           active_days?: string[] | null
           age_range?: string | null
           car_type?: string[] | null
+          city?: string | null
           created_at?: string
           credit_score_max?: number | null
           credit_score_min?: number | null

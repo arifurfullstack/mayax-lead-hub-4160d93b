@@ -1,0 +1,1 @@
+ALTER TABLE public.autopay_settings ADD COLUMN city text NULL;

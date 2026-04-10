@@ -49,16 +49,6 @@ const daysOfWeek = [
   { label: "Sun", value: "sunday" },
 ];
 
-const carTypes = [
-  { label: "Sedan", value: "sedan" },
-  { label: "SUV", value: "suv" },
-  { label: "Truck", value: "truck" },
-  { label: "Coupe", value: "coupe" },
-  { label: "Hatchback", value: "hatchback" },
-  { label: "Van", value: "van" },
-  { label: "Luxury", value: "luxury" },
-  { label: "Electric", value: "electric" },
-];
 
 interface AutoPayData {
   id?: string;
@@ -68,11 +58,11 @@ interface AutoPayData {
   end_time: string;
   active_days: string[];
   state: string;
+  city: string;
   credit_score_min: number;
   credit_score_max: number;
   price_range_min: number;
   price_range_max: number;
-  car_type: string[];
   loan_type: string;
   age_range: string;
   distance: string;
@@ -87,11 +77,11 @@ const defaultSettings: AutoPayData = {
   end_time: "18:00",
   active_days: ["monday", "tuesday", "wednesday", "thursday", "friday"],
   state: "All Provinces",
+  city: "",
   credit_score_min: 600,
   credit_score_max: 850,
   price_range_min: 10,
   price_range_max: 100,
-  car_type: [],
   loan_type: "",
   age_range: "",
   distance: "",
@@ -148,11 +138,11 @@ const AutoPay = () => {
           end_time: ap.end_time ?? "18:00",
           active_days: (ap.active_days as string[]) ?? defaultSettings.active_days,
           state: ap.state ?? "All Provinces",
+          city: (ap as any).city ?? "",
           credit_score_min: ap.credit_score_min ?? 600,
           credit_score_max: ap.credit_score_max ?? 850,
           price_range_min: ap.price_range_min ?? 10,
           price_range_max: ap.price_range_max ?? 100,
-          car_type: (ap.car_type as string[]) ?? [],
           loan_type: ap.loan_type ?? "",
           age_range: ap.age_range ?? "",
           distance: ap.distance ?? "",
@@ -217,14 +207,6 @@ const AutoPay = () => {
     }));
   };
 
-  const toggleCarType = (type: string) => {
-    setSettings((prev) => ({
-      ...prev,
-      car_type: prev.car_type.includes(type)
-        ? prev.car_type.filter((t) => t !== type)
-        : [...prev.car_type, type],
-    }));
-  };
 
   const save = async () => {
     if (!dealerId) return;
@@ -238,11 +220,11 @@ const AutoPay = () => {
       end_time: settings.end_time,
       active_days: settings.active_days,
       state: settings.state === "All Provinces" ? null : settings.state,
+      city: settings.city || null,
       credit_score_min: settings.credit_score_min,
       credit_score_max: settings.credit_score_max,
       price_range_min: settings.price_range_min,
       price_range_max: settings.price_range_max,
-      car_type: settings.car_type.length > 0 ? settings.car_type : null,
       loan_type: settings.loan_type || null,
       age_range: settings.age_range || null,
       distance: settings.distance || null,
@@ -581,27 +563,7 @@ const AutoPay = () => {
           </div>
 
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">Vehicle Types</Label>
-              <div className="flex gap-2 flex-wrap">
-                {carTypes.map((type) => (
-                  <button
-                    key={type.value}
-                    onClick={() => toggleCarType(type.value)}
-                    className={cn(
-                      "px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border",
-                      settings.car_type.includes(type.value)
-                        ? "bg-secondary/20 text-secondary border-secondary/30"
-                        : "bg-card text-muted-foreground border-border hover:border-secondary/30"
-                    )}
-                  >
-                    {type.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground">Make</Label>
                 <Input
@@ -620,6 +582,9 @@ const AutoPay = () => {
                   className="bg-card border-border"
                 />
               </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground">Province</Label>
                 <Select value={settings.state} onValueChange={(v) => update("state", v)}>
@@ -632,6 +597,15 @@ const AutoPay = () => {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">City</Label>
+                <Input
+                  value={settings.city}
+                  onChange={(e) => update("city", e.target.value)}
+                  placeholder="e.g. Toronto"
+                  className="bg-card border-border"
+                />
               </div>
             </div>
 
