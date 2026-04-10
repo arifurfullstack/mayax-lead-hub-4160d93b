@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -7,7 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import {
-  Mail, Phone, User, MapPin, CreditCard, Car, FileText, DollarSign, Package, Download, Loader2, Calendar, StickyNote, ArrowRightLeft,
+  Mail, Phone, User, MapPin, CreditCard, Car, FileText, DollarSign, Package, Download, Loader2, Calendar, StickyNote, ArrowRightLeft, FileDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -69,11 +70,111 @@ interface Props {
 const OrderDetailModal = ({ order, open, onOpenChange }: Props) => {
   const [downloading, setDownloading] = useState<string | null>(null);
 
-  if (!order || !order.leads) return null;
-  const lead = order.leads;
-  const files = (lead.document_files ?? []) as LeadFileEntry[];
+  const lead = order?.leads ?? null;
+  const files = (lead?.document_files ?? []) as LeadFileEntry[];
+
+  const handleDownloadPdf = useCallback(async () => {
+    if (!order || !lead) return;
+    const { default: jsPDF } = await import("jspdf");
+    const doc = new jsPDF({ unit: "mm", format: "letter" });
+    const w = doc.internal.pageSize.getWidth();
+    let y = 20;
+    const lm = 18;
+    const col2 = w / 2 + 5;
+
+    const heading = (text: string, x: number) => {
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(100, 100, 100);
+      doc.text(text.toUpperCase(), x, y);
+      y += 6;
+    };
+
+    const row = (label: string, value: string, x: number, yPos: number) => {
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(120, 120, 120);
+      doc.text(label, x, yPos);
+      doc.setTextColor(30, 30, 30);
+      doc.text(value, x + 35, yPos);
+    };
+
+    // Title
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(30, 30, 30);
+    doc.text(`${lead.reference_code}  —  ${lead.first_name} ${lead.last_name}`, lm, y);
+    y += 4;
+    if (lead.quality_grade) {
+      doc.setFontSize(10);
+      doc.setTextColor(100, 100, 100);
+      doc.text(`Grade: ${lead.quality_grade}`, lm, y + 4);
+      y += 4;
+    }
+    y += 6;
+    doc.setDrawColor(200, 200, 200);
+    doc.line(lm, y, w - lm, y);
+    y += 8;
+
+    // Contact
+    const savedY = y;
+    heading("Contact Information", lm);
+    row("Name:", `${lead.first_name} ${lead.last_name}`, lm, y); y += 6;
+    row("Phone:", lead.phone || "—", lm, y); y += 6;
+    row("Email:", lead.email || "—", lm, y); y += 6;
+    row("Location:", lead.city && lead.province ? `${lead.city}, ${lead.province}` : "—", lm, y); y += 6;
+    const leftEnd = y;
+
+    // Financial
+    y = savedY;
+    heading("Financial Profile", col2);
+    const credit = lead.credit_range_min && lead.credit_range_max
+      ? `${Number(lead.credit_range_min).toLocaleString()} – ${Number(lead.credit_range_max).toLocaleString()}`
+      : "—";
+    row("Credit:", credit, col2, y); y += 6;
+    row("Income:", lead.income ? `$${Number(lead.income).toLocaleString()}` : "—", col2, y); y += 6;
+    row("Buyer Type:", lead.buyer_type || "—", col2, y); y += 6;
+    y = Math.max(y, leftEnd) + 6;
+
+    doc.line(lm, y, w - lm, y);
+    y += 8;
+
+    // Vehicle
+    const savedY2 = y;
+    heading("Vehicle Interest", lm);
+    row("Preference:", lead.vehicle_preference || "—", lm, y); y += 6;
+    row("Budget:", lead.vehicle_price ? `$${Number(lead.vehicle_price).toLocaleString()}` : "—", lm, y); y += 6;
+    row("Max Mileage:", lead.vehicle_mileage ? `${lead.vehicle_mileage.toLocaleString()} km` : "—", lm, y); y += 6;
+    row("Trade-In:", lead.trade_in ? "Yes" : "No", lm, y); y += 6;
+    const leftEnd2 = y;
+
+    // Purchase
+    y = savedY2;
+    heading("Purchase Details", col2);
+    row("AI Score:", String(lead.ai_score ?? "—"), col2, y); y += 6;
+    row("Lead Price:", `$${Number(lead.price).toFixed(2)}`, col2, y); y += 6;
+    row("You Paid:", `$${Number(order.price_paid).toFixed(2)}`, col2, y); y += 6;
+    row("Delivery:", order.delivery_method || "email", col2, y); y += 6;
+    if (order.dealer_tier_at_purchase) { row("Tier:", order.dealer_tier_at_purchase, col2, y); y += 6; }
+    y = Math.max(y, leftEnd2) + 6;
+
+    // Notes
+    if (lead.notes) {
+      doc.line(lm, y, w - lm, y);
+      y += 8;
+      heading("Notes", lm);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(30, 30, 30);
+      const lines = doc.splitTextToSize(lead.notes, w - lm * 2);
+      doc.text(lines, lm, y);
+    }
+
+    doc.save(`${lead.reference_code}-${lead.first_name}-${lead.last_name}.pdf`);
+  }, [order, lead]);
 
   const handleDownload = async (file: LeadFileEntry) => {
+    if (!lead) return;
     setDownloading(file.path);
     const { data, error } = await supabase.storage
       .from("lead-documents")
@@ -88,11 +189,13 @@ const OrderDetailModal = ({ order, open, onOpenChange }: Props) => {
     URL.revokeObjectURL(url);
   };
 
+  if (!order || !lead) return null;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl bg-card border-border">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-3">
+          <DialogTitle className="flex items-center gap-3 flex-1">
             <span className="font-mono text-sm text-muted-foreground">{lead.reference_code}</span>
             <span>{lead.first_name} {lead.last_name}</span>
             {lead.quality_grade && (
@@ -100,6 +203,9 @@ const OrderDetailModal = ({ order, open, onOpenChange }: Props) => {
                 {lead.quality_grade}
               </Badge>
             )}
+            <Button variant="ghost" size="icon" className="ml-auto h-8 w-8" onClick={handleDownloadPdf} title="Download as PDF">
+              <FileDown className="h-4 w-4 text-primary" />
+            </Button>
           </DialogTitle>
         </DialogHeader>
 
