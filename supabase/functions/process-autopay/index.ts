@@ -186,15 +186,11 @@ Deno.serve(async (req) => {
         // City filter
         if (ap.city && lead.city && !lead.city.toLowerCase().includes(ap.city.toLowerCase())) return false;
 
-        // Vehicle preference / car type filter
-        const carTypes = (ap.car_type as string[]) ?? [];
-        if (carTypes.length > 0 && lead.vehicle_preference) {
+        // Vehicle search filter — matches against vehicle_preference string
+        if (ap.vehicle_search && lead.vehicle_preference) {
           const pref = lead.vehicle_preference.toLowerCase();
-          if (!carTypes.some((t) => pref.includes(t))) return false;
+          if (!pref.includes(ap.vehicle_search.toLowerCase())) return false;
         }
-
-        // Make filter
-        if (ap.make && lead.vehicle_preference && !lead.vehicle_preference.toLowerCase().includes(ap.make.toLowerCase())) return false;
 
         return true;
       });
