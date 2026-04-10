@@ -107,6 +107,13 @@ const AdminDashboard = () => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedDealer, setSelectedDealer] = useState<Dealer | null>(null);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [editingDealer, setEditingDealer] = useState(false);
+  const [deletingDealer, setDeletingDealer] = useState(false);
+  const [dealerEditForm, setDealerEditForm] = useState({
+    dealership_name: "", contact_person: "", email: "", phone: "",
+    province: "", approval_status: "pending", subscription_tier: "basic",
+  });
+  const [savingDealer, setSavingDealer] = useState(false);
 
   // Platform settings state
   const [platformSettings, setPlatformSettings] = useState<Record<string, string>>({});
