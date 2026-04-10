@@ -223,23 +223,6 @@ const Register = () => {
               </div>
             )}
 
-            {step === 2 && (
-              <div className="space-y-4">
-                <FormInput icon={Webhook} placeholder="CRM Webhook URL (optional)" value={form.webhookUrl} onChange={(v) => updateField("webhookUrl", v)} />
-                <div>
-                  <label className="text-sm text-muted-foreground mb-1.5 block">Webhook Secret (optional)</label>
-                  <Input
-                    type="password"
-                    placeholder="Webhook Secret"
-                    value={form.webhookSecret}
-                    onChange={(e) => updateField("webhookSecret", e.target.value)}
-                    className="h-12 bg-white/5 border-white/10 text-foreground placeholder:text-muted-foreground rounded-xl"
-                  />
-                </div>
-                <FormInput icon={Bell} placeholder={`Notification Email (default: ${form.email})`} value={form.notificationEmail} onChange={(v) => updateField("notificationEmail", v)} />
-              </div>
-            )}
-
             <div className="flex gap-3 mt-8">
               {step > 0 && (
                 <Button variant="outline" onClick={() => setStep(step - 1)} className="border-white/15 text-foreground hover:bg-white/5 rounded-xl">
@@ -247,7 +230,7 @@ const Register = () => {
                 </Button>
               )}
               <div className="flex-1" />
-              {step < 2 ? (
+              {step < 1 ? (
                 <Button
                   onClick={() => setStep(step + 1)}
                   disabled={!canNext()}
