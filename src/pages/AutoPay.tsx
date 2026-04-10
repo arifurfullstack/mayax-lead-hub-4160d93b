@@ -66,8 +66,7 @@ interface AutoPayData {
   price_range_min: number;
   price_range_max: number;
   loan_type: string;
-  make: string;
-  model: string;
+  vehicle_search: string;
 }
 
 const defaultSettings: AutoPayData = {
@@ -85,8 +84,7 @@ const defaultSettings: AutoPayData = {
   price_range_min: 10,
   price_range_max: 100,
   loan_type: "",
-  make: "",
-  model: "",
+  vehicle_search: "",
 };
 
 const AutoPay = () => {
@@ -146,8 +144,7 @@ const AutoPay = () => {
           price_range_min: ap.price_range_min ?? 10,
           price_range_max: ap.price_range_max ?? 100,
           loan_type: ap.loan_type ?? "",
-          make: ap.make ?? "",
-          model: ap.model ?? "",
+          vehicle_search: (ap as any).vehicle_search ?? "",
         });
       }
 
@@ -228,8 +225,7 @@ const AutoPay = () => {
       price_range_min: settings.price_range_min,
       price_range_max: settings.price_range_max,
       loan_type: settings.loan_type || null,
-      make: settings.make || null,
-      model: settings.model || null,
+      vehicle_search: settings.vehicle_search || null,
     };
 
     let error;
@@ -583,25 +579,17 @@ const AutoPay = () => {
           </div>
 
           <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Make</Label>
-                <Input
-                  value={settings.make}
-                  onChange={(e) => update("make", e.target.value)}
-                  placeholder="e.g. Toyota"
-                  className="bg-card border-border"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Model</Label>
-                <Input
-                  value={settings.model}
-                  onChange={(e) => update("model", e.target.value)}
-                  placeholder="e.g. Camry"
-                  className="bg-card border-border"
-                />
-              </div>
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">Vehicle Search</Label>
+              <Input
+                value={settings.vehicle_search}
+                onChange={(e) => update("vehicle_search", e.target.value)}
+                placeholder="e.g. Honda, SUV - Ford Escape"
+                className="bg-card border-border"
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Matches against vehicle preference. Leave empty to buy all vehicles.
+              </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
