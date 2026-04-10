@@ -178,6 +178,9 @@ Deno.serve(async (req) => {
         // Province filter
         if (ap.state && lead.province && lead.province !== ap.state) return false;
 
+        // City filter
+        if (ap.city && lead.city && !lead.city.toLowerCase().includes(ap.city.toLowerCase())) return false;
+
         // Vehicle preference / car type filter
         const carTypes = (ap.car_type as string[]) ?? [];
         if (carTypes.length > 0 && lead.vehicle_preference) {
