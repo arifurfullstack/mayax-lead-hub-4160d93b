@@ -160,7 +160,64 @@ const AdminDashboard = () => {
     }
   };
 
-  /* ─── Platform Settings Actions ─── */
+  const openEditDealer = (d: Dealer) => {
+    setSelectedDealer(d);
+    setDealerEditForm({
+      dealership_name: d.dealership_name,
+      contact_person: d.contact_person,
+      email: d.email,
+      phone: d.phone ?? "",
+      province: d.province ?? "",
+      approval_status: d.approval_status,
+      subscription_tier: d.subscription_tier,
+    });
+    setEditingDealer(true);
+  };
+
+  const saveEditDealer = async () => {
+    if (!selectedDealer) return;
+    setSavingDealer(true);
+    const { error } = await supabase.from("dealers").update({
+      dealership_name: dealerEditForm.dealership_name,
+      contact_person: dealerEditForm.contact_person,
+      email: dealerEditForm.email,
+      phone: dealerEditForm.phone || null,
+      province: dealerEditForm.province || null,
+      approval_status: dealerEditForm.approval_status,
+      subscription_tier: dealerEditForm.subscription_tier,
+    }).eq("id", selectedDealer.id);
+    setSavingDealer(false);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Updated", description: `${dealerEditForm.dealership_name} updated successfully.` });
+      setEditingDealer(false);
+      setSelectedDealer(null);
+      fetchData();
+    }
+  };
+
+  const openDeleteDealer = (d: Dealer) => {
+    setSelectedDealer(d);
+    setDeletingDealer(true);
+  };
+
+  const confirmDeleteDealer = async () => {
+    if (!selectedDealer) return;
+    setSavingDealer(true);
+    const { error } = await supabase.from("dealers").delete().eq("id", selectedDealer.id);
+    setSavingDealer(false);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Deleted", description: `${selectedDealer.dealership_name} has been removed.` });
+      setDealers((prev) => prev.filter((d) => d.id !== selectedDealer.id));
+      setDeletingDealer(false);
+      setSelectedDealer(null);
+    }
+  };
+
+
   const savePlatformSettings = async () => {
     setSavingSettings(true);
     const entries = Object.entries(settingsForm);
