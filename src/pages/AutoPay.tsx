@@ -527,7 +527,7 @@ const AutoPay = () => {
                 min={0}
                 max={15000}
                 step={500}
-                value={[settings.income_min, settings.income_max]}
+                value={[settings.income_min ?? 2000, settings.income_max ?? 5000]}
                 onValueChange={([min, max]) => {
                   update("income_min", min);
                   update("income_max", max);
