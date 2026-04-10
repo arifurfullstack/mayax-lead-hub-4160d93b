@@ -507,9 +507,17 @@ const AdminDashboard = () => {
                         </td>
                         <td className="p-3 text-right font-mono text-foreground">${Number(d.wallet_balance).toFixed(2)}</td>
                         <td className="p-3 text-right">
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelectedDealer(d)}>
-                            <Eye className="h-4 w-4 text-muted-foreground" />
-                          </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" title="View" onClick={() => setSelectedDealer(d)}>
+                              <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" title="Edit" onClick={() => openEditDealer(d)}>
+                              <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" title="Delete" onClick={() => openDeleteDealer(d)}>
+                              <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     );
