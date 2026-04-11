@@ -145,7 +145,7 @@ const Login = () => {
       {/* ── Blurred marketplace background ── */}
       <div className="absolute inset-0" style={{ filter: "blur(1px) brightness(0.85) saturate(1.6)" }}>
         <div className="absolute inset-0 bg-gradient-to-b from-[#0a1628]/60 via-transparent to-[#050510]" />
-        <MarketplaceBg />
+        <MarketplaceBg leads={bgLeads} />
       </div>
 
       {/* Blue/purple ambient glow */}
