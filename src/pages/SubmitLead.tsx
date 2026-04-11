@@ -423,97 +423,95 @@ const SubmitLead = () => {
                 <Input type="datetime-local" value={form.appointment_time} onChange={(e) => update("appointment_time", e.target.value)} className="bg-background/50 border-border focus:border-primary" />
               </div>
 
-              {/* Documents */}
+              {/* Upload Your Documents - Card Layout */}
               <div>
-                <Label className="text-xs text-muted-foreground flex items-center gap-1.5 mb-2"><Shield className="h-3 w-3" /> Available Documents</Label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {DOCUMENT_TYPES.map((d) => (
-                    <label
-                      key={d.id}
-                      className={cn(
-                        "flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-all text-sm",
-                        selectedDocs.includes(d.id)
-                          ? "border-primary/50 bg-primary/10 text-foreground"
-                          : "border-border/50 text-muted-foreground hover:border-border"
-                      )}
-                    >
-                      <Checkbox
-                        checked={selectedDocs.includes(d.id)}
-                        onCheckedChange={() => toggleDoc(d.id)}
-                        className="border-primary data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                      />
-                      <span className="text-xs">{d.label}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* File Upload */}
-              <div>
-                <Label className="text-xs text-muted-foreground flex items-center gap-1.5 mb-2">
-                  <Upload className="h-3 w-3" /> Upload Documents (optional)
-                </Label>
-                <p className="text-[10px] text-muted-foreground/70 mb-2">
-                  PDF, JPG, PNG, DOCX — max 10MB each, up to 5 files
-                </p>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  onDrop={handleDrop}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  disabled={uploadedFiles.length >= MAX_FILES}
-                  className={cn(
-                    "w-full border-2 border-dashed rounded-xl p-8 text-center transition-all",
-                    uploadedFiles.length >= MAX_FILES
-                      ? "border-border/30 opacity-50 cursor-not-allowed"
-                      : dragging
-                        ? "border-primary bg-primary/10 scale-[1.01]"
-                        : "border-border/50 hover:border-primary/40 hover:bg-primary/5 cursor-pointer"
-                  )}
-                >
-                  <Upload className={cn("h-6 w-6 mx-auto mb-2 transition-colors", dragging ? "text-primary" : "text-muted-foreground")} />
-                  <p className="text-sm text-muted-foreground">
-                    {uploadedFiles.length >= MAX_FILES
-                      ? "Maximum files reached"
-                      : dragging
-                        ? "Drop files here"
-                        : "Drag & drop files or click to browse"}
+                <div className="text-center mb-5">
+                  <h4 className="text-base font-semibold text-foreground">Upload Your Documents</h4>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Please upload any required documents to complete your application.
                   </p>
-                  <p className="text-[10px] text-muted-foreground/50 mt-1">PDF, JPG, PNG, WEBP, DOC, DOCX — max 10MB each</p>
-                </button>
+                  <p className="text-[10px] text-muted-foreground/60">Accepted file types: JPG, PNG, PDF, DOCX</p>
+                </div>
 
-                {uploadedFiles.length > 0 && (
-                  <div className="mt-3 space-y-2">
-                    {uploadedFiles.map((file, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center gap-3 p-2.5 rounded-lg border border-border/50 bg-muted/20"
-                      >
-                        <File className="h-4 w-4 text-primary shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs text-foreground truncate">{file.name}</p>
-                          <p className="text-[10px] text-muted-foreground">{formatFileSize(file.size)}</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {DOCUMENT_TYPES.map((doc) => {
+                    const Icon = doc.icon;
+                    const files = categoryFiles[doc.id] || [];
+                    const isDragging = draggingCategory === doc.id;
+                    const isFull = files.length >= MAX_FILES_PER_CATEGORY;
+
+                    return (
+                      <div key={doc.id} className="flex flex-col">
+                        <div className={cn(
+                          "rounded-xl border p-4 text-center transition-all bg-gradient-to-b",
+                          doc.color,
+                          files.length > 0
+                            ? "border-primary/40 shadow-[0_0_12px_hsl(var(--primary)/0.15)]"
+                            : "border-border/40 hover:border-primary/30"
+                        )}>
+                          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mx-auto mb-2">
+                            <Icon className="h-5 w-5 text-primary" />
+                          </div>
+                          <p className="text-xs font-medium text-foreground mb-3">{doc.label}</p>
+
+                          <input
+                            ref={el => { fileInputRefs.current[doc.id] = el; }}
+                            type="file"
+                            multiple
+                            accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx"
+                            onChange={handleCategoryFileSelect(doc.id)}
+                            className="hidden"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => fileInputRefs.current[doc.id]?.click()}
+                            onDrop={handleCategoryDrop(doc.id)}
+                            onDragOver={handleCategoryDragOver(doc.id)}
+                            onDragLeave={handleCategoryDragLeave(doc.id)}
+                            disabled={isFull}
+                            className={cn(
+                              "w-full border border-dashed rounded-lg p-3 transition-all",
+                              isFull
+                                ? "border-border/20 opacity-40 cursor-not-allowed"
+                                : isDragging
+                                  ? "border-primary bg-primary/15 scale-[1.02]"
+                                  : "border-border/40 hover:border-primary/50 cursor-pointer"
+                            )}
+                          >
+                            <Upload className={cn("h-4 w-4 mx-auto mb-1 transition-colors", isDragging ? "text-primary" : "text-muted-foreground")} />
+                            <p className="text-[10px] text-muted-foreground leading-tight">
+                              {isFull ? "Max reached" : isDragging ? "Drop here" : "Click or drag & drop"}
+                            </p>
+                            <p className="text-[9px] text-muted-foreground/40 mt-0.5">.JPG, .PNG, .PDF</p>
+                          </button>
+
+                          {files.length > 0 && (
+                            <div className="mt-2 space-y-1">
+                              {files.map((file, i) => (
+                                <div key={i} className="flex items-center gap-1.5 text-[10px] bg-background/30 rounded px-1.5 py-1">
+                                  <File className="h-2.5 w-2.5 text-primary shrink-0" />
+                                  <span className="truncate flex-1 text-foreground">{file.name}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeCategoryFile(doc.id, i)}
+                                    className="p-0.5 hover:text-destructive text-muted-foreground shrink-0"
+                                  >
+                                    <X className="h-2.5 w-2.5" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => removeFile(i)}
-                          className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
                       </div>
-                    ))}
-                  </div>
-                )}
+                    );
+                  })}
+                </div>
+
+                <p className="text-center text-[11px] text-muted-foreground mt-4 flex items-center justify-center gap-1.5">
+                  <Shield className="h-3 w-3" />
+                  All uploaded documents are secure and <strong>encrypted</strong>.
+                </p>
               </div>
 
               <div className="space-y-1.5">
