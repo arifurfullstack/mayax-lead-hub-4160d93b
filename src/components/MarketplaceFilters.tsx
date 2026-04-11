@@ -463,6 +463,10 @@ export function applyFilters(leads: any[], filters: MarketplaceFilters, maxIncom
     result = result.filter((l) => filters.cities.includes(l.city));
   }
 
+  if (filters.hasDocuments) {
+    result = result.filter((l) => (l.documents ?? []).length > 0);
+  }
+
   if (filters.documents.length) {
     result = result.filter((l) =>
       filters.documents.every((d) => (l.documents ?? []).includes(d))
