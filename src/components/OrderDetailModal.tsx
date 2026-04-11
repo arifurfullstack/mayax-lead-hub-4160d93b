@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import {
-  Mail, Phone, User, MapPin, CreditCard, Car, FileText, DollarSign, Package, Download, Loader2, Calendar, StickyNote, ArrowRightLeft, FileDown,
+  Mail, Phone, User, MapPin, CreditCard, Car, FileText, DollarSign, Package, Download, Loader2, Calendar, StickyNote, ArrowRightLeft, FileDown, Eye, FileImage, FileType,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
