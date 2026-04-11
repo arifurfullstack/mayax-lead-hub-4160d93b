@@ -32,6 +32,7 @@ export interface MarketplaceFilters {
   maxAge: string;
   priceMin: number;
   priceMax: number;
+  hasDocuments: boolean;
 }
 
 export const defaultFilters: MarketplaceFilters = {
@@ -48,6 +49,7 @@ export const defaultFilters: MarketplaceFilters = {
   maxAge: "all",
   priceMin: 0,
   priceMax: 0,
+  hasDocuments: false,
 };
 
 const documentOptions = [
