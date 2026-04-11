@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useMemo } from "react";
 import {
   User, Mail, Phone, MapPin, Car, DollarSign, FileText, Send,
   CheckCircle2, ChevronRight, Shield, ArrowRightLeft, Calendar,
-  Loader2, Sparkles,
+  Loader2, Sparkles, Upload, X, File,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -69,6 +69,33 @@ const SubmitLead = () => {
   });
 
   const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const ALLOWED_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/webp", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
+  const MAX_FILE_SIZE = 10 * 1024 * 1024;
+  const MAX_FILES = 5;
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newFiles = Array.from(e.target.files || []);
+    const validFiles = newFiles.filter(f => {
+      if (!ALLOWED_TYPES.includes(f.type)) return false;
+      if (f.size > MAX_FILE_SIZE) return false;
+      return true;
+    });
+    setUploadedFiles(prev => [...prev, ...validFiles].slice(0, MAX_FILES));
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const removeFile = (index: number) => {
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
 
   const update = (key: string, value: string | boolean) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -92,33 +119,48 @@ const SubmitLead = () => {
     setError("");
 
     const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+    const payload = {
+      first_name: form.first_name.trim(),
+      last_name: form.last_name.trim(),
+      email: form.email.trim(),
+      phone: form.phone.trim(),
+      city: form.city.trim(),
+      province: form.province,
+      buyer_type: form.buyer_type,
+      vehicle_preference: form.vehicle_preference.trim(),
+      vehicle_price: form.vehicle_price ? parseNum(form.vehicle_price) : null,
+      vehicle_mileage: form.vehicle_mileage ? parseNum(form.vehicle_mileage) : null,
+      income: form.income ? parseNum(form.income) : null,
+      credit_range_min: form.credit_range_min ? Number(form.credit_range_min) : null,
+      credit_range_max: form.credit_range_max ? Number(form.credit_range_max) : null,
+      trade_in: form.trade_in,
+      notes: form.notes.trim(),
+      appointment_time: form.appointment_time || null,
+      documents: selectedDocs.length > 0 ? selectedDocs : null,
+    };
+
     try {
-      const res = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/submit-lead`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            first_name: form.first_name.trim(),
-            last_name: form.last_name.trim(),
-            email: form.email.trim(),
-            phone: form.phone.trim(),
-            city: form.city.trim(),
-            province: form.province,
-            buyer_type: form.buyer_type,
-            vehicle_preference: form.vehicle_preference.trim(),
-            vehicle_price: form.vehicle_price ? parseNum(form.vehicle_price) : null,
-            vehicle_mileage: form.vehicle_mileage ? parseNum(form.vehicle_mileage) : null,
-            income: form.income ? parseNum(form.income) : null,
-            credit_range_min: form.credit_range_min ? Number(form.credit_range_min) : null,
-            credit_range_max: form.credit_range_max ? Number(form.credit_range_max) : null,
-            trade_in: form.trade_in,
-            notes: form.notes.trim(),
-            appointment_time: form.appointment_time || null,
-            documents: selectedDocs.length > 0 ? selectedDocs : null,
-          }),
-        }
-      );
+      let res: Response;
+      if (uploadedFiles.length > 0) {
+        const formData = new FormData();
+        formData.append("data", JSON.stringify(payload));
+        uploadedFiles.forEach((file, i) => {
+          formData.append(`file_${i}`, file);
+        });
+        res = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/submit-lead`,
+          { method: "POST", body: formData }
+        );
+      } else {
+        res = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/submit-lead`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          }
+        );
+      }
 
       const data = await res.json();
       if (!res.ok) {
@@ -143,7 +185,7 @@ const SubmitLead = () => {
           <p className="text-muted-foreground text-sm">
             Thank you for your submission. Our team will review your information and match you with the right dealer.
           </p>
-          <Button onClick={() => { setSubmitted(false); setStep(0); setForm({ first_name: "", last_name: "", email: "", phone: "", city: "", province: "", buyer_type: "online", vehicle_preference: "", vehicle_price: "", vehicle_mileage: "", income: "", credit_range_min: "", credit_range_max: "", notes: "", appointment_time: "", trade_in: false }); setSelectedDocs([]); }} className="gradient-blue-cyan text-foreground">
+          <Button onClick={() => { setSubmitted(false); setStep(0); setForm({ first_name: "", last_name: "", email: "", phone: "", city: "", province: "", buyer_type: "online", vehicle_preference: "", vehicle_price: "", vehicle_mileage: "", income: "", credit_range_min: "", credit_range_max: "", notes: "", appointment_time: "", trade_in: false }); setSelectedDocs([]); setUploadedFiles([]); }} className="gradient-blue-cyan text-foreground">
             Submit Another Lead
           </Button>
         </div>
@@ -373,6 +415,66 @@ const SubmitLead = () => {
                     </label>
                   ))}
                 </div>
+              </div>
+
+              {/* File Upload */}
+              <div>
+                <Label className="text-xs text-muted-foreground flex items-center gap-1.5 mb-2">
+                  <Upload className="h-3 w-3" /> Upload Documents (optional)
+                </Label>
+                <p className="text-[10px] text-muted-foreground/70 mb-2">
+                  PDF, JPG, PNG, DOCX — max 10MB each, up to 5 files
+                </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadedFiles.length >= MAX_FILES}
+                  className={cn(
+                    "w-full border-2 border-dashed rounded-xl p-6 text-center transition-all",
+                    uploadedFiles.length >= MAX_FILES
+                      ? "border-border/30 opacity-50 cursor-not-allowed"
+                      : "border-border/50 hover:border-primary/40 hover:bg-primary/5 cursor-pointer"
+                  )}
+                >
+                  <Upload className="h-6 w-6 mx-auto text-muted-foreground mb-2" />
+                  <p className="text-sm text-muted-foreground">
+                    {uploadedFiles.length >= MAX_FILES
+                      ? "Maximum files reached"
+                      : "Click to browse or drop files here"}
+                  </p>
+                </button>
+
+                {uploadedFiles.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {uploadedFiles.map((file, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center gap-3 p-2.5 rounded-lg border border-border/50 bg-muted/20"
+                      >
+                        <File className="h-4 w-4 text-primary shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-foreground truncate">{file.name}</p>
+                          <p className="text-[10px] text-muted-foreground">{formatFileSize(file.size)}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeFile(i)}
+                          className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-1.5">
