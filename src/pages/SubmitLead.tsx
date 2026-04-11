@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
@@ -118,9 +118,6 @@ const SubmitLead = () => {
   // Flatten all category files for submission
   const allUploadedFiles = Object.values(categoryFiles).flat();
 
-  const removeFile = (index: number) => {
-    // legacy - unused now
-  };
 
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
@@ -131,8 +128,6 @@ const SubmitLead = () => {
   const update = (key: string, value: string | boolean) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
-  const toggleDoc = (id: string) =>
-    setSelectedDocs((prev) => prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]);
 
   const steps = [
     { title: "Personal Info", icon: User },
