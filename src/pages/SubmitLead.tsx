@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useMemo } from "react";
 import {
   User, Mail, Phone, MapPin, Car, DollarSign, FileText, Send,
   CheckCircle2, ChevronRight, Shield, ArrowRightLeft, Calendar,
-  Loader2, Sparkles,
+  Loader2, Sparkles, Upload, X, File,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
