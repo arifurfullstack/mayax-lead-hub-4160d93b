@@ -83,8 +83,15 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [bgLeads, setBgLeads] = useState<PreviewLead[]>(fallbackLeads);
   const { data: settings } = usePlatformSettings();
   const logoSrc = settings?.theme_logo_url || fallbackLogo;
+
+  useEffect(() => {
+    supabase.rpc("get_lead_preview_data").then(({ data }) => {
+      if (data && data.length > 0) setBgLeads(data as PreviewLead[]);
+    });
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
