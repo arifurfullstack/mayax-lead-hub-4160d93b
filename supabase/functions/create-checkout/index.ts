@@ -74,9 +74,10 @@ Deno.serve(async (req) => {
     }
 
     if (gateway === "stripe") {
-      const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+      const config = gw.config as Record<string, string>;
+      const stripeKey = config?.secret_key || Deno.env.get("STRIPE_SECRET_KEY");
       if (!stripeKey) {
-        return new Response(JSON.stringify({ error: "Stripe not configured" }), {
+        return new Response(JSON.stringify({ error: "Stripe not configured. Add your Secret Key in Admin → Payments → Stripe → Configure." }), {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });

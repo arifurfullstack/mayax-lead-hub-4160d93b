@@ -250,9 +250,40 @@ const AdminPaymentManager = () => {
           {selectedGateway && (
             <div className="space-y-4">
               {selectedGateway.id === "stripe" && (
-                <p className="text-sm text-muted-foreground">
-                  Stripe uses server-side secrets. No additional configuration needed here — just enable/disable the gateway.
-                </p>
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-xs">Secret Key</Label>
+                    <Input
+                      type="password"
+                      value={configForm.secret_key || ""}
+                      onChange={(e) => setConfigForm((f) => ({ ...f, secret_key: e.target.value }))}
+                      placeholder="sk_live_... or sk_test_..."
+                      className="bg-background font-mono text-xs"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Publishable Key</Label>
+                    <Input
+                      value={configForm.publishable_key || ""}
+                      onChange={(e) => setConfigForm((f) => ({ ...f, publishable_key: e.target.value }))}
+                      placeholder="pk_live_... or pk_test_..."
+                      className="bg-background font-mono text-xs"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Webhook Secret</Label>
+                    <Input
+                      type="password"
+                      value={configForm.webhook_secret || ""}
+                      onChange={(e) => setConfigForm((f) => ({ ...f, webhook_secret: e.target.value }))}
+                      placeholder="whsec_..."
+                      className="bg-background font-mono text-xs"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Find these in your <span className="font-medium">Stripe Dashboard → Developers → API Keys</span>. Use test keys for sandbox mode.
+                  </p>
+                </div>
               )}
               {selectedGateway.id === "paypal" && (
                 <div>
