@@ -22,12 +22,19 @@ import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import AdminDashboard from "./pages/AdminDashboard";
 import DynamicHead from "./components/DynamicHead";
+import { useApplyTheme } from "./hooks/useApplyTheme";
 
 const queryClient = new QueryClient();
+
+const ThemeApplicator = ({ children }: { children: React.ReactNode }) => {
+  useApplyTheme();
+  return <>{children}</>;
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
+      <ThemeApplicator>
       <DynamicHead />
       <Toaster />
       <Sonner />
@@ -60,6 +67,7 @@ const App = () => (
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
+      </ThemeApplicator>
     </TooltipProvider>
   </QueryClientProvider>
 );
