@@ -85,11 +85,16 @@ export default {
           "0%": { backgroundPosition: "-200% 0" },
           "100%": { backgroundPosition: "200% 0" },
         },
+        "marketplace-scroll": {
+          "0%": { transform: "translateY(0)" },
+          "100%": { transform: "translateY(-33.333%)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         shimmer: "shimmer 2s linear infinite",
+        "marketplace-scroll": "marketplace-scroll 30s linear infinite",
       },
     },
   },

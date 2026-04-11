@@ -34,50 +34,43 @@ type PreviewLead = {
   quality_grade: string | null;
 };
 
-const MarketplaceBg = ({ leads }: { leads: PreviewLead[] }) => (
-  <div className="absolute inset-0 overflow-hidden select-none pointer-events-none" aria-hidden>
-    {/* Header row */}
-    <div className="flex items-center justify-between px-6 py-3 border-b border-white/5">
-      <span className="text-sm font-bold text-white/40 tracking-wide">Leads Marketplace</span>
-      <div className="flex gap-3">
-        <div className="h-7 w-24 rounded bg-white/5" />
-        <div className="h-7 w-28 rounded bg-white/5" />
-      </div>
-    </div>
-    {/* Table header */}
-    <div className="grid grid-cols-6 gap-2 px-6 py-2 text-[10px] uppercase tracking-widest text-white/25 border-b border-white/5">
-      <span>Type</span><span>Reference</span><span>Price</span><span>Income</span><span>City</span><span>Grade</span>
-    </div>
-    {/* Rows */}
-    {leads.map((l, i) => (
-      <div
-        key={i}
-        className="grid grid-cols-6 gap-2 px-6 py-2.5 text-[11px] text-white/20 border-b border-white/[0.03]"
-      >
-        <span className="truncate">{l.buyer_type || "online"}</span>
-        <span>{l.reference_code.slice(0, 8)}</span>
-        <span>${l.price}</span>
-        <span>${l.income?.toLocaleString() ?? "—"}</span>
-        <span>{l.city ?? "—"}, {l.province ?? ""}</span>
-        <span className="font-semibold">{l.quality_grade ?? "B"}</span>
-      </div>
-    ))}
-    {/* Duplicate rows for fullness */}
-    {leads.map((l, i) => (
-      <div
-        key={`dup-${i}`}
-        className="grid grid-cols-6 gap-2 px-6 py-2.5 text-[11px] text-white/15 border-b border-white/[0.02]"
-      >
-        <span className="truncate">{l.buyer_type || "online"}</span>
-        <span>{l.reference_code.slice(0, 8)}</span>
-        <span>${l.price}</span>
-        <span>${l.income?.toLocaleString() ?? "—"}</span>
-        <span>{l.city ?? "—"}, {l.province ?? ""}</span>
-        <span className="font-semibold">{l.quality_grade ?? "B"}</span>
-      </div>
-    ))}
+const LeadRow = ({ l, opacity }: { l: PreviewLead; opacity: string }) => (
+  <div className={`grid grid-cols-6 gap-2 px-6 py-2.5 text-[11px] ${opacity} border-b border-white/[0.03]`}>
+    <span className="truncate">{l.buyer_type || "online"}</span>
+    <span>{l.reference_code.slice(0, 8)}</span>
+    <span>${l.price}</span>
+    <span>${l.income?.toLocaleString() ?? "—"}</span>
+    <span>{l.city ?? "—"}, {l.province ?? ""}</span>
+    <span className="font-semibold">{l.quality_grade ?? "B"}</span>
   </div>
 );
+
+const MarketplaceBg = ({ leads }: { leads: PreviewLead[] }) => {
+  const tripled = [...leads, ...leads, ...leads];
+  return (
+    <div className="absolute inset-0 overflow-hidden select-none pointer-events-none" aria-hidden>
+      <div className="flex items-center justify-between px-6 py-3 border-b border-white/5">
+        <span className="text-sm font-bold text-white/40 tracking-wide">Leads Marketplace</span>
+        <div className="flex gap-3">
+          <div className="h-7 w-24 rounded bg-white/5" />
+          <div className="h-7 w-28 rounded bg-white/5" />
+        </div>
+      </div>
+      <div className="grid grid-cols-6 gap-2 px-6 py-2 text-[10px] uppercase tracking-widest text-white/25 border-b border-white/5">
+        <span>Type</span><span>Reference</span><span>Price</span><span>Income</span><span>City</span><span>Grade</span>
+      </div>
+      <div className="animate-marketplace-scroll">
+        {tripled.map((l, i) => (
+          <LeadRow
+            key={i}
+            l={l}
+            opacity={i < leads.length ? "text-white/20" : i < leads.length * 2 ? "text-white/15" : "text-white/10"}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
 const Login = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
