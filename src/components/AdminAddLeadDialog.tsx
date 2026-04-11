@@ -1,11 +1,12 @@
-import { useState, useMemo } from "react";
-import { Plus, Brain, DollarSign } from "lucide-react";
+import { useState, useMemo, useRef, useCallback } from "react";
+import { Plus, Brain, DollarSign, Upload, Trash2, FileText, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -22,18 +23,30 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { calculateAiScore, calculateLeadPrice, parseNotesFlags, parsePricingSettings, type PricingSettings } from "@/lib/leadScoring";
+import { calculateAiScore, calculateLeadPrice, parseNotesFlags, parsePricingSettings } from "@/lib/leadScoring";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
+import { cn } from "@/lib/utils";
 
 const provinces = [
-  "Ontario",
-  "British Columbia",
-  "Alberta",
-  "Quebec",
-  "Manitoba",
-  "Saskatchewan",
-  "Nova Scotia",
-  "Newfoundland",
+  "Ontario", "British Columbia", "Alberta", "Quebec",
+  "Manitoba", "Saskatchewan", "Nova Scotia", "Newfoundland",
+];
+
+const DOCUMENT_TYPES = [
+  { id: "license", label: "Driver License" },
+  { id: "paystub", label: "Paystubs" },
+  { id: "bank_statement", label: "Bank Statements" },
+  { id: "credit_report", label: "Credit Report" },
+  { id: "pre_approval", label: "Pre-Approval Cert." },
+] as const;
+
+const ACCEPTED_TYPES = [
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ];
 
 interface Props {
@@ -47,10 +60,17 @@ const formatAmount = (v: string) => {
   return Number(digits).toLocaleString("en-US");
 };
 
+interface StagedFile {
+  file: File;
+  name: string;
+}
+
 export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const { data: rawSettings } = usePlatformSettings();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [dragging, setDragging] = useState(false);
 
   const pricing = useMemo(() => parsePricingSettings(rawSettings ?? {}), [rawSettings]);
 
@@ -73,16 +93,42 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
     trade_in: false,
   });
 
+  const [selectedDocTypes, setSelectedDocTypes] = useState<string[]>([]);
+  const [stagedFiles, setStagedFiles] = useState<StagedFile[]>([]);
+
   const update = (key: string, value: string | boolean) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
+  const toggleDocType = (docId: string) => {
+    setSelectedDocTypes((prev) =>
+      prev.includes(docId) ? prev.filter((d) => d !== docId) : [...prev, docId]
+    );
+  };
+
+  // Stage files locally (not uploaded yet)
+  const stageFiles = useCallback((files: File[]) => {
+    const valid = files.filter((f) => ACCEPTED_TYPES.includes(f.type));
+    if (valid.length === 0) {
+      toast({ title: "Unsupported file type", description: "Please use PDF, image, or Word files.", variant: "destructive" });
+      return;
+    }
+    setStagedFiles((prev) => [...prev, ...valid.map((f) => ({ file: f, name: f.name }))]);
+  }, []);
+
+  const removeStagedFile = (index: number) => {
+    setStagedFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragging(false);
+    stageFiles(Array.from(e.dataTransfer.files));
+  }, [stageFiles]);
+
   // Parse notes for hidden conditional flags
   const notesFlags = useMemo(() => parseNotesFlags(form.notes), [form.notes]);
-
-  // Merge explicit toggles with detected flags
   const effectiveTradeIn = form.trade_in || notesFlags.trade_in;
   const effectiveBankruptcy = notesFlags.has_bankruptcy;
-  const effectiveAppointment = !!form.appointment_time || notesFlags.has_appointment;
 
   const computed = useMemo(() => {
     const aiResult = calculateAiScore({
@@ -118,6 +164,7 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
     }
 
     setSaving(true);
+
     const insertData = {
       reference_code: generateRefCode(),
       first_name: form.first_name,
@@ -140,25 +187,54 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
       appointment_time: form.appointment_time || null,
       trade_in: effectiveTradeIn,
       has_bankruptcy: effectiveBankruptcy,
+      documents: selectedDocTypes.length > 0 ? selectedDocTypes : null,
     } as any;
-    const { error } = await supabase.from("leads").insert(insertData);
 
-    setSaving(false);
+    const { data: insertedLead, error } = await supabase.from("leads").insert(insertData).select("id").single();
 
     if (error) {
       toast({ title: "Error adding lead", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Lead added", description: "New lead created successfully." });
-      setForm({
-        first_name: "", last_name: "", email: "", phone: "", city: "", province: "",
-        buyer_type: "online",
-        vehicle_preference: "", vehicle_price: "", vehicle_mileage: "", income: "",
-        credit_range_min: "", credit_range_max: "", notes: "", appointment_time: "",
-        trade_in: false,
-      });
-      setOpen(false);
-      onLeadAdded();
+      setSaving(false);
+      return;
     }
+
+    // Upload staged files to storage
+    if (stagedFiles.length > 0 && insertedLead?.id) {
+      const uploadedFiles: { name: string; path: string }[] = [];
+      for (const sf of stagedFiles) {
+        const storagePath = `${insertedLead.id}/${Date.now()}_${sf.name}`;
+        const { error: uploadErr } = await supabase.storage
+          .from("lead-documents")
+          .upload(storagePath, sf.file);
+
+        if (uploadErr) {
+          toast({ title: "File upload failed", description: `${sf.name}: ${uploadErr.message}`, variant: "destructive" });
+          continue;
+        }
+        uploadedFiles.push({ name: sf.name, path: storagePath });
+      }
+
+      if (uploadedFiles.length > 0) {
+        await supabase
+          .from("leads")
+          .update({ document_files: JSON.parse(JSON.stringify(uploadedFiles)) })
+          .eq("id", insertedLead.id);
+      }
+    }
+
+    setSaving(false);
+    toast({ title: "Lead added", description: "New lead created successfully." });
+    setForm({
+      first_name: "", last_name: "", email: "", phone: "", city: "", province: "",
+      buyer_type: "online",
+      vehicle_preference: "", vehicle_price: "", vehicle_mileage: "", income: "",
+      credit_range_min: "", credit_range_max: "", notes: "", appointment_time: "",
+      trade_in: false,
+    });
+    setSelectedDocTypes([]);
+    setStagedFiles([]);
+    setOpen(false);
+    onLeadAdded();
   };
 
   return (
@@ -188,7 +264,6 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
                 <span className="text-sm font-bold text-foreground">${computed.price}</span>
               </div>
             </div>
-            {/* Price breakdown */}
             <div className="flex flex-wrap gap-1.5 pl-8">
               {computed.breakdown.base > 0 && <Badge variant="outline" className="text-[10px] font-mono">Base ${computed.breakdown.base}</Badge>}
               {computed.breakdown.income > 0 && <Badge variant="outline" className="text-[10px] font-mono">Income +${computed.breakdown.income}</Badge>}
@@ -325,6 +400,87 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
             </div>
           )}
 
+          {/* Document Types */}
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Documents Available</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {DOCUMENT_TYPES.map((doc) => (
+                <label
+                  key={doc.id}
+                  className={cn(
+                    "flex items-center gap-2.5 px-3 py-2.5 rounded-lg border cursor-pointer transition-all",
+                    selectedDocTypes.includes(doc.id)
+                      ? "border-primary bg-primary/10 text-foreground"
+                      : "border-border hover:border-primary/40 text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Checkbox
+                    checked={selectedDocTypes.includes(doc.id)}
+                    onCheckedChange={() => toggleDocType(doc.id)}
+                    className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                  />
+                  <span className="text-sm">{doc.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* File Upload */}
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Upload Documents</p>
+            <div
+              onDrop={handleDrop}
+              onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+              onDragLeave={(e) => { e.preventDefault(); setDragging(false); }}
+              onClick={() => fileInputRef.current?.click()}
+              className={cn(
+                "flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-5 cursor-pointer transition-colors",
+                dragging
+                  ? "border-primary bg-primary/10"
+                  : "border-border hover:border-primary/50 hover:bg-muted/30"
+              )}
+            >
+              <Upload className="h-5 w-5 text-muted-foreground" />
+              <p className="text-xs text-muted-foreground text-center">
+                {dragging ? "Drop files here" : "Drag & drop files or click to browse"}
+              </p>
+              <p className="text-[10px] text-muted-foreground/60">PDF, JPG, PNG, WEBP, DOC, DOCX — Max 5MB each</p>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx"
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files) stageFiles(Array.from(e.target.files));
+                if (fileInputRef.current) fileInputRef.current.value = "";
+              }}
+            />
+
+            {stagedFiles.length > 0 && (
+              <div className="space-y-1.5 mt-3">
+                {stagedFiles.map((sf, i) => (
+                  <div key={i} className="flex items-center gap-2 text-sm bg-muted/30 rounded px-2.5 py-1.5">
+                    <FileText className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <span className="text-foreground truncate flex-1">{sf.name}</span>
+                    <span className="text-[10px] text-muted-foreground shrink-0">
+                      {(sf.file.size / 1024).toFixed(0)} KB
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 shrink-0"
+                      onClick={(e) => { e.stopPropagation(); removeStagedFile(i); }}
+                    >
+                      <Trash2 className="h-3 w-3 text-destructive" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Notes */}
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Notes (hidden from marketplace)</Label>
@@ -341,7 +497,11 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
           <div className="flex justify-end gap-3 pt-2 border-t border-border">
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
             <Button onClick={handleSubmit} disabled={saving} className="gradient-blue-cyan text-foreground">
-              {saving ? "Adding…" : "Add Lead"}
+              {saving ? (
+                <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Adding…</>
+              ) : (
+                "Add Lead"
+              )}
             </Button>
           </div>
         </div>
