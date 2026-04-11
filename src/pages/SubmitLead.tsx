@@ -68,35 +68,55 @@ const SubmitLead = () => {
   });
 
   const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
-  const [dragging, setDragging] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [categoryFiles, setCategoryFiles] = useState<Record<string, File[]>>({});
+  const [draggingCategory, setDraggingCategory] = useState<string | null>(null);
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const ALLOWED_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/webp", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
   const MAX_FILE_SIZE = 10 * 1024 * 1024;
-  const MAX_FILES = 5;
+  const MAX_FILES_PER_CATEGORY = 3;
 
-  const addValidFiles = (newFiles: File[]) => {
+  const addFilesToCategory = (categoryId: string, newFiles: File[]) => {
     const validFiles = newFiles.filter(f => ALLOWED_TYPES.includes(f.type) && f.size <= MAX_FILE_SIZE);
     if (validFiles.length > 0) {
-      setUploadedFiles(prev => [...prev, ...validFiles].slice(0, MAX_FILES));
+      setCategoryFiles(prev => ({
+        ...prev,
+        [categoryId]: [...(prev[categoryId] || []), ...validFiles].slice(0, MAX_FILES_PER_CATEGORY),
+      }));
+      if (!selectedDocs.includes(categoryId)) {
+        setSelectedDocs(prev => [...prev, categoryId]);
+      }
     }
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    addValidFiles(Array.from(e.target.files || []));
-    if (fileInputRef.current) fileInputRef.current.value = "";
+  const handleCategoryFileSelect = (categoryId: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    addFilesToCategory(categoryId, Array.from(e.target.files || []));
+    const ref = fileInputRefs.current[categoryId];
+    if (ref) ref.value = "";
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleCategoryDrop = (categoryId: string) => (e: React.DragEvent) => {
     e.preventDefault();
-    setDragging(false);
-    if (uploadedFiles.length >= MAX_FILES) return;
-    addValidFiles(Array.from(e.dataTransfer.files));
+    setDraggingCategory(null);
+    addFilesToCategory(categoryId, Array.from(e.dataTransfer.files));
   };
 
-  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setDragging(true); };
-  const handleDragLeave = (e: React.DragEvent) => { e.preventDefault(); setDragging(false); };
+  const handleCategoryDragOver = (categoryId: string) => (e: React.DragEvent) => { e.preventDefault(); setDraggingCategory(categoryId); };
+  const handleCategoryDragLeave = (_categoryId: string) => (e: React.DragEvent) => { e.preventDefault(); setDraggingCategory(null); };
+
+  const removeCategoryFile = (categoryId: string, index: number) => {
+    setCategoryFiles(prev => {
+      const updated = (prev[categoryId] || []).filter((_, i) => i !== index);
+      if (updated.length === 0) {
+        const { [categoryId]: _, ...rest } = prev;
+        return rest;
+      }
+      return { ...prev, [categoryId]: updated };
+    });
+  };
+
+  // Flatten all category files for submission
+  const allUploadedFiles = Object.values(categoryFiles).flat();
 
   const removeFile = (index: number) => {
     setUploadedFiles(prev => prev.filter((_, i) => i !== index));
