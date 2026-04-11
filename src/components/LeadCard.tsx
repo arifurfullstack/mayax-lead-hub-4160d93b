@@ -203,6 +203,17 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
               {docLabels[d]?.icon ?? <FileText className="h-3 w-3" />}
             </span>
           ))}
+          {(lead.documents ?? []).length > 0 && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="h-6 px-1.5 rounded border border-primary/30 bg-primary/10 flex items-center gap-1 text-primary text-[10px] font-bold cursor-help">
+                  <FileText className="h-3 w-3" />
+                  {(lead.documents as string[]).length}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-xs">{(lead.documents as string[]).length} document(s) attached</TooltipContent>
+            </Tooltip>
+          )}
           {lead.ai_score != null && (
             <span className="badge-blue text-[10px] font-bold px-1.5 py-0.5 rounded ml-auto font-mono-timer tracking-wider">
               AI {lead.ai_score}
