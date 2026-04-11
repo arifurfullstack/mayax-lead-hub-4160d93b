@@ -14,7 +14,10 @@ import {
   FileText,
   Loader2,
   X,
+  Palette,
+  Check,
 } from "lucide-react";
+import { COLOR_THEMES, getThemeById, applyTheme } from "@/lib/colorThemes";
 
 interface AdminBrandingSettingsProps {
   settingsForm: Record<string, string>;
