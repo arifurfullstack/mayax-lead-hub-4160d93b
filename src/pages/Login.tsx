@@ -175,7 +175,7 @@ const Login = () => {
           <img
             src={logoSrc}
             alt={settings?.theme_website_name || "MayaX Lead Hub"}
-            className="w-44 h-44 lg:w-56 lg:h-56 object-contain drop-shadow-[0_0_50px_rgba(139,92,246,0.35)] mb-4"
+            className="w-66 h-66 lg:w-84 lg:h-84 object-contain drop-shadow-[0_0_50px_rgba(139,92,246,0.35)] mb-4"
           />
 
           <h2 className="text-xl lg:text-2xl font-bold text-foreground mb-2 text-center">
