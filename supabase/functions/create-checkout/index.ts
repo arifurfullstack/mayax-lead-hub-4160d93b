@@ -74,9 +74,10 @@ Deno.serve(async (req) => {
     }
 
     if (gateway === "stripe") {
-      const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+      const config = gw.config as Record<string, string>;
+      const stripeKey = config?.secret_key || Deno.env.get("STRIPE_SECRET_KEY");
       if (!stripeKey) {
-        return new Response(JSON.stringify({ error: "Stripe not configured" }), {
+        return new Response(JSON.stringify({ error: "Stripe not configured. Add your Secret Key in Admin → Payments → Stripe → Configure." }), {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -130,10 +131,11 @@ Deno.serve(async (req) => {
     }
 
     if (gateway === "paypal") {
-      const clientId = Deno.env.get("PAYPAL_CLIENT_ID");
-      const clientSecret = Deno.env.get("PAYPAL_CLIENT_SECRET");
+      const config = gw.config as Record<string, string>;
+      const clientId = config?.client_id || Deno.env.get("PAYPAL_CLIENT_ID");
+      const clientSecret = config?.client_secret || Deno.env.get("PAYPAL_CLIENT_SECRET");
       if (!clientId || !clientSecret) {
-        return new Response(JSON.stringify({ error: "PayPal not configured" }), {
+        return new Response(JSON.stringify({ error: "PayPal not configured. Add your Client ID & Secret in Admin → Payments → PayPal → Configure." }), {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
