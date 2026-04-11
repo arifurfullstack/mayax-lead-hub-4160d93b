@@ -475,6 +475,7 @@ const SubmitLead = () => {
                     ))}
                   </div>
                 )}
+              </div>
 
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Notes / Additional Information</Label>
