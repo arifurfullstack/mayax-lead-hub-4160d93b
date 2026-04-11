@@ -229,6 +229,50 @@
       inset 0 0 30px hsl(var(--primary) / 0.05);
   }
 
+  /* Glass Sidebar */
+  .glass-sidebar {
+    background:
+      linear-gradient(
+        180deg,
+        hsl(var(--secondary) / 0.08) 0%,
+        hsl(var(--primary) / 0.04) 40%,
+        transparent 70%,
+        hsl(var(--accent) / 0.06) 100%
+      ),
+      hsl(var(--sidebar-background) / 0.85) !important;
+    backdrop-filter: blur(20px) saturate(1.5);
+    -webkit-backdrop-filter: blur(20px) saturate(1.5);
+    border-right: 1px solid hsl(var(--primary) / 0.12) !important;
+    box-shadow:
+      4px 0 30px rgba(0, 0, 0, 0.3),
+      inset -1px 0 0 hsl(var(--primary) / 0.06);
+  }
+
+  .glass-sidebar [data-sidebar="header"],
+  .glass-sidebar [data-sidebar="content"],
+  .glass-sidebar [data-sidebar="footer"] {
+    background: transparent !important;
+  }
+
+  /* Glass Navbar */
+  .glass-navbar {
+    background:
+      linear-gradient(
+        90deg,
+        hsl(var(--secondary) / 0.06) 0%,
+        hsl(var(--primary) / 0.04) 30%,
+        transparent 60%,
+        hsl(var(--accent) / 0.06) 100%
+      ),
+      hsl(var(--card) / 0.75);
+    backdrop-filter: blur(20px) saturate(1.5);
+    -webkit-backdrop-filter: blur(20px) saturate(1.5);
+    border-bottom: 1px solid hsl(var(--primary) / 0.12);
+    box-shadow:
+      0 4px 30px rgba(0, 0, 0, 0.2),
+      inset 0 -1px 0 hsl(var(--primary) / 0.06);
+  }
+
   /* CTA Gradients */
   .gradient-cta-buy {
     background: linear-gradient(90deg, hsl(var(--primary) / 0.7) 0%, hsl(var(--primary)) 50%, hsl(var(--accent) / 0.8) 100%);
