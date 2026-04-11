@@ -42,29 +42,81 @@ function generateRefCode(): string {
   return `MX-${year}-${seq}`;
 }
 
+const ALLOWED_MIME = [
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+];
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_FILES = 5;
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json" };
+
   try {
-    const body = await req.json();
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    const contentType = req.headers.get("content-type") || "";
+    let body: Record<string, any>;
+    let files: { name: string; data: Uint8Array; type: string }[] = [];
+
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await req.formData();
+      const jsonField = formData.get("data");
+      if (!jsonField || typeof jsonField !== "string") {
+        return new Response(JSON.stringify({ error: "Missing form data." }), { status: 400, headers: jsonHeaders });
+      }
+      body = JSON.parse(jsonField);
+
+      // Collect uploaded files
+      for (const [key, value] of formData.entries()) {
+        if (key.startsWith("file_") && value instanceof File) {
+          if (files.length >= MAX_FILES) break;
+          if (value.size > MAX_FILE_SIZE) {
+            return new Response(
+              JSON.stringify({ error: `File "${value.name}" exceeds 10MB limit.` }),
+              { status: 400, headers: jsonHeaders }
+            );
+          }
+          if (!ALLOWED_MIME.includes(value.type)) {
+            return new Response(
+              JSON.stringify({ error: `File type "${value.type}" is not allowed. Use PDF, JPG, PNG, or DOCX.` }),
+              { status: 400, headers: jsonHeaders }
+            );
+          }
+          const arrayBuf = await value.arrayBuffer();
+          files.push({ name: value.name, data: new Uint8Array(arrayBuf), type: value.type });
+        }
+      }
+    } else {
+      body = await req.json();
+    }
 
     // Validate required fields
-    const firstName = (body.first_name ?? "").trim();
-    const lastName = (body.last_name ?? "").trim();
+    const firstName = (body.first_name ?? "").trim().slice(0, 100);
+    const lastName = (body.last_name ?? "").trim().slice(0, 100);
     if (!firstName || !lastName) {
       return new Response(
         JSON.stringify({ error: "First name and last name are required." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: jsonHeaders }
       );
     }
 
-    const email = (body.email ?? "").trim();
+    const email = (body.email ?? "").trim().slice(0, 255);
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return new Response(
         JSON.stringify({ error: "Invalid email address." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: jsonHeaders }
       );
     }
 
@@ -91,19 +143,41 @@ Deno.serve(async (req) => {
       appointment_time: appointmentTime,
     });
 
-    // Default price based on grade
     let price = 25;
     if (quality_grade === "A+") price = 75;
     else if (quality_grade === "A") price = 55;
     else if (quality_grade === "B") price = 35;
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    const refCode = generateRefCode();
+
+    // Upload files to storage
+    const documentFiles: { name: string; path: string; type: string; size: number }[] = [];
+    if (files.length > 0) {
+      const folderPath = `public-submissions/${refCode}`;
+      for (const file of files) {
+        const ext = file.name.split(".").pop() || "bin";
+        const storagePath = `${folderPath}/${crypto.randomUUID()}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from("lead-documents")
+          .upload(storagePath, file.data, {
+            contentType: file.type,
+            upsert: false,
+          });
+        if (uploadError) {
+          console.error("Upload error:", uploadError);
+          continue;
+        }
+        documentFiles.push({
+          name: file.name,
+          path: storagePath,
+          type: file.type,
+          size: file.data.length,
+        });
+      }
+    }
 
     const { error } = await supabase.from("leads").insert({
-      reference_code: generateRefCode(),
+      reference_code: refCode,
       first_name: firstName,
       last_name: lastName,
       email: email || null,
@@ -121,6 +195,7 @@ Deno.serve(async (req) => {
       notes: notes || null,
       appointment_time: appointmentTime,
       documents,
+      document_files: documentFiles.length > 0 ? documentFiles : null,
       ai_score,
       quality_grade,
       price,
@@ -129,18 +204,19 @@ Deno.serve(async (req) => {
     if (error) {
       return new Response(
         JSON.stringify({ error: error.message }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 500, headers: jsonHeaders }
       );
     }
 
     return new Response(
-      JSON.stringify({ success: true, message: "Lead submitted successfully!" }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ success: true, message: "Lead submitted successfully!", files_uploaded: documentFiles.length }),
+      { status: 200, headers: jsonHeaders }
     );
   } catch (err) {
+    console.error("submit-lead error:", err);
     return new Response(
       JSON.stringify({ error: "Invalid request body." }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 400, headers: jsonHeaders }
     );
   }
 });
