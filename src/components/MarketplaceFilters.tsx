@@ -433,6 +433,7 @@ export function countActiveFilters(f: MarketplaceFilters): number {
   if (f.provinces.length) count++;
   if (f.cities.length) count++;
   if (f.documents.length) count++;
+  if (f.hasDocuments) count++;
   if (f.grades.length) count++;
   if (f.vehicleSearch) count++;
   if (f.maxAge !== "all") count++;
