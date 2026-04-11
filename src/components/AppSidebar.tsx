@@ -70,14 +70,14 @@ export function AppSidebar({ walletBalance = 0, onLogout }: AppSidebarProps) {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-border">
-      <SidebarHeader className="bg-sidebar p-3 border-b border-border">
+    <Sidebar collapsible="icon" className="glass-sidebar border-r-0">
+      <SidebarHeader className="p-3 border-b border-[hsl(var(--primary)/0.1)]">
         <div className="flex items-center gap-2">
           <img src={logoSrc} alt={siteName} className="w-8 h-8 rounded-md object-contain shrink-0" />
           {!collapsed && <span className="text-sm font-bold text-foreground truncate">{siteName}</span>}
         </div>
       </SidebarHeader>
-      <SidebarContent className="bg-sidebar">
+      <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className="text-muted-foreground text-xs uppercase tracking-wider">
             Main
@@ -166,7 +166,7 @@ export function AppSidebar({ walletBalance = 0, onLogout }: AppSidebarProps) {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="bg-sidebar p-3 border-t border-border">
+      <SidebarFooter className="p-3 border-t border-[hsl(var(--primary)/0.1)]">
         {!collapsed && (
           <Link to="/wallet" className="block glass-card p-3 mb-2 cursor-pointer hover:ring-1 hover:ring-primary/40 transition-all">
             <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">

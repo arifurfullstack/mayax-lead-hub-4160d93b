@@ -67,7 +67,7 @@ const TopNavbar = ({
   };
 
   return (
-    <header className="h-14 flex items-center justify-between border-b border-border bg-card/60 backdrop-blur-md px-4 sticky top-0 z-30">
+    <header className="h-14 flex items-center justify-between px-4 sticky top-0 z-30 glass-navbar">
       <div className="flex items-center gap-3">
         <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
         <div className="flex items-center gap-2">
