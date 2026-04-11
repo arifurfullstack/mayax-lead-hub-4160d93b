@@ -302,19 +302,30 @@ function FilterContent({ filters, onChange, onReset, activeCount, maxIncome, max
         </div>
       </CollapsibleSection>
 
-      {/* Documents Uploaded */}
-      <CollapsibleSection title="Documents Uploaded">
+      {/* Documents */}
+      <CollapsibleSection title="Documents" defaultOpen={filters.hasDocuments || filters.documents.length > 0}>
         <div className="space-y-2.5">
-          {documentOptions.map((d) => (
-            <label key={d.value} className="flex items-center gap-2.5 cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
-              <Checkbox
-                checked={filters.documents.includes(d.value)}
-                onCheckedChange={() => toggleArray("documents", d.value)}
-                className="border-primary data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-              />
-              <span className="text-sm">{d.label}</span>
-            </label>
-          ))}
+          <label className="flex items-center gap-2.5 cursor-pointer text-foreground hover:text-primary transition-colors font-medium">
+            <Checkbox
+              checked={filters.hasDocuments}
+              onCheckedChange={(checked) => update({ hasDocuments: !!checked })}
+              className="border-primary data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+            />
+            <span className="text-sm">Has Documents Only</span>
+          </label>
+          <div className="border-t border-border/40 pt-2 space-y-2.5">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-semibold">By Type</p>
+            {documentOptions.map((d) => (
+              <label key={d.value} className="flex items-center gap-2.5 cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
+                <Checkbox
+                  checked={filters.documents.includes(d.value)}
+                  onCheckedChange={() => toggleArray("documents", d.value)}
+                  className="border-primary data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                />
+                <span className="text-sm">{d.label}</span>
+              </label>
+            ))}
+          </div>
         </div>
       </CollapsibleSection>
 
