@@ -119,33 +119,48 @@ const SubmitLead = () => {
     setError("");
 
     const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+    const payload = {
+      first_name: form.first_name.trim(),
+      last_name: form.last_name.trim(),
+      email: form.email.trim(),
+      phone: form.phone.trim(),
+      city: form.city.trim(),
+      province: form.province,
+      buyer_type: form.buyer_type,
+      vehicle_preference: form.vehicle_preference.trim(),
+      vehicle_price: form.vehicle_price ? parseNum(form.vehicle_price) : null,
+      vehicle_mileage: form.vehicle_mileage ? parseNum(form.vehicle_mileage) : null,
+      income: form.income ? parseNum(form.income) : null,
+      credit_range_min: form.credit_range_min ? Number(form.credit_range_min) : null,
+      credit_range_max: form.credit_range_max ? Number(form.credit_range_max) : null,
+      trade_in: form.trade_in,
+      notes: form.notes.trim(),
+      appointment_time: form.appointment_time || null,
+      documents: selectedDocs.length > 0 ? selectedDocs : null,
+    };
+
     try {
-      const res = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/submit-lead`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            first_name: form.first_name.trim(),
-            last_name: form.last_name.trim(),
-            email: form.email.trim(),
-            phone: form.phone.trim(),
-            city: form.city.trim(),
-            province: form.province,
-            buyer_type: form.buyer_type,
-            vehicle_preference: form.vehicle_preference.trim(),
-            vehicle_price: form.vehicle_price ? parseNum(form.vehicle_price) : null,
-            vehicle_mileage: form.vehicle_mileage ? parseNum(form.vehicle_mileage) : null,
-            income: form.income ? parseNum(form.income) : null,
-            credit_range_min: form.credit_range_min ? Number(form.credit_range_min) : null,
-            credit_range_max: form.credit_range_max ? Number(form.credit_range_max) : null,
-            trade_in: form.trade_in,
-            notes: form.notes.trim(),
-            appointment_time: form.appointment_time || null,
-            documents: selectedDocs.length > 0 ? selectedDocs : null,
-          }),
-        }
-      );
+      let res: Response;
+      if (uploadedFiles.length > 0) {
+        const formData = new FormData();
+        formData.append("data", JSON.stringify(payload));
+        uploadedFiles.forEach((file, i) => {
+          formData.append(`file_${i}`, file);
+        });
+        res = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/submit-lead`,
+          { method: "POST", body: formData }
+        );
+      } else {
+        res = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/submit-lead`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          }
+        );
+      }
 
       const data = await res.json();
       if (!res.ok) {
