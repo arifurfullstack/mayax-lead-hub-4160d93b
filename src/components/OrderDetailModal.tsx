@@ -192,6 +192,41 @@ const OrderDetailModal = ({ order, open, onOpenChange }: Props) => {
     URL.revokeObjectURL(url);
   };
 
+  const getFileType = (name: string): "image" | "pdf" | "other" => {
+    const ext = name.split(".").pop()?.toLowerCase() ?? "";
+    if (["jpg", "jpeg", "png", "webp", "gif", "bmp"].includes(ext)) return "image";
+    if (ext === "pdf") return "pdf";
+    return "other";
+  };
+
+  const getFileIcon = (name: string) => {
+    const type = getFileType(name);
+    if (type === "image") return FileImage;
+    if (type === "pdf") return FileType;
+    return FileText;
+  };
+
+  const handlePreview = async (file: LeadFileEntry) => {
+    if (!lead) return;
+    setDownloading(file.path);
+    const { data, error } = await supabase.storage
+      .from("lead-documents")
+      .download(file.path);
+    setDownloading(null);
+    if (error || !data) return;
+    const url = URL.createObjectURL(data);
+    setPreviewUrl(url);
+    setPreviewName(file.name);
+    setPreviewType(getFileType(file.name));
+  };
+
+  const closePreview = () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
+    setPreviewName("");
+    setPreviewType("other");
+  };
+
   if (!order || !lead) return null;
 
   return (
