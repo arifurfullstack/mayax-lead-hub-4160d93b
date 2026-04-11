@@ -53,11 +53,10 @@ export const defaultFilters: MarketplaceFilters = {
 };
 
 const documentOptions = [
-  { value: "license", label: "Driver License" },
+  { value: "license", label: "Driver's License" },
   { value: "paystub", label: "Paystubs" },
+  { value: "trade_in_pics", label: "Trade-In Pics" },
   { value: "bank_statement", label: "Bank Statements" },
-  { value: "credit_report", label: "Credit Report" },
-  { value: "pre_approval", label: "Pre-Approval Cert." },
 ];
 
 const provinceOptions = ["Ontario", "British Columbia", "Alberta", "Quebec", "Manitoba", "Saskatchewan", "Nova Scotia", "Newfoundland"];
