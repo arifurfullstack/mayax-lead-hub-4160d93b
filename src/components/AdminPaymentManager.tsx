@@ -36,6 +36,8 @@ const AdminPaymentManager = () => {
   const [selectedGateway, setSelectedGateway] = useState<any>(null);
   const [configForm, setConfigForm] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
   const { data: gateways, isLoading } = useQuery({
     queryKey: ["payment-gateways"],
@@ -90,7 +92,24 @@ const AdminPaymentManager = () => {
     setSelectedGateway(gw);
     const config = (gw.config || {}) as Record<string, string>;
     setConfigForm({ ...config });
+    setTestResult(null);
     setConfigOpen(true);
+  };
+
+  const testConnection = async () => {
+    if (!selectedGateway) return;
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("test-gateway", {
+        body: { gateway: selectedGateway.id, config: configForm },
+      });
+      if (error) throw error;
+      setTestResult(data);
+    } catch (err: any) {
+      setTestResult({ success: false, message: err.message || "Connection test failed" });
+    }
+    setTesting(false);
   };
 
   const saveConfig = async () => {
