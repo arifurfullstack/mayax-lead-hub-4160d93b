@@ -375,9 +375,24 @@ const AdminPaymentManager = () => {
                   </div>
                 </div>
               )}
-              <Button className="w-full" onClick={saveConfig} disabled={saving}>
-                {saving ? "Saving..." : "Save Configuration"}
-              </Button>
+              {testResult && (
+                <div className={cn(
+                  "p-3 rounded-lg text-xs flex items-start gap-2",
+                  testResult.success ? "bg-success/10 text-success border border-success/20" : "bg-destructive/10 text-destructive border border-destructive/20"
+                )}>
+                  {testResult.success ? <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" /> : <XCircle className="h-4 w-4 mt-0.5 shrink-0" />}
+                  <span>{testResult.message}</span>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1 gap-1.5" onClick={testConnection} disabled={testing}>
+                  {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
+                  {testing ? "Testing..." : "Test Connection"}
+                </Button>
+                <Button className="flex-1" onClick={saveConfig} disabled={saving}>
+                  {saving ? "Saving..." : "Save Configuration"}
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>
