@@ -21,6 +21,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import AdminDashboard from "./pages/AdminDashboard";
+import SubmitLead from "./pages/SubmitLead";
 import DynamicHead from "./components/DynamicHead";
 import { useApplyTheme } from "./hooks/useApplyTheme";
 
