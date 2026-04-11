@@ -129,12 +129,23 @@
   .glass-card {
     position: relative;
     background:
-      linear-gradient(135deg, rgba(120, 70, 200, 0.18) 0%, rgba(80, 40, 160, 0.1) 40%, transparent 60%, rgba(100, 60, 180, 0.12) 100%),
-      rgba(28, 16, 52, 0.92);
-    backdrop-filter: blur(12px);
+      linear-gradient(
+        135deg,
+        hsl(var(--secondary) / 0.18) 0%,
+        hsl(var(--primary) / 0.08) 35%,
+        transparent 55%,
+        hsl(var(--accent) / 0.10) 80%,
+        hsl(var(--secondary) / 0.12) 100%
+      ),
+      hsl(var(--card) / 0.92);
+    backdrop-filter: blur(16px) saturate(1.4);
+    -webkit-backdrop-filter: blur(16px) saturate(1.4);
     border: 1px solid transparent;
     border-radius: 12px;
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+    box-shadow:
+      0 4px 30px rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 hsl(var(--primary) / 0.06),
+      inset 0 -1px 0 hsl(var(--secondary) / 0.04);
     transition: transform 0.3s ease, box-shadow 0.3s ease;
     animation: card-enter 0.5s ease-out both;
     overflow: visible;
@@ -147,13 +158,12 @@
     border-radius: inherit;
     pointer-events: none;
     z-index: 2;
-    pointer-events: none;
     background: linear-gradient(
       105deg,
       transparent 40%,
-      rgba(150, 190, 255, 0.08) 45%,
-      rgba(200, 220, 255, 0.12) 50%,
-      rgba(150, 190, 255, 0.08) 55%,
+      hsl(var(--primary) / 0.08) 45%,
+      hsl(var(--primary) / 0.14) 50%,
+      hsl(var(--primary) / 0.08) 55%,
       transparent 60%
     );
     background-size: 200% 100%;
@@ -169,10 +179,10 @@
     padding: 1px;
     background: linear-gradient(
       160deg,
-      rgba(100, 160, 255, 0.25) 0%,
-      rgba(60, 110, 220, 0.12) 30%,
-      rgba(255, 255, 255, 0.06) 60%,
-      rgba(60, 110, 220, 0.10) 100%
+      hsl(var(--primary) / 0.30) 0%,
+      hsl(var(--secondary) / 0.15) 30%,
+      hsl(var(--foreground) / 0.06) 60%,
+      hsl(var(--accent) / 0.12) 100%
     );
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
@@ -180,42 +190,48 @@
     mask-composite: exclude;
     pointer-events: none;
     z-index: 1;
-    transition: opacity 0.3s ease;
+    transition: background 0.4s ease, opacity 0.3s ease;
   }
 
   .glass-card:hover {
     transform: translateY(-4px);
-    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5), 0 0 20px rgba(80, 140, 255, 0.12);
+    box-shadow:
+      0 8px 40px rgba(0, 0, 0, 0.5),
+      0 0 30px hsl(var(--primary) / 0.15),
+      inset 0 1px 0 hsl(var(--primary) / 0.10);
   }
 
   .glass-card:hover::before {
     background: linear-gradient(
       160deg,
-      rgba(100, 160, 255, 0.45) 0%,
-      rgba(60, 110, 220, 0.22) 30%,
-      rgba(255, 255, 255, 0.10) 60%,
-      rgba(80, 140, 255, 0.20) 100%
+      hsl(var(--primary) / 0.50) 0%,
+      hsl(var(--secondary) / 0.25) 30%,
+      hsl(var(--foreground) / 0.10) 60%,
+      hsl(var(--accent) / 0.22) 100%
     );
   }
 
   .glass-card-selected::before {
     background: linear-gradient(
       160deg,
-      rgba(100, 160, 255, 0.5) 0%,
-      rgba(60, 110, 220, 0.3) 30%,
-      rgba(100, 160, 255, 0.15) 60%,
-      rgba(80, 140, 255, 0.25) 100%
+      hsl(var(--primary) / 0.55) 0%,
+      hsl(var(--secondary) / 0.30) 30%,
+      hsl(var(--primary) / 0.15) 60%,
+      hsl(var(--accent) / 0.28) 100%
     );
   }
 
   .glass-card-selected {
     transform: translateY(-2px);
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4), 0 0 25px rgba(59, 130, 246, 0.2), inset 0 0 30px rgba(59, 130, 246, 0.04);
+    box-shadow:
+      0 4px 30px rgba(0, 0, 0, 0.4),
+      0 0 25px hsl(var(--primary) / 0.20),
+      inset 0 0 30px hsl(var(--primary) / 0.05);
   }
 
   /* CTA Gradients */
   .gradient-cta-buy {
-    background: linear-gradient(90deg, #1a3a8f 0%, #2d6be4 50%, #5b9cf6 100%);
+    background: linear-gradient(90deg, hsl(var(--primary) / 0.7) 0%, hsl(var(--primary)) 50%, hsl(var(--accent) / 0.8) 100%);
   }
 
   .gradient-cta-green {
