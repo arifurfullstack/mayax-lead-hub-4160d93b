@@ -69,6 +69,9 @@ interface Props {
 
 const OrderDetailModal = ({ order, open, onOpenChange }: Props) => {
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewName, setPreviewName] = useState<string>("");
+  const [previewType, setPreviewType] = useState<"image" | "pdf" | "other">("other");
 
   const lead = order?.leads ?? null;
   const files = (lead?.document_files ?? []) as LeadFileEntry[];
