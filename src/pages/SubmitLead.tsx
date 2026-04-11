@@ -70,22 +70,34 @@ const SubmitLead = () => {
 
   const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [dragging, setDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const ALLOWED_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/webp", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
   const MAX_FILE_SIZE = 10 * 1024 * 1024;
   const MAX_FILES = 5;
 
+  const addValidFiles = (newFiles: File[]) => {
+    const validFiles = newFiles.filter(f => ALLOWED_TYPES.includes(f.type) && f.size <= MAX_FILE_SIZE);
+    if (validFiles.length > 0) {
+      setUploadedFiles(prev => [...prev, ...validFiles].slice(0, MAX_FILES));
+    }
+  };
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newFiles = Array.from(e.target.files || []);
-    const validFiles = newFiles.filter(f => {
-      if (!ALLOWED_TYPES.includes(f.type)) return false;
-      if (f.size > MAX_FILE_SIZE) return false;
-      return true;
-    });
-    setUploadedFiles(prev => [...prev, ...validFiles].slice(0, MAX_FILES));
+    addValidFiles(Array.from(e.target.files || []));
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragging(false);
+    if (uploadedFiles.length >= MAX_FILES) return;
+    addValidFiles(Array.from(e.dataTransfer.files));
+  };
+
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setDragging(true); };
+  const handleDragLeave = (e: React.DragEvent) => { e.preventDefault(); setDragging(false); };
 
   const removeFile = (index: number) => {
     setUploadedFiles(prev => prev.filter((_, i) => i !== index));
@@ -436,20 +448,28 @@ const SubmitLead = () => {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
                   disabled={uploadedFiles.length >= MAX_FILES}
                   className={cn(
-                    "w-full border-2 border-dashed rounded-xl p-6 text-center transition-all",
+                    "w-full border-2 border-dashed rounded-xl p-8 text-center transition-all",
                     uploadedFiles.length >= MAX_FILES
                       ? "border-border/30 opacity-50 cursor-not-allowed"
-                      : "border-border/50 hover:border-primary/40 hover:bg-primary/5 cursor-pointer"
+                      : dragging
+                        ? "border-primary bg-primary/10 scale-[1.01]"
+                        : "border-border/50 hover:border-primary/40 hover:bg-primary/5 cursor-pointer"
                   )}
                 >
-                  <Upload className="h-6 w-6 mx-auto text-muted-foreground mb-2" />
+                  <Upload className={cn("h-6 w-6 mx-auto mb-2 transition-colors", dragging ? "text-primary" : "text-muted-foreground")} />
                   <p className="text-sm text-muted-foreground">
                     {uploadedFiles.length >= MAX_FILES
                       ? "Maximum files reached"
-                      : "Click to browse or drop files here"}
+                      : dragging
+                        ? "Drop files here"
+                        : "Drag & drop files or click to browse"}
                   </p>
+                  <p className="text-[10px] text-muted-foreground/50 mt-1">PDF, JPG, PNG, WEBP, DOC, DOCX — max 10MB each</p>
                 </button>
 
                 {uploadedFiles.length > 0 && (
