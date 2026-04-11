@@ -475,6 +475,53 @@ const AdminBrandingSettings = ({
         </div>
       </div>
 
+      {/* Color Theme Presets */}
+      <div className="glass-card p-6 space-y-5">
+        <div className="flex items-center gap-2 mb-1">
+          <Palette className="h-4 w-4 text-primary" />
+          <h2 className="text-sm font-semibold text-foreground">Color Theme</h2>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Choose a color theme for the entire platform. Changes apply instantly across all pages.
+        </p>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {COLOR_THEMES.map((theme) => {
+            const isSelected = (settingsForm.theme_color_preset || "default") === theme.id;
+            return (
+              <button
+                key={theme.id}
+                type="button"
+                onClick={() => {
+                  setSettingsForm((prev) => ({ ...prev, theme_color_preset: theme.id }));
+                  applyTheme(theme);
+                }}
+                className={`relative rounded-xl border p-3 text-left transition-all ${
+                  isSelected
+                    ? "border-primary ring-2 ring-primary/30 bg-primary/5"
+                    : "border-border hover:border-primary/40 bg-card"
+                }`}
+              >
+                {isSelected && (
+                  <div className="absolute top-2 right-2 h-5 w-5 rounded-full bg-primary flex items-center justify-center">
+                    <Check className="h-3 w-3 text-primary-foreground" />
+                  </div>
+                )}
+                {/* Color swatches */}
+                <div className="flex gap-1.5 mb-2.5">
+                  <div className="h-6 w-6 rounded-full border border-white/10" style={{ background: theme.preview.bg }} />
+                  <div className="h-6 w-6 rounded-full border border-white/10" style={{ background: theme.preview.primary }} />
+                  <div className="h-6 w-6 rounded-full border border-white/10" style={{ background: theme.preview.secondary }} />
+                  <div className="h-6 w-6 rounded-full border border-white/10" style={{ background: theme.preview.accent }} />
+                </div>
+                <p className="text-xs font-semibold text-foreground">{theme.name}</p>
+                <p className="text-[10px] text-muted-foreground">{theme.description}</p>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Save Button */}
       <div className="flex justify-end">
         <Button
