@@ -286,22 +286,43 @@ const AdminPaymentManager = () => {
                 </div>
               )}
               {selectedGateway.id === "paypal" && (
-                <div>
-                  <Label>Mode</Label>
-                  <Select
-                    value={configForm.mode || "sandbox"}
-                    onValueChange={(v) => setConfigForm((f) => ({ ...f, mode: v }))}
-                  >
-                    <SelectTrigger className="bg-background">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="sandbox">Sandbox (Testing)</SelectItem>
-                      <SelectItem value="live">Live (Production)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    PayPal API keys are configured as server secrets.
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-xs">Client ID</Label>
+                    <Input
+                      value={configForm.client_id || ""}
+                      onChange={(e) => setConfigForm((f) => ({ ...f, client_id: e.target.value }))}
+                      placeholder="AV3g..."
+                      className="bg-background font-mono text-xs"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Client Secret</Label>
+                    <Input
+                      type="password"
+                      value={configForm.client_secret || ""}
+                      onChange={(e) => setConfigForm((f) => ({ ...f, client_secret: e.target.value }))}
+                      placeholder="EK..."
+                      className="bg-background font-mono text-xs"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Mode</Label>
+                    <Select
+                      value={configForm.mode || "sandbox"}
+                      onValueChange={(v) => setConfigForm((f) => ({ ...f, mode: v }))}
+                    >
+                      <SelectTrigger className="bg-background">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="sandbox">Sandbox (Testing)</SelectItem>
+                        <SelectItem value="live">Live (Production)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Find these in your <span className="font-medium">PayPal Developer Dashboard → Apps & Credentials</span>.
                   </p>
                 </div>
               )}
