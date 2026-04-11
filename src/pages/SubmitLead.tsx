@@ -26,11 +26,10 @@ const provinces = [
 ];
 
 const DOCUMENT_TYPES = [
-  { id: "license", label: "Driver License" },
-  { id: "paystub", label: "Paystubs" },
-  { id: "bank_statement", label: "Bank Statements" },
-  { id: "credit_report", label: "Credit Report" },
-  { id: "pre_approval", label: "Pre-Approval" },
+  { id: "license", label: "Driver's License", icon: CreditCard, color: "from-primary/20 to-primary/5" },
+  { id: "paystub", label: "Paystubs", icon: Banknote, color: "from-secondary/20 to-secondary/5" },
+  { id: "trade_in_pics", label: "Trade-In Pics", icon: Image, color: "from-accent/20 to-accent/5" },
+  { id: "bank_statement", label: "Bank Statements", icon: FileCheck, color: "from-primary/20 to-cyan-500/5" },
 ];
 
 const formatAmount = (v: string) => {
