@@ -448,20 +448,28 @@ const SubmitLead = () => {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
                   disabled={uploadedFiles.length >= MAX_FILES}
                   className={cn(
-                    "w-full border-2 border-dashed rounded-xl p-6 text-center transition-all",
+                    "w-full border-2 border-dashed rounded-xl p-8 text-center transition-all",
                     uploadedFiles.length >= MAX_FILES
                       ? "border-border/30 opacity-50 cursor-not-allowed"
-                      : "border-border/50 hover:border-primary/40 hover:bg-primary/5 cursor-pointer"
+                      : dragging
+                        ? "border-primary bg-primary/10 scale-[1.01]"
+                        : "border-border/50 hover:border-primary/40 hover:bg-primary/5 cursor-pointer"
                   )}
                 >
-                  <Upload className="h-6 w-6 mx-auto text-muted-foreground mb-2" />
+                  <Upload className={cn("h-6 w-6 mx-auto mb-2 transition-colors", dragging ? "text-primary" : "text-muted-foreground")} />
                   <p className="text-sm text-muted-foreground">
                     {uploadedFiles.length >= MAX_FILES
                       ? "Maximum files reached"
-                      : "Click to browse or drop files here"}
+                      : dragging
+                        ? "Drop files here"
+                        : "Drag & drop files or click to browse"}
                   </p>
+                  <p className="text-[10px] text-muted-foreground/50 mt-1">PDF, JPG, PNG, WEBP, DOC, DOCX — max 10MB each</p>
                 </button>
 
                 {uploadedFiles.length > 0 && (
