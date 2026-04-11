@@ -34,6 +34,7 @@ const BRAND_SETTINGS_KEYS = [
   "theme_logo_url",
   "theme_favicon_url",
   "theme_og_image_url",
+  "theme_color_preset",
 ];
 
 const AdminBrandingSettings = ({
