@@ -282,7 +282,7 @@ const Login = () => {
             <Button
               variant="ghost"
               className="w-full h-10 text-sm text-muted-foreground hover:text-primary hover:bg-white/[0.04] rounded-xl mt-2"
-              onClick={() => navigate("/submit-lead")}
+              onClick={() => navigate("/apply")}
             >
               Have a lead to sell? Submit it here →
             </Button>
