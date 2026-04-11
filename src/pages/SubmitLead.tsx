@@ -119,7 +119,7 @@ const SubmitLead = () => {
   const allUploadedFiles = Object.values(categoryFiles).flat();
 
   const removeFile = (index: number) => {
-    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+    // legacy - unused now
   };
 
   const formatFileSize = (bytes: number) => {
@@ -172,10 +172,10 @@ const SubmitLead = () => {
 
     try {
       let res: Response;
-      if (uploadedFiles.length > 0) {
+      if (allUploadedFiles.length > 0) {
         const formData = new FormData();
         formData.append("data", JSON.stringify(payload));
-        uploadedFiles.forEach((file, i) => {
+        allUploadedFiles.forEach((file, i) => {
           formData.append(`file_${i}`, file);
         });
         res = await fetch(
@@ -216,7 +216,7 @@ const SubmitLead = () => {
           <p className="text-muted-foreground text-sm">
             Thank you for your submission. Our team will review your information and match you with the right dealer.
           </p>
-          <Button onClick={() => { setSubmitted(false); setStep(0); setForm({ first_name: "", last_name: "", email: "", phone: "", city: "", province: "", buyer_type: "online", vehicle_preference: "", vehicle_price: "", vehicle_mileage: "", income: "", credit_range_min: "", credit_range_max: "", notes: "", appointment_time: "", trade_in: false }); setSelectedDocs([]); setUploadedFiles([]); }} className="gradient-blue-cyan text-foreground">
+          <Button onClick={() => { setSubmitted(false); setStep(0); setForm({ first_name: "", last_name: "", email: "", phone: "", city: "", province: "", buyer_type: "online", vehicle_preference: "", vehicle_price: "", vehicle_mileage: "", income: "", credit_range_min: "", credit_range_max: "", notes: "", appointment_time: "", trade_in: false }); setSelectedDocs([]); setCategoryFiles({}); }} className="gradient-blue-cyan text-foreground">
             Submit Another Lead
           </Button>
         </div>
