@@ -21,6 +21,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import AdminDashboard from "./pages/AdminDashboard";
+import SubmitLead from "./pages/SubmitLead";
 import DynamicHead from "./components/DynamicHead";
 import { useApplyTheme } from "./hooks/useApplyTheme";
 
@@ -44,6 +45,7 @@ const App = () => (
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/submit-lead" element={<SubmitLead />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/pending" element={<Pending />} />
           <Route path="/rejected" element={<Rejected />} />
