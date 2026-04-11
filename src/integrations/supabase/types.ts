@@ -803,6 +803,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_lead_preview_data: {
+        Args: never
+        Returns: {
+          buyer_type: string
+          city: string
+          income: number
+          price: number
+          province: string
+          quality_grade: string
+          reference_code: string
+        }[]
+      }
       get_marketplace_leads: {
         Args: { requesting_dealer_id?: string }
         Returns: {

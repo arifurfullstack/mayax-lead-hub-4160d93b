@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Mail, Lock, Crosshair, Zap, ShieldCheck, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,23 +8,33 @@ import { toast } from "@/hooks/use-toast";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import fallbackLogo from "@/assets/mayax-logo.jpg";
 
-/* ── Fake marketplace rows for the blurred background ── */
-const fakeLeads = [
-  { ref: "CACI # AGGSTON", grade: "A", price: "$45", income: "$8,200", city: "Toronto" },
-  { ref: "CACI & LORBEN", grade: "B+", price: "$35", income: "$5,100", city: "Vancouver" },
-  { ref: "FXCI & LORBEN", grade: "A+", price: "$55", income: "$9,400", city: "Calgary" },
-  { ref: "FXCI & MAPREDIANR", grade: "B", price: "$30", income: "$4,800", city: "Montreal" },
-  { ref: "CACI & NORMION", grade: "C+", price: "$25", income: "$3,200", city: "Ottawa" },
-  { ref: "TSUF # XERSION", grade: "A", price: "$50", income: "$7,600", city: "Edmonton" },
-  { ref: "CICI & CAMP", grade: "B+", price: "$40", income: "$6,100", city: "Winnipeg" },
-  { ref: "FXCI # MAPESONR", grade: "C", price: "$22", income: "$2,900", city: "Halifax" },
-  { ref: "CACI & MEDITION", grade: "A+", price: "$58", income: "$9,900", city: "Victoria" },
-  { ref: "TUAF # XERLUN", grade: "B", price: "$32", income: "$4,500", city: "Saskatoon" },
-  { ref: "CACI & LORBEN", grade: "A", price: "$48", income: "$7,200", city: "Hamilton" },
-  { ref: "FXCI # MAPESONR", grade: "B+", price: "$38", income: "$5,800", city: "Quebec" },
+/* ── Fallback rows if DB fetch fails ── */
+const fallbackLeads = [
+  { reference_code: "CACI # AGGSTON", quality_grade: "A", price: 45, income: 8200, city: "Toronto", province: "ON", buyer_type: "online" },
+  { reference_code: "CACI & LORBEN", quality_grade: "B+", price: 35, income: 5100, city: "Vancouver", province: "BC", buyer_type: "online" },
+  { reference_code: "FXCI & LORBEN", quality_grade: "A+", price: 55, income: 9400, city: "Calgary", province: "AB", buyer_type: "online" },
+  { reference_code: "FXCI & MAPREDIANR", quality_grade: "B", price: 30, income: 4800, city: "Montreal", province: "QC", buyer_type: "online" },
+  { reference_code: "CACI & NORMION", quality_grade: "C+", price: 25, income: 3200, city: "Ottawa", province: "ON", buyer_type: "online" },
+  { reference_code: "TSUF # XERSION", quality_grade: "A", price: 50, income: 7600, city: "Edmonton", province: "AB", buyer_type: "online" },
+  { reference_code: "CICI & CAMP", quality_grade: "B+", price: 40, income: 6100, city: "Winnipeg", province: "MB", buyer_type: "online" },
+  { reference_code: "FXCI # MAPESONR", quality_grade: "C", price: 22, income: 2900, city: "Halifax", province: "NS", buyer_type: "online" },
+  { reference_code: "CACI & MEDITION", quality_grade: "A+", price: 58, income: 9900, city: "Victoria", province: "BC", buyer_type: "online" },
+  { reference_code: "TUAF # XERLUN", quality_grade: "B", price: 32, income: 4500, city: "Saskatoon", province: "SK", buyer_type: "online" },
+  { reference_code: "CACI & LORBEN", quality_grade: "A", price: 48, income: 7200, city: "Hamilton", province: "ON", buyer_type: "online" },
+  { reference_code: "FXCI # MAPESONR", quality_grade: "B+", price: 38, income: 5800, city: "Quebec", province: "QC", buyer_type: "online" },
 ];
 
-const MarketplaceBg = () => (
+type PreviewLead = {
+  reference_code: string;
+  buyer_type: string | null;
+  price: number;
+  income: number | null;
+  city: string | null;
+  province: string | null;
+  quality_grade: string | null;
+};
+
+const MarketplaceBg = ({ leads }: { leads: PreviewLead[] }) => (
   <div className="absolute inset-0 overflow-hidden select-none pointer-events-none" aria-hidden>
     {/* Header row */}
     <div className="flex items-center justify-between px-6 py-3 border-b border-white/5">
@@ -39,43 +49,49 @@ const MarketplaceBg = () => (
       <span>Type</span><span>Reference</span><span>Price</span><span>Income</span><span>City</span><span>Grade</span>
     </div>
     {/* Rows */}
-    {fakeLeads.map((l, i) => (
+    {leads.map((l, i) => (
       <div
         key={i}
         className="grid grid-cols-6 gap-2 px-6 py-2.5 text-[11px] text-white/20 border-b border-white/[0.03]"
       >
-        <span className="truncate">{l.ref}</span>
-        <span>{l.ref.slice(0, 8)}</span>
-        <span>{l.price}</span>
-        <span>{l.income}</span>
-        <span>{l.city}</span>
-        <span className="font-semibold">{l.grade}</span>
+        <span className="truncate">{l.buyer_type || "online"}</span>
+        <span>{l.reference_code.slice(0, 8)}</span>
+        <span>${l.price}</span>
+        <span>${l.income?.toLocaleString() ?? "—"}</span>
+        <span>{l.city ?? "—"}, {l.province ?? ""}</span>
+        <span className="font-semibold">{l.quality_grade ?? "B"}</span>
       </div>
     ))}
-    {/* Duplicate rows offset for fullness */}
-    {fakeLeads.map((l, i) => (
+    {/* Duplicate rows for fullness */}
+    {leads.map((l, i) => (
       <div
         key={`dup-${i}`}
         className="grid grid-cols-6 gap-2 px-6 py-2.5 text-[11px] text-white/15 border-b border-white/[0.02]"
       >
-        <span className="truncate">{l.ref}</span>
-        <span>{l.ref.slice(0, 8)}</span>
-        <span>{l.price}</span>
-        <span>{l.income}</span>
-        <span>{l.city}</span>
-        <span className="font-semibold">{l.grade}</span>
+        <span className="truncate">{l.buyer_type || "online"}</span>
+        <span>{l.reference_code.slice(0, 8)}</span>
+        <span>${l.price}</span>
+        <span>${l.income?.toLocaleString() ?? "—"}</span>
+        <span>{l.city ?? "—"}, {l.province ?? ""}</span>
+        <span className="font-semibold">{l.quality_grade ?? "B"}</span>
       </div>
     ))}
   </div>
 );
-
 const Login = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [bgLeads, setBgLeads] = useState<PreviewLead[]>(fallbackLeads);
   const { data: settings } = usePlatformSettings();
   const logoSrc = settings?.theme_logo_url || fallbackLogo;
+
+  useEffect(() => {
+    supabase.rpc("get_lead_preview_data").then(({ data }) => {
+      if (data && data.length > 0) setBgLeads(data as PreviewLead[]);
+    });
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,7 +145,7 @@ const Login = () => {
       {/* ── Blurred marketplace background ── */}
       <div className="absolute inset-0" style={{ filter: "blur(1px) brightness(0.85) saturate(1.6)" }}>
         <div className="absolute inset-0 bg-gradient-to-b from-[#0a1628]/60 via-transparent to-[#050510]" />
-        <MarketplaceBg />
+        <MarketplaceBg leads={bgLeads} />
       </div>
 
       {/* Blue/purple ambient glow */}
