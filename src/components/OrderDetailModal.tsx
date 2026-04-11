@@ -314,29 +314,79 @@ const OrderDetailModal = ({ order, open, onOpenChange }: Props) => {
 
           {/* Downloadable Files */}
           {files.length > 0 && (
-            <Section title="Attached Files">
+            <Section title={`Documents (${files.length})`}>
               <div className="space-y-1.5">
-                {files.map((f, i) => (
-                  <Button
-                    key={i}
-                    variant="ghost"
-                    size="sm"
-                    className="w-full justify-start gap-2 text-sm h-auto py-1.5 px-2"
-                    onClick={() => handleDownload(f)}
-                    disabled={downloading === f.path}
-                  >
-                    {downloading === f.path ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-                    ) : (
-                      <Download className="h-3.5 w-3.5 text-primary" />
-                    )}
-                    <span className="text-foreground truncate">{f.name}</span>
-                  </Button>
-                ))}
+                {files.map((f, i) => {
+                  const IconComp = getFileIcon(f.name);
+                  const canPreview = getFileType(f.name) !== "other";
+                  return (
+                    <div key={i} className="flex items-center gap-1 rounded-md border border-border/50 bg-muted/30 px-2 py-1.5">
+                      <IconComp className="h-4 w-4 text-primary shrink-0" />
+                      <span className="text-sm text-foreground truncate flex-1">{f.name}</span>
+                      {canPreview && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 shrink-0"
+                          onClick={() => handlePreview(f)}
+                          disabled={downloading === f.path}
+                          title="Preview"
+                        >
+                          {downloading === f.path ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                          ) : (
+                            <Eye className="h-3.5 w-3.5 text-primary" />
+                          )}
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 shrink-0"
+                        onClick={() => handleDownload(f)}
+                        disabled={downloading === f.path}
+                        title="Download"
+                      >
+                        {downloading === f.path ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                        ) : (
+                          <Download className="h-3.5 w-3.5 text-primary" />
+                        )}
+                      </Button>
+                    </div>
+                  );
+                })}
               </div>
             </Section>
           )}
         </div>
+
+        {/* Document Preview Dialog */}
+        {previewUrl && (
+          <Dialog open={!!previewUrl} onOpenChange={(o) => { if (!o) closePreview(); }}>
+            <DialogContent className="max-w-3xl max-h-[85vh] bg-card border-border p-0 overflow-hidden">
+              <DialogHeader className="p-4 pb-2">
+                <DialogTitle className="flex items-center gap-2 text-sm">
+                  <FileText className="h-4 w-4 text-primary" />
+                  {previewName}
+                  <Button variant="ghost" size="sm" className="ml-auto gap-1.5" asChild>
+                    <a href={previewUrl} download={previewName}>
+                      <Download className="h-3.5 w-3.5" /> Download
+                    </a>
+                  </Button>
+                </DialogTitle>
+              </DialogHeader>
+              <div className="px-4 pb-4 overflow-auto max-h-[70vh] flex items-center justify-center">
+                {previewType === "image" && (
+                  <img src={previewUrl} alt={previewName} className="max-w-full max-h-[65vh] rounded-md object-contain" />
+                )}
+                {previewType === "pdf" && (
+                  <iframe src={previewUrl} className="w-full h-[65vh] rounded-md border-0" title={previewName} />
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
       </DialogContent>
     </Dialog>
   );
