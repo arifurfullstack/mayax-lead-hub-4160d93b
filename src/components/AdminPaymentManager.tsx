@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CreditCard, Building2, Settings2, CheckCircle2, XCircle, DollarSign } from "lucide-react";
+import { CreditCard, Building2, Settings2, CheckCircle2, XCircle, DollarSign, Zap, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 
@@ -36,6 +36,8 @@ const AdminPaymentManager = () => {
   const [selectedGateway, setSelectedGateway] = useState<any>(null);
   const [configForm, setConfigForm] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
   const { data: gateways, isLoading } = useQuery({
     queryKey: ["payment-gateways"],
@@ -90,7 +92,24 @@ const AdminPaymentManager = () => {
     setSelectedGateway(gw);
     const config = (gw.config || {}) as Record<string, string>;
     setConfigForm({ ...config });
+    setTestResult(null);
     setConfigOpen(true);
+  };
+
+  const testConnection = async () => {
+    if (!selectedGateway) return;
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("test-gateway", {
+        body: { gateway: selectedGateway.id, config: configForm },
+      });
+      if (error) throw error;
+      setTestResult(data);
+    } catch (err: any) {
+      setTestResult({ success: false, message: err.message || "Connection test failed" });
+    }
+    setTesting(false);
   };
 
   const saveConfig = async () => {
@@ -356,9 +375,24 @@ const AdminPaymentManager = () => {
                   </div>
                 </div>
               )}
-              <Button className="w-full" onClick={saveConfig} disabled={saving}>
-                {saving ? "Saving..." : "Save Configuration"}
-              </Button>
+              {testResult && (
+                <div className={cn(
+                  "p-3 rounded-lg text-xs flex items-start gap-2",
+                  testResult.success ? "bg-success/10 text-success border border-success/20" : "bg-destructive/10 text-destructive border border-destructive/20"
+                )}>
+                  {testResult.success ? <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" /> : <XCircle className="h-4 w-4 mt-0.5 shrink-0" />}
+                  <span>{testResult.message}</span>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1 gap-1.5" onClick={testConnection} disabled={testing}>
+                  {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
+                  {testing ? "Testing..." : "Test Connection"}
+                </Button>
+                <Button className="flex-1" onClick={saveConfig} disabled={saving}>
+                  {saving ? "Saving..." : "Save Configuration"}
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>
