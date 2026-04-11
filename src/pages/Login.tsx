@@ -279,6 +279,14 @@ const Login = () => {
               Create Dealer Account
             </Button>
 
+            <Button
+              variant="ghost"
+              className="w-full h-10 text-sm text-muted-foreground hover:text-primary hover:bg-white/[0.04] rounded-xl mt-2"
+              onClick={() => navigate("/submit-lead")}
+            >
+              Have a lead to sell? Submit it here →
+            </Button>
+
             <div className="mt-8 flex items-center justify-center gap-2">
               <ShieldCheck className="w-5 h-5 text-primary" />
               <div className="text-left">
