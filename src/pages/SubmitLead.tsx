@@ -496,7 +496,7 @@ const SubmitLead = () => {
             ) : (
               <div />
             )}
-            {step < 2 ? (
+            {step < 1 ? (
               <Button
                 onClick={() => setStep(step + 1)}
                 disabled={!canProceed}
