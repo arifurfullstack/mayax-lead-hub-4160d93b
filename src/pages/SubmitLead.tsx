@@ -269,63 +269,8 @@ const SubmitLead = () => {
       {/* Form */}
       <div className="max-w-2xl mx-auto px-4 pb-20">
         <div className="glass-card p-6 sm:p-8 space-y-6">
-          {/* Step 1: Personal Info */}
+          {/* Step 1: Vehicle & Financial */}
           {step === 0 && (
-            <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
-              <div>
-                <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                  <User className="h-5 w-5 text-primary" />
-                  Personal Information
-                </h3>
-                <p className="text-xs text-muted-foreground mt-1">Tell us about yourself so we can find the best match.</p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">First Name <span className="text-destructive">*</span></Label>
-                  <Input value={form.first_name} onChange={(e) => update("first_name", e.target.value)} placeholder="John" className="bg-background/50 border-border focus:border-primary" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Last Name <span className="text-destructive">*</span></Label>
-                  <Input value={form.last_name} onChange={(e) => update("last_name", e.target.value)} placeholder="Doe" className="bg-background/50 border-border focus:border-primary" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground flex items-center gap-1.5"><Mail className="h-3 w-3" /> Email</Label>
-                  <Input type="email" value={form.email} onChange={(e) => update("email", e.target.value)} placeholder="john@example.com" className="bg-background/50 border-border focus:border-primary" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground flex items-center gap-1.5"><Phone className="h-3 w-3" /> Phone</Label>
-                  <Input value={form.phone} onChange={(e) => update("phone", e.target.value)} placeholder="(416) 555-1234" className="bg-background/50 border-border focus:border-primary" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground flex items-center gap-1.5"><MapPin className="h-3 w-3" /> City</Label>
-                  <Input value={form.city} onChange={(e) => update("city", e.target.value)} placeholder="Toronto" className="bg-background/50 border-border focus:border-primary" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Province</Label>
-                  <Select value={form.province} onValueChange={(v) => update("province", v)}>
-                    <SelectTrigger className="bg-background/50 border-border">
-                      <SelectValue placeholder="Select province" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {provinces.map((p) => (
-                        <SelectItem key={p} value={p}>{p}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Step 2: Vehicle & Financial */}
-          {step === 1 && (
             <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
               <div>
                 <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
@@ -379,40 +324,61 @@ const SubmitLead = () => {
             </div>
           )}
 
-          {/* Step 3: Details & Submit */}
-          {step === 2 && (
+          {/* Step 2: Personal Info + Documents */}
+          {step === 1 && (
             <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
               <div>
                 <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-primary" />
-                  Additional Details
+                  <User className="h-5 w-5 text-primary" />
+                  Personal Information
                 </h3>
-                <p className="text-xs text-muted-foreground mt-1">Almost done! Add any extra info to help dealers serve you better.</p>
+                <p className="text-xs text-muted-foreground mt-1">Tell us about yourself so we can find the best match.</p>
               </div>
 
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Buyer Type</Label>
-                <Select value={form.buyer_type} onValueChange={(v) => update("buyer_type", v)}>
-                  <SelectTrigger className="bg-background/50 border-border">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="online">Online Buyer</SelectItem>
-                    <SelectItem value="walk-in">Walk-in</SelectItem>
-                    <SelectItem value="referral">Referral</SelectItem>
-                    <SelectItem value="phone">Phone Inquiry</SelectItem>
-                    <SelectItem value="refinance">Refinance</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">First Name <span className="text-destructive">*</span></Label>
+                  <Input value={form.first_name} onChange={(e) => update("first_name", e.target.value)} placeholder="John" className="bg-background/50 border-border focus:border-primary" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Last Name <span className="text-destructive">*</span></Label>
+                  <Input value={form.last_name} onChange={(e) => update("last_name", e.target.value)} placeholder="Doe" className="bg-background/50 border-border focus:border-primary" />
+                </div>
               </div>
 
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground flex items-center gap-1.5"><Calendar className="h-3 w-3" /> Preferred Appointment Time</Label>
-                <Input type="datetime-local" value={form.appointment_time} onChange={(e) => update("appointment_time", e.target.value)} className="bg-background/50 border-border focus:border-primary" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground flex items-center gap-1.5"><Mail className="h-3 w-3" /> Email</Label>
+                  <Input type="email" value={form.email} onChange={(e) => update("email", e.target.value)} placeholder="john@example.com" className="bg-background/50 border-border focus:border-primary" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground flex items-center gap-1.5"><Phone className="h-3 w-3" /> Phone</Label>
+                  <Input value={form.phone} onChange={(e) => update("phone", e.target.value)} placeholder="(416) 555-1234" className="bg-background/50 border-border focus:border-primary" />
+                </div>
               </div>
 
-              {/* Upload Your Documents - Card Layout */}
-              <div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground flex items-center gap-1.5"><MapPin className="h-3 w-3" /> City</Label>
+                  <Input value={form.city} onChange={(e) => update("city", e.target.value)} placeholder="Toronto" className="bg-background/50 border-border focus:border-primary" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Province</Label>
+                  <Select value={form.province} onValueChange={(v) => update("province", v)}>
+                    <SelectTrigger className="bg-background/50 border-border">
+                      <SelectValue placeholder="Select province" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {provinces.map((p) => (
+                        <SelectItem key={p} value={p}>{p}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Upload Your Documents */}
+              <div className="border-t border-border/50 pt-5">
                 <div className="text-center mb-5">
                   <h4 className="text-base font-semibold text-foreground">Upload Your Documents</h4>
                   <p className="text-xs text-muted-foreground mt-1">
