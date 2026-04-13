@@ -225,10 +225,6 @@ const SubmitLead = () => {
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-secondary/10" />
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full bg-primary/5 blur-[120px]" />
         <div className="relative z-10 max-w-4xl mx-auto px-4 pt-12 pb-8 text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-medium mb-6">
-            <Sparkles className="h-3.5 w-3.5" />
-            <span>Powered by MayaX Lead Hub</span>
-          </div>
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-foreground mb-4 leading-tight">
             Get Matched with the
             <span className="block bg-gradient-to-r from-primary via-secondary to-primary bg-clip-text text-transparent">
