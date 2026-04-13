@@ -513,7 +513,7 @@ const SubmitLead = () => {
                 {submitting ? (
                   <><Loader2 className="h-4 w-4 animate-spin" /> Submitting...</>
                 ) : (
-                  <><Send className="h-4 w-4" /> Submit Lead</>
+                  <><Send className="h-4 w-4" /> Submit</>
                 )}
               </Button>
             )}
