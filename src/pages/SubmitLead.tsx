@@ -129,15 +129,13 @@ const SubmitLead = () => {
 
 
   const steps = [
-    { title: "Personal Info", icon: User },
-    { title: "Vehicle & Financial", icon: Car },
-    { title: "Details & Submit", icon: Send },
+    { title: "Vehicle Info", icon: Car },
+    { title: "Your Details", icon: User },
   ];
 
   const canProceed = useMemo(() => {
-    if (step === 0) return form.first_name.trim() && form.last_name.trim();
     return true;
-  }, [step, form.first_name, form.last_name]);
+  }, [step]);
 
   const handleSubmit = async () => {
     setSubmitting(true);
