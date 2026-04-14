@@ -269,6 +269,59 @@ export type Database = {
           },
         ]
       }
+      lead_requests: {
+        Row: {
+          admin_notes: string | null
+          city: string | null
+          created_at: string
+          dealer_id: string
+          id: string
+          notes: string | null
+          price_max: number | null
+          price_min: number | null
+          province: string | null
+          status: string
+          updated_at: string
+          vehicle_type: string | null
+        }
+        Insert: {
+          admin_notes?: string | null
+          city?: string | null
+          created_at?: string
+          dealer_id: string
+          id?: string
+          notes?: string | null
+          price_max?: number | null
+          price_min?: number | null
+          province?: string | null
+          status?: string
+          updated_at?: string
+          vehicle_type?: string | null
+        }
+        Update: {
+          admin_notes?: string | null
+          city?: string | null
+          created_at?: string
+          dealer_id?: string
+          id?: string
+          notes?: string | null
+          price_max?: number | null
+          price_min?: number | null
+          province?: string | null
+          status?: string
+          updated_at?: string
+          vehicle_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_requests_dealer_id_fkey"
+            columns: ["dealer_id"]
+            isOneToOne: false
+            referencedRelation: "dealers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           ai_score: number | null
