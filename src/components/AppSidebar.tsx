@@ -10,6 +10,7 @@ import {
   LogOut,
   DollarSign,
   Shield,
+  FileText,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, Link } from "react-router-dom";
@@ -37,6 +38,7 @@ const mainItems = [
   { title: "Wallet", url: "/wallet", icon: Wallet },
   { title: "Subscription", url: "/subscription", icon: CreditCard },
   { title: "AutoPay", url: "/autopay", icon: Zap },
+  { title: "Request Lead", url: "/request-lead", icon: FileText },
 ];
 
 const settingsItems = [

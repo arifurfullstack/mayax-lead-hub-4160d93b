@@ -59,6 +59,7 @@ import AdminPromoCodeManager from "@/components/AdminPromoCodeManager";
 import AdminPromoUsageHistory from "@/components/AdminPromoUsageHistory";
 import AdminWebhookSettings from "@/components/AdminWebhookSettings";
 import AdminLeadPricingSettings from "@/components/AdminLeadPricingSettings";
+import AdminLeadRequests from "@/components/AdminLeadRequests";
 import LeadFileUploader from "@/components/LeadFileUploader";
 import AdminLeadTable, { type AdminLead } from "@/components/AdminLeadTable";
 
@@ -433,6 +434,9 @@ const AdminDashboard = () => {
           <TabsTrigger value="webhooks" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
             <Webhook className="h-4 w-4" /> Webhooks
           </TabsTrigger>
+          <TabsTrigger value="lead-requests" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
+            <FileText className="h-4 w-4" /> Lead Requests
+          </TabsTrigger>
         </TabsList>
 
         {/* ─── Dealers Tab ─── */}
@@ -630,6 +634,10 @@ const AdminDashboard = () => {
             platformSettings={platformSettings}
             onSaved={fetchData}
           />
+        </TabsContent>
+        {/* ─── Lead Requests Tab ─── */}
+        <TabsContent value="lead-requests" className="space-y-4">
+          <AdminLeadRequests />
         </TabsContent>
       </Tabs>
 
