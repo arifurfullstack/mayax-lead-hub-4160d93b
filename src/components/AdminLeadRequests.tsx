@@ -43,6 +43,13 @@ const statusBadge: Record<string, { class: string; icon: typeof Clock }> = {
   cancelled: { class: "bg-destructive/20 text-destructive", icon: XCircle },
 };
 
+const generateReferenceCode = () => {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let code = "LR-";
+  for (let i = 0; i < 6; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+  return code;
+};
+
 const AdminLeadRequests = () => {
   const [requests, setRequests] = useState<LeadRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,6 +58,30 @@ const AdminLeadRequests = () => {
   const [newStatus, setNewStatus] = useState("");
   const [saving, setSaving] = useState(false);
   const [filter, setFilter] = useState("all");
+
+  // Lead creation fields (shown when status = fulfilled)
+  const [leadForm, setLeadForm] = useState({
+    first_name: "",
+    last_name: "",
+    phone: "",
+    email: "",
+    price: "",
+    income: "",
+    credit_range_min: "",
+    credit_range_max: "",
+    buyer_type: "online",
+    vehicle_preference: "",
+    vehicle_price: "",
+    notes: "",
+  });
+
+  const resetLeadForm = () => {
+    setLeadForm({
+      first_name: "", last_name: "", phone: "", email: "",
+      price: "", income: "", credit_range_min: "", credit_range_max: "",
+      buyer_type: "online", vehicle_preference: "", vehicle_price: "", notes: "",
+    });
+  };
 
   const fetchRequests = async () => {
     setLoading(true);
@@ -67,6 +98,43 @@ const AdminLeadRequests = () => {
   const handleUpdate = async () => {
     if (!selected) return;
     setSaving(true);
+
+    // If fulfilling, create a lead first
+    if (newStatus === "fulfilled") {
+      if (!leadForm.first_name.trim() || !leadForm.last_name.trim() || !leadForm.price) {
+        toast({ title: "Required Fields", description: "First name, last name, and price are required to create a lead.", variant: "destructive" });
+        setSaving(false);
+        return;
+      }
+
+      const { error: leadError } = await supabase.from("leads").insert({
+        reference_code: generateReferenceCode(),
+        first_name: leadForm.first_name.trim(),
+        last_name: leadForm.last_name.trim(),
+        phone: leadForm.phone.trim() || null,
+        email: leadForm.email.trim() || null,
+        price: Number(leadForm.price),
+        income: leadForm.income ? Number(leadForm.income) : null,
+        credit_range_min: leadForm.credit_range_min ? Number(leadForm.credit_range_min) : null,
+        credit_range_max: leadForm.credit_range_max ? Number(leadForm.credit_range_max) : null,
+        buyer_type: leadForm.buyer_type,
+        vehicle_preference: leadForm.vehicle_preference.trim() || selected.vehicle_type || null,
+        vehicle_price: leadForm.vehicle_price ? Number(leadForm.vehicle_price) : null,
+        city: selected.city || null,
+        province: selected.province || null,
+        notes: leadForm.notes.trim() || null,
+        sold_status: "available",
+        quality_grade: "B",
+        ai_score: 50,
+      });
+
+      if (leadError) {
+        toast({ title: "Error creating lead", description: leadError.message, variant: "destructive" });
+        setSaving(false);
+        return;
+      }
+    }
+
     const { error } = await supabase.from("lead_requests").update({
       status: newStatus,
       admin_notes: adminNotes || null,
@@ -75,9 +143,21 @@ const AdminLeadRequests = () => {
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Updated", description: "Lead request updated." });
+      toast({ title: "Updated", description: newStatus === "fulfilled" ? "Lead request fulfilled and lead created in marketplace." : "Lead request updated." });
       setSelected(null);
+      resetLeadForm();
       fetchRequests();
+    }
+  };
+
+  const openDetail = (r: LeadRequest) => {
+    setSelected(r);
+    setNewStatus(r.status);
+    setAdminNotes(r.admin_notes || "");
+    resetLeadForm();
+    // Pre-fill vehicle preference from request
+    if (r.vehicle_type) {
+      setLeadForm(prev => ({ ...prev, vehicle_preference: r.vehicle_type || "" }));
     }
   };
 
@@ -150,15 +230,7 @@ const AdminLeadRequests = () => {
                       {new Date(r.created_at).toLocaleDateString()}
                     </td>
                     <td className="p-3">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          setSelected(r);
-                          setNewStatus(r.status);
-                          setAdminNotes(r.admin_notes || "");
-                        }}
-                      >
+                      <Button size="sm" variant="ghost" onClick={() => openDetail(r)}>
                         <Eye className="h-4 w-4" />
                       </Button>
                     </td>
@@ -170,8 +242,8 @@ const AdminLeadRequests = () => {
         </div>
       )}
 
-      <Dialog open={!!selected} onOpenChange={() => setSelected(null)}>
-        <DialogContent className="bg-card border-border">
+      <Dialog open={!!selected} onOpenChange={() => { setSelected(null); resetLeadForm(); }}>
+        <DialogContent className="bg-card border-border max-h-[85vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Lead Request Details</DialogTitle>
           </DialogHeader>
@@ -198,7 +270,7 @@ const AdminLeadRequests = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="fulfilled">Fulfilled</SelectItem>
+                    <SelectItem value="fulfilled">Fulfilled (Create Lead)</SelectItem>
                     <SelectItem value="cancelled">Cancelled</SelectItem>
                   </SelectContent>
                 </Select>
@@ -211,12 +283,131 @@ const AdminLeadRequests = () => {
                   placeholder="Add notes for the dealer..."
                 />
               </div>
+
+              {/* Lead creation form - shown when fulfilling */}
+              {newStatus === "fulfilled" && selected.status !== "fulfilled" && (
+                <div className="border border-primary/30 rounded-lg p-4 space-y-3 bg-primary/5">
+                  <h4 className="text-sm font-semibold text-primary">Create Lead for Marketplace</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">First Name *</Label>
+                      <Input
+                        value={leadForm.first_name}
+                        onChange={(e) => setLeadForm({ ...leadForm, first_name: e.target.value })}
+                        placeholder="John"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Last Name *</Label>
+                      <Input
+                        value={leadForm.last_name}
+                        onChange={(e) => setLeadForm({ ...leadForm, last_name: e.target.value })}
+                        placeholder="Doe"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">Phone</Label>
+                      <Input
+                        value={leadForm.phone}
+                        onChange={(e) => setLeadForm({ ...leadForm, phone: e.target.value })}
+                        placeholder="(416) 555-0123"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Email</Label>
+                      <Input
+                        value={leadForm.email}
+                        onChange={(e) => setLeadForm({ ...leadForm, email: e.target.value })}
+                        placeholder="john@example.com"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">Lead Price ($) *</Label>
+                      <Input
+                        type="number"
+                        value={leadForm.price}
+                        onChange={(e) => setLeadForm({ ...leadForm, price: e.target.value })}
+                        placeholder="25"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Buyer Type</Label>
+                      <Select value={leadForm.buyer_type} onValueChange={(v) => setLeadForm({ ...leadForm, buyer_type: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="online">Online</SelectItem>
+                          <SelectItem value="walk-in">Walk-in</SelectItem>
+                          <SelectItem value="phone">Phone</SelectItem>
+                          <SelectItem value="referral">Referral</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">Income ($)</Label>
+                      <Input
+                        type="number"
+                        value={leadForm.income}
+                        onChange={(e) => setLeadForm({ ...leadForm, income: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Vehicle Price ($)</Label>
+                      <Input
+                        type="number"
+                        value={leadForm.vehicle_price}
+                        onChange={(e) => setLeadForm({ ...leadForm, vehicle_price: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">Credit Min</Label>
+                      <Input
+                        type="number"
+                        value={leadForm.credit_range_min}
+                        onChange={(e) => setLeadForm({ ...leadForm, credit_range_min: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Credit Max</Label>
+                      <Input
+                        type="number"
+                        value={leadForm.credit_range_max}
+                        onChange={(e) => setLeadForm({ ...leadForm, credit_range_max: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Vehicle Preference</Label>
+                    <Input
+                      value={leadForm.vehicle_preference}
+                      onChange={(e) => setLeadForm({ ...leadForm, vehicle_preference: e.target.value })}
+                      placeholder="e.g. SUV, Honda Civic"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Notes</Label>
+                    <Textarea
+                      value={leadForm.notes}
+                      onChange={(e) => setLeadForm({ ...leadForm, notes: e.target.value })}
+                      placeholder="Additional lead details..."
+                      rows={2}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSelected(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => { setSelected(null); resetLeadForm(); }}>Cancel</Button>
             <Button onClick={handleUpdate} disabled={saving}>
-              {saving ? "Saving..." : "Update"}
+              {saving ? "Saving..." : newStatus === "fulfilled" && selected?.status !== "fulfilled" ? "Approve & Create Lead" : "Update"}
             </Button>
           </DialogFooter>
         </DialogContent>
