@@ -22,6 +22,7 @@ import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import AdminDashboard from "./pages/AdminDashboard";
 import SubmitLead from "./pages/SubmitLead";
+import RequestLead from "./pages/RequestLead";
 import DynamicHead from "./components/DynamicHead";
 import { useApplyTheme } from "./hooks/useApplyTheme";
 
@@ -65,6 +66,7 @@ const App = () => (
             <Route path="/orders" element={<Orders />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/autopay" element={<AutoPay />} />
+            <Route path="/request-lead" element={<RequestLead />} />
             <Route path="/admin" element={<ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute>} />
           </Route>
           <Route path="*" element={<NotFound />} />
