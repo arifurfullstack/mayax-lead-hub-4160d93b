@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import { Upload, Trash2, FileText, Loader2 } from "lucide-react";
+import { Upload, Trash2, FileText, Loader2, Download, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
@@ -147,20 +147,41 @@ const LeadFileUploader = ({ leadId, files, onFilesChange }: Props) => {
 
       {files.length > 0 && (
         <div className="space-y-1.5">
-          {files.map((f, i) => (
-            <div key={i} className="flex items-center gap-2 text-sm bg-muted/30 rounded px-2.5 py-1.5">
-              <FileText className="h-3.5 w-3.5 text-primary shrink-0" />
-              <span className="text-foreground truncate flex-1">{f.name}</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 shrink-0"
-                onClick={() => handleRemove(i)}
-              >
-                <Trash2 className="h-3 w-3 text-destructive" />
-              </Button>
-            </div>
-          ))}
+          {files.map((f, i) => {
+            const isImage = /\.(jpg|jpeg|png|webp)$/i.test(f.name);
+            return (
+              <div key={i} className="flex items-center gap-2 text-sm bg-muted/30 rounded px-2.5 py-1.5">
+                <FileText className="h-3.5 w-3.5 text-primary shrink-0" />
+                <span className="text-foreground truncate flex-1">{f.name}</span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 shrink-0"
+                  title={isImage ? "Preview" : "Download"}
+                  onClick={async () => {
+                    const { data } = await supabase.storage
+                      .from("lead-documents")
+                      .createSignedUrl(f.path, 300);
+                    if (data?.signedUrl) {
+                      window.open(data.signedUrl, "_blank");
+                    } else {
+                      toast({ title: "Error", description: "Could not generate file URL.", variant: "destructive" });
+                    }
+                  }}
+                >
+                  {isImage ? <Eye className="h-3 w-3 text-primary" /> : <Download className="h-3 w-3 text-primary" />}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 shrink-0"
+                  onClick={() => handleRemove(i)}
+                >
+                  <Trash2 className="h-3 w-3 text-destructive" />
+                </Button>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
