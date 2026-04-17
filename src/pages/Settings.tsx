@@ -197,6 +197,7 @@ const Settings = () => {
           webhook_secret: data.webhook_secret || "",
         });
         await loadActivePromo(data.id);
+        loadDeliveryLogs(data.id);
       }
       setLoading(false);
     };
