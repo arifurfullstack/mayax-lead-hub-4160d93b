@@ -71,33 +71,55 @@ async function fireDealerWebhook(
     } catch (_) { /* ignore signing errors */ }
   }
 
-  let success = false;
-  let responseCode: number | null = null;
-  let errorDetails: string | null = null;
-  try {
-    const ctrl = new AbortController();
-    const timeout = setTimeout(() => ctrl.abort(), 10000);
-    const res = await fetch(url, { method: "POST", headers, body, signal: ctrl.signal });
-    clearTimeout(timeout);
-    responseCode = res.status;
-    success = res.ok;
-    if (!res.ok) {
-      const txt = await res.text().catch(() => "");
-      errorDetails = txt.slice(0, 500);
-    }
-  } catch (err) {
-    errorDetails = (err as Error).message?.slice(0, 500) || "Webhook request failed";
-  }
+  const MAX_ATTEMPTS = 3;
+  const BACKOFF_MS = [0, 1000, 2000]; // wait before attempts 1, 2, 3 (exponential: 0, 1s, 2s after prior 1s = total 1s, 3s)
 
-  await admin.from("delivery_logs").insert({
-    purchase_id: purchaseId,
-    channel: "webhook",
-    endpoint: url,
-    success,
-    response_code: responseCode,
-    error_details: errorDetails,
-    payload_summary: `lead.purchased ${lead.reference_code}`,
-  });
+  let success = false;
+  let lastResponseCode: number | null = null;
+  let lastError: string | null = null;
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    if (BACKOFF_MS[attempt - 1] > 0) {
+      await new Promise((r) => setTimeout(r, BACKOFF_MS[attempt - 1]));
+    }
+
+    let responseCode: number | null = null;
+    let errorDetails: string | null = null;
+    let attemptSuccess = false;
+    try {
+      const ctrl = new AbortController();
+      const timeout = setTimeout(() => ctrl.abort(), 10000);
+      const res = await fetch(url, { method: "POST", headers, body, signal: ctrl.signal });
+      clearTimeout(timeout);
+      responseCode = res.status;
+      attemptSuccess = res.ok;
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        errorDetails = txt.slice(0, 500);
+      }
+    } catch (err) {
+      errorDetails = (err as Error).message?.slice(0, 500) || "Webhook request failed";
+    }
+
+    lastResponseCode = responseCode;
+    lastError = errorDetails;
+
+    const summary = `lead.purchased ${lead.reference_code} (attempt ${attempt}/${MAX_ATTEMPTS})`;
+    await admin.from("delivery_logs").insert({
+      purchase_id: purchaseId,
+      channel: "webhook",
+      endpoint: url,
+      success: attemptSuccess,
+      response_code: responseCode,
+      error_details: errorDetails,
+      payload_summary: summary,
+    });
+
+    if (attemptSuccess) {
+      success = true;
+      break;
+    }
+  }
 
   if (!success) {
     await admin.from("purchases").update({ delivery_status: "failed" }).eq("id", purchaseId);
