@@ -47,6 +47,7 @@ const App = () => (
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/apply" element={<SubmitLead />} />
+          <Route path="/applynow" element={<SubmitLead />} />
           <Route path="/submit-lead" element={<Navigate to="/apply" replace />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/pending" element={<Pending />} />
