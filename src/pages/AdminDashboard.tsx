@@ -644,6 +644,10 @@ const AdminDashboard = () => {
         <TabsContent value="lead-requests" className="space-y-4">
           <AdminLeadRequests />
         </TabsContent>
+        {/* ─── Email Setup Tab ─── */}
+        <TabsContent value="email-setup" className="space-y-4">
+          <AdminEmailSetup />
+        </TabsContent>
       </Tabs>
 
       {/* ─── Dealer Detail Dialog ─── */}
