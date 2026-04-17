@@ -75,8 +75,6 @@ async function fireDealerWebhook(
   const BACKOFF_MS = [0, 1000, 2000]; // wait before attempts 1, 2, 3 (exponential: 0, 1s, 2s after prior 1s = total 1s, 3s)
 
   let success = false;
-  let lastResponseCode: number | null = null;
-  let lastError: string | null = null;
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     if (BACKOFF_MS[attempt - 1] > 0) {
