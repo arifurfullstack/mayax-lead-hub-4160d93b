@@ -306,14 +306,19 @@ Deno.serve(async (req) => {
       });
 
       // Record purchase
-      await admin.from("purchases").insert({
+      const { data: purchaseRow } = await admin.from("purchases").insert({
         dealer_id: dealer.id,
         lead_id: leadId,
         price_paid: price,
         dealer_tier_at_purchase: dealer.subscription_tier,
         delivery_status: "delivered",
-        delivery_method: "email",
-      });
+        delivery_method: dealer.webhook_url ? "webhook" : "email",
+      }).select("id").single();
+
+      // Fire dealer webhook (if configured) — non-blocking for the response status
+      if (purchaseRow?.id && dealer.webhook_url) {
+        await fireDealerWebhook(admin, dealer, lead, purchaseRow.id, price);
+      }
 
       // Increment promo usage and log it if applicable
       if (promoInfo && dealerPromo) {
