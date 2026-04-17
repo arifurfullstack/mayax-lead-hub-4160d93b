@@ -326,6 +326,43 @@ Deno.serve(async (req) => {
         await fireDealerWebhook(admin, dealer, lead, purchaseRow.id, price);
       }
 
+      // Send purchase confirmation email to the dealer (non-blocking on failure)
+      const recipientEmail = dealer.notification_email || dealer.email;
+      if (recipientEmail) {
+        try {
+          await admin.functions.invoke("send-transactional-email", {
+            body: {
+              templateName: "lead-purchased",
+              recipientEmail,
+              idempotencyKey: `lead-purchased-${purchaseRow?.id ?? leadId}`,
+              templateData: {
+                reference_code: lead.reference_code,
+                price_paid: price,
+                dealership_name: dealer.dealership_name,
+                lead: {
+                  first_name: lead.first_name ?? "",
+                  last_name: lead.last_name ?? "",
+                  email: lead.email ?? "",
+                  phone: lead.phone ?? "",
+                  city: lead.city ?? "",
+                  province: lead.province ?? "",
+                  income: lead.income ?? "",
+                  credit_range_min: lead.credit_range_min ?? "",
+                  credit_range_max: lead.credit_range_max ?? "",
+                  vehicle_preference: lead.vehicle_preference ?? "",
+                  trade_in: !!lead.trade_in,
+                  trade_in_vehicle: lead.trade_in_vehicle ?? "",
+                  bankruptcy: lead.has_bankruptcy ? "yes" : "",
+                  notes: lead.notes ?? "",
+                },
+              },
+            },
+          });
+        } catch (emailErr) {
+          console.error("Failed to send purchase confirmation email", emailErr);
+        }
+      }
+
       // Increment promo usage and log it if applicable
       if (promoInfo && dealerPromo) {
         const { data: currentPromo } = await admin.from("promo_codes").select("times_used").eq("id", dealerPromo.promo_code_id).single();
