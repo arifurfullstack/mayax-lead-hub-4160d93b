@@ -835,6 +835,87 @@ const Settings = () => {
             </div>
           </div>
 
+          {/* Recent Delivery Attempts */}
+          <div className="glass-card p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Webhook className="h-4 w-4 text-cyan" />
+                <h2 className="text-sm font-semibold text-foreground">Recent Delivery Attempts</h2>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => dealer && loadDeliveryLogs(dealer.id)}
+                disabled={loadingLogs || !dealer}
+              >
+                {loadingLogs ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                Refresh
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Last 20 webhook deliveries triggered by lead purchases. Use this to debug why your CRM isn't receiving payloads.
+            </p>
+
+            {loadingLogs ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : deliveryLogs.length === 0 ? (
+              <div className="text-center py-8 text-xs text-muted-foreground">
+                No webhook deliveries yet. Buy a lead from the marketplace to trigger one.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {deliveryLogs.map((log) => (
+                  <div
+                    key={log.id}
+                    className="flex items-start gap-3 rounded-lg border border-border bg-card/50 p-3"
+                  >
+                    <div className="shrink-0 mt-0.5">
+                      {log.success ? (
+                        <Check className="h-4 w-4 text-success" />
+                      ) : (
+                        <X className="h-4 w-4 text-destructive" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "text-[10px] font-mono",
+                            log.success
+                              ? "border-success/40 text-success"
+                              : "border-destructive/40 text-destructive",
+                          )}
+                        >
+                          {log.response_code ?? "—"}
+                        </Badge>
+                        <span className="text-xs font-medium text-foreground truncate">
+                          {log.payload_summary || "lead.purchased"}
+                        </span>
+                      </div>
+                      {log.endpoint && (
+                        <div className="text-[10px] text-muted-foreground font-mono truncate">
+                          {log.endpoint}
+                        </div>
+                      )}
+                      {log.error_details && (
+                        <div className="text-[11px] text-destructive break-words">
+                          {log.error_details}
+                        </div>
+                      )}
+                    </div>
+                    <div className="shrink-0 text-[10px] text-muted-foreground whitespace-nowrap">
+                      {new Date(log.attempted_at).toLocaleString()}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="flex justify-end">
             <Button onClick={saveWebhook} disabled={saving} className="gradient-blue-cyan text-foreground gap-2">
               <Save className="h-4 w-4" />
