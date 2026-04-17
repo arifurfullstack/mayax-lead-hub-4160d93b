@@ -60,6 +60,7 @@ const ApplyNow = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [matchInfo, setMatchInfo] = useState<{ matched: boolean; reference?: string } | null>(null);
+  const [lookupMatch, setLookupMatch] = useState<{ matched: boolean; reference?: string | null } | null>(null);
 
   const [form, setForm] = useState({
     phone: "",
@@ -73,12 +74,20 @@ const ApplyNow = () => {
   const [draggingCategory, setDraggingCategory] = useState<string | null>(null);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  // Autofill phone from ?phone= query string on mount
+  // Autofill phone from ?phone= query string on mount + lookup matching lead
   useEffect(() => {
     const incoming = searchParams.get("phone");
-    if (incoming) {
-      setForm((prev) => ({ ...prev, phone: formatPhone(incoming) }));
-    }
+    if (!incoming) return;
+    setForm((prev) => ({ ...prev, phone: formatPhone(incoming) }));
+
+    const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+    fetch(
+      `https://${projectId}.supabase.co/functions/v1/update-lead-by-phone?phone=${encodeURIComponent(incoming)}`,
+      { method: "GET" }
+    )
+      .then((r) => r.json())
+      .then((data) => setLookupMatch({ matched: !!data.matched, reference: data.reference_code }))
+      .catch(() => {});
   }, [searchParams]);
 
   const update = (key: string, value: string) =>
@@ -199,6 +208,20 @@ const ApplyNow = () => {
 
       {/* Form */}
       <div className="max-w-2xl mx-auto px-4 pb-20">
+        {lookupMatch?.matched && (
+          <div className="mb-4 flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/10 p-3 sm:p-4">
+            <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+              <CheckCircle2 className="h-5 w-5 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground">We found your application</p>
+              <p className="text-xs text-muted-foreground truncate">
+                Add any missing details or documents below to complete it
+                {lookupMatch.reference ? ` (Ref: ${lookupMatch.reference})` : ""}.
+              </p>
+            </div>
+          </div>
+        )}
         <div className="glass-card p-6 sm:p-8 space-y-6">
           <div className="space-y-5">
             <div>
