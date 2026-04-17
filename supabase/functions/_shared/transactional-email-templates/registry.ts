@@ -10,7 +10,9 @@ export interface TemplateEntry {
 }
 
 import { template as leadPurchased } from './lead-purchased.tsx'
+import { template as walletTopup } from './wallet-topup.tsx'
 
 export const TEMPLATES: Record<string, TemplateEntry> = {
   'lead-purchased': leadPurchased,
+  'wallet-topup': walletTopup,
 }

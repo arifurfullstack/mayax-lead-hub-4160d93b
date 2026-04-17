@@ -101,10 +101,10 @@ async function creditWallet(
   paymentRequestId: string,
   gateway: string
 ) {
-  // Get current balance
+  // Get current balance + dealer email
   const { data: dealer } = await admin
     .from("dealers")
-    .select("wallet_balance")
+    .select("wallet_balance, dealership_name, email, notification_email")
     .eq("id", dealerId)
     .single();
 
@@ -132,4 +132,30 @@ async function creditWallet(
     status: "completed",
     completed_at: new Date().toISOString(),
   }).eq("id", paymentRequestId);
+
+  // Send confirmation email (non-blocking)
+  if (dealer) {
+    const recipient = (dealer as any).notification_email || (dealer as any).email;
+    if (recipient) {
+      try {
+        await admin.functions.invoke("send-transactional-email", {
+          body: {
+            templateName: "wallet-topup",
+            recipientEmail: recipient,
+            idempotencyKey: `wallet-topup-${paymentRequestId}`,
+            templateData: {
+              dealership_name: (dealer as any).dealership_name,
+              amount,
+              new_balance: newBalance,
+              gateway,
+              reference: paymentRequestId,
+              date: new Date().toLocaleString(),
+            },
+          },
+        });
+      } catch (e) {
+        console.error("wallet-topup email failed:", e);
+      }
+    }
+  }
 }
