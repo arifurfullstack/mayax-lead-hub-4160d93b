@@ -45,6 +45,27 @@ Deno.serve(async (req) => {
     let body: Record<string, any> = {};
     const files: { name: string; data: Uint8Array; type: string }[] = [];
 
+    // Lookup-only mode via GET ?phone=... (no writes)
+    if (req.method === "GET") {
+      const url = new URL(req.url);
+      const phoneParam = url.searchParams.get("phone") || "";
+      const lookupDigits = normalizePhoneDigits(phoneParam);
+      if (lookupDigits.length < 7) {
+        return new Response(JSON.stringify({ matched: false }), { status: 200, headers: jsonHeaders });
+      }
+      const { data: candidates } = await supabase
+        .from("leads")
+        .select("reference_code, phone")
+        .not("phone", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(500);
+      const found = (candidates || []).find((l: any) => normalizePhoneDigits(l.phone || "") === lookupDigits);
+      return new Response(
+        JSON.stringify({ matched: !!found, reference_code: found?.reference_code || null }),
+        { status: 200, headers: jsonHeaders }
+      );
+    }
+
     if (contentType.includes("multipart/form-data")) {
       const formData = await req.formData();
       const jsonField = formData.get("data");
