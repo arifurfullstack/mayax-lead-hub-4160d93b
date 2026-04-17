@@ -99,7 +99,7 @@ const Dashboard = () => {
 
       const { data: d } = await supabase
         .from("dealers")
-        .select("id, dealership_name, subscription_tier, wallet_balance")
+        .select("id, dealership_name, subscription_tier, wallet_balance, webhook_url")
         .eq("user_id", session.user.id)
         .single();
 
