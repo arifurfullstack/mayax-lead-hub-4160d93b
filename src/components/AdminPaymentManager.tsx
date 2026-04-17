@@ -133,7 +133,7 @@ const AdminPaymentManager = () => {
     // Credit wallet via service role — use edge function or direct update
     const { data: dealer } = await supabase
       .from("dealers")
-      .select("wallet_balance")
+      .select("wallet_balance, dealership_name, email, notification_email")
       .eq("id", request.dealer_id)
       .single();
 
@@ -163,6 +163,26 @@ const AdminPaymentManager = () => {
       completed_at: new Date().toISOString(),
       admin_notes: "Approved by admin",
     }).eq("id", request.id);
+
+    // Send wallet top-up confirmation email (non-blocking)
+    const recipient = (dealer as any).notification_email || (dealer as any).email;
+    if (recipient) {
+      supabase.functions.invoke("send-transactional-email", {
+        body: {
+          templateName: "wallet-topup",
+          recipientEmail: recipient,
+          idempotencyKey: `wallet-topup-${request.id}`,
+          templateData: {
+            dealership_name: (dealer as any).dealership_name,
+            amount: Number(request.amount),
+            new_balance: newBalance,
+            gateway: "bank_transfer",
+            reference: request.gateway_reference || request.id,
+            date: new Date().toLocaleString(),
+          },
+        },
+      }).catch((e) => console.error("wallet-topup email failed:", e));
+    }
 
     toast({ title: "Approved", description: `$${Number(request.amount).toFixed(2)} credited to dealer wallet.` });
     queryClient.invalidateQueries({ queryKey: ["pending-payment-requests"] });
