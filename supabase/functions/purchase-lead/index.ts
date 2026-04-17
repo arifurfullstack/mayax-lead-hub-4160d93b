@@ -99,8 +99,7 @@ async function fireDealerWebhook(
       errorDetails = (err as Error).message?.slice(0, 500) || "Webhook request failed";
     }
 
-    lastResponseCode = responseCode;
-    lastError = errorDetails;
+    // (response info captured in delivery_logs above)
 
     const summary = `lead.purchased ${lead.reference_code} (attempt ${attempt}/${MAX_ATTEMPTS})`;
     await admin.from("delivery_logs").insert({
