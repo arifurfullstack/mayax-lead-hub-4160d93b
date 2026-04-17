@@ -139,6 +139,7 @@ async function creditWallet(
     if (recipient) {
       try {
         await admin.functions.invoke("send-transactional-email", {
+          headers: { Authorization: `Bearer ${serviceKey}` },
           body: {
             templateName: "wallet-topup",
             recipientEmail: recipient,
