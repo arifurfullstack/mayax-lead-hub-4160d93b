@@ -90,6 +90,7 @@ const Dashboard = () => {
   const [allPurchases, setAllPurchases] = useState<PurchaseRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [subInfo, setSubInfo] = useState<{ tier: string; leads_used: number; leads_limit: number; end_date: string; auto_renew: boolean; price: number } | null>(null);
+  const [webhookHealth, setWebhookHealth] = useState<{ configured: boolean; total: number; success: number; rate: number } | null>(null);
 
   useEffect(() => {
     const load = async () => {
