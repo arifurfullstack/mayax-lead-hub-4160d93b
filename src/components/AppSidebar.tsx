@@ -11,6 +11,7 @@ import {
   DollarSign,
   Shield,
   FileText,
+  Mail,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, Link } from "react-router-dom";
@@ -130,6 +131,23 @@ export function AppSidebar({ walletBalance = 0, onLogout }: AppSidebarProps) {
                     >
                       <Shield className="h-4 w-4 shrink-0" />
                       {!collapsed && <span>Admin Panel</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isActive("/admin/emails")}
+                    tooltip="Email History"
+                  >
+                    <NavLink
+                      to="/admin/emails"
+                      end
+                      className="flex items-center gap-3 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors"
+                      activeClassName="bg-sidebar-accent text-gold font-medium"
+                    >
+                      <Mail className="h-4 w-4 shrink-0" />
+                      {!collapsed && <span>Email History</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
