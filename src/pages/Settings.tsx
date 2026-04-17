@@ -79,6 +79,16 @@ const Settings = () => {
   const [showWebhookSecret, setShowWebhookSecret] = useState(false);
   const [copiedSecret, setCopiedSecret] = useState(false);
   const [testingWebhook, setTestingWebhook] = useState(false);
+  const [deliveryLogs, setDeliveryLogs] = useState<Array<{
+    id: string;
+    success: boolean | null;
+    response_code: number | null;
+    error_details: string | null;
+    payload_summary: string | null;
+    endpoint: string | null;
+    attempted_at: string;
+  }>>([]);
+  const [loadingLogs, setLoadingLogs] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
