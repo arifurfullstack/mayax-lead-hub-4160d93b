@@ -15,6 +15,7 @@ import {
   CreditCard,
   Store,
   BarChart3,
+  Webhook,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -89,6 +90,7 @@ const Dashboard = () => {
   const [allPurchases, setAllPurchases] = useState<PurchaseRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [subInfo, setSubInfo] = useState<{ tier: string; leads_used: number; leads_limit: number; end_date: string; auto_renew: boolean; price: number } | null>(null);
+  const [webhookHealth, setWebhookHealth] = useState<{ configured: boolean; total: number; success: number; rate: number } | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -97,7 +99,7 @@ const Dashboard = () => {
 
       const { data: d } = await supabase
         .from("dealers")
-        .select("id, dealership_name, subscription_tier, wallet_balance")
+        .select("id, dealership_name, subscription_tier, wallet_balance, webhook_url")
         .eq("user_id", session.user.id)
         .single();
 
@@ -144,6 +146,30 @@ const Dashboard = () => {
       const allData = (all as unknown as PurchaseRow[]) ?? [];
       setAllPurchases(allData);
       setPurchases(allData.slice(0, 10));
+
+      // Webhook health: success rate of last 10 webhook delivery attempts
+      const webhookConfigured = !!(d as any).webhook_url;
+      if (webhookConfigured && allData.length > 0) {
+        const purchaseIds = allData.map((p) => p.id);
+        const { data: logs } = await supabase
+          .from("delivery_logs")
+          .select("success")
+          .eq("channel", "webhook")
+          .in("purchase_id", purchaseIds)
+          .order("attempted_at", { ascending: false })
+          .limit(10);
+        const total = logs?.length ?? 0;
+        const successCount = (logs ?? []).filter((l) => l.success).length;
+        setWebhookHealth({
+          configured: true,
+          total,
+          success: successCount,
+          rate: total > 0 ? Math.round((successCount / total) * 100) : 100,
+        });
+      } else {
+        setWebhookHealth({ configured: webhookConfigured, total: 0, success: 0, rate: 0 });
+      }
+
       setLoading(false);
     };
     load();
@@ -284,11 +310,33 @@ const Dashboard = () => {
           <p className={cn("text-2xl font-bold", deliveryRate >= 80 ? "text-success" : deliveryRate >= 50 ? "text-warning" : "text-destructive")}>
             {deliveryRate}%
           </p>
-          <div className="flex gap-3 text-xs text-muted-foreground">
+          <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
             <span className="text-success">{deliveryStats.delivered} ok</span>
             <span className="text-warning">{deliveryStats.pending} pending</span>
             {deliveryStats.failed > 0 && <span className="text-destructive">{deliveryStats.failed} failed</span>}
           </div>
+          {webhookHealth?.configured && (
+            <button
+              type="button"
+              onClick={() => navigate("/settings")}
+              className={cn(
+                "mt-1 inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition-colors hover:opacity-80",
+                webhookHealth.total === 0
+                  ? "bg-muted text-muted-foreground"
+                  : webhookHealth.rate >= 80
+                  ? "bg-success/15 text-success"
+                  : webhookHealth.rate >= 50
+                  ? "bg-warning/15 text-warning"
+                  : "bg-destructive/15 text-destructive",
+              )}
+              title={webhookHealth.total === 0 ? "No webhook deliveries yet" : `${webhookHealth.success}/${webhookHealth.total} of last attempts succeeded`}
+            >
+              <Webhook className="h-3 w-3" />
+              {webhookHealth.total === 0
+                ? "Webhook ready"
+                : `Webhook ${webhookHealth.rate}% (${webhookHealth.success}/${webhookHealth.total})`}
+            </button>
+          )}
         </div>
       </div>
 
