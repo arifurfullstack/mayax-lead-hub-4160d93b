@@ -710,15 +710,30 @@ const Settings = () => {
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground">Webhook URL</Label>
-                <div className="relative">
-                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    value={form.webhook_url}
-                    onChange={(e) => updateField("webhook_url", e.target.value)}
-                    placeholder="https://your-crm.com/api/leads"
-                    className="pl-9 bg-card border-border"
-                  />
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      value={form.webhook_url}
+                      onChange={(e) => updateField("webhook_url", e.target.value)}
+                      placeholder="https://your-crm.com/api/leads"
+                      className="pl-9 bg-card border-border"
+                    />
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 shrink-0"
+                    onClick={sendTestWebhook}
+                    disabled={testingWebhook || !form.webhook_url}
+                  >
+                    {testingWebhook ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                    {testingWebhook ? "Sending…" : "Send test"}
+                  </Button>
                 </div>
+                <p className="text-[10px] text-muted-foreground">
+                  Sends a sample <code className="font-mono">lead.purchased</code> payload to your URL using your saved secret.
+                </p>
               </div>
 
               <div className="space-y-2">
