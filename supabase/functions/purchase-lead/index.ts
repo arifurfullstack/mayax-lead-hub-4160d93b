@@ -5,6 +5,105 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+async function hmacSha256Hex(secret: string, message: string): Promise<string> {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(message));
+  return Array.from(new Uint8Array(sig)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function fireDealerWebhook(
+  admin: any,
+  dealer: { id: string; webhook_url: string | null; webhook_secret: string | null; dealership_name: string },
+  lead: any,
+  purchaseId: string,
+  pricePaid: number,
+) {
+  const url = (dealer.webhook_url || "").trim();
+  if (!url) return;
+
+  const payload = {
+    event: "lead.purchased",
+    timestamp: new Date().toISOString(),
+    data: {
+      reference_code: lead.reference_code,
+      first_name: lead.first_name,
+      last_name: lead.last_name,
+      phone: lead.phone,
+      email: lead.email,
+      city: lead.city,
+      province: lead.province,
+      vehicle_preference: lead.vehicle_preference,
+      vehicle_price: lead.vehicle_price,
+      vehicle_mileage: lead.vehicle_mileage,
+      credit_range: lead.credit_range_min && lead.credit_range_max
+        ? `${lead.credit_range_min}-${lead.credit_range_max}` : null,
+      income: lead.income,
+      buyer_type: lead.buyer_type,
+      quality_grade: lead.quality_grade,
+      ai_score: lead.ai_score,
+      trade_in: lead.trade_in,
+      has_bankruptcy: lead.has_bankruptcy,
+      appointment_time: lead.appointment_time,
+      notes: lead.notes,
+      documents: lead.documents,
+      document_files: lead.document_files,
+      price_paid: pricePaid,
+    },
+  };
+  const body = JSON.stringify(payload);
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "User-Agent": "MayaX-Webhook/1.0",
+    "X-MayaX-Event": "lead.purchased",
+    "X-MayaX-Reference": lead.reference_code,
+  };
+  if (dealer.webhook_secret) {
+    try {
+      headers["X-MayaX-Signature"] = `sha256=${await hmacSha256Hex(dealer.webhook_secret, body)}`;
+    } catch (_) { /* ignore signing errors */ }
+  }
+
+  let success = false;
+  let responseCode: number | null = null;
+  let errorDetails: string | null = null;
+  try {
+    const ctrl = new AbortController();
+    const timeout = setTimeout(() => ctrl.abort(), 10000);
+    const res = await fetch(url, { method: "POST", headers, body, signal: ctrl.signal });
+    clearTimeout(timeout);
+    responseCode = res.status;
+    success = res.ok;
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      errorDetails = txt.slice(0, 500);
+    }
+  } catch (err) {
+    errorDetails = (err as Error).message?.slice(0, 500) || "Webhook request failed";
+  }
+
+  await admin.from("delivery_logs").insert({
+    purchase_id: purchaseId,
+    channel: "webhook",
+    endpoint: url,
+    success,
+    response_code: responseCode,
+    error_details: errorDetails,
+    payload_summary: `lead.purchased ${lead.reference_code}`,
+  });
+
+  if (!success) {
+    await admin.from("purchases").update({ delivery_status: "failed" }).eq("id", purchaseId);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -48,7 +147,7 @@ Deno.serve(async (req) => {
     // Get dealer
     const { data: dealer, error: dealerErr } = await admin
       .from("dealers")
-      .select("id, wallet_balance, subscription_tier")
+      .select("id, wallet_balance, subscription_tier, webhook_url, webhook_secret, dealership_name, email, notification_email")
       .eq("user_id", user.id)
       .single();
 
@@ -207,14 +306,19 @@ Deno.serve(async (req) => {
       });
 
       // Record purchase
-      await admin.from("purchases").insert({
+      const { data: purchaseRow } = await admin.from("purchases").insert({
         dealer_id: dealer.id,
         lead_id: leadId,
         price_paid: price,
         dealer_tier_at_purchase: dealer.subscription_tier,
         delivery_status: "delivered",
-        delivery_method: "email",
-      });
+        delivery_method: dealer.webhook_url ? "webhook" : "email",
+      }).select("id").single();
+
+      // Fire dealer webhook (if configured) — non-blocking for the response status
+      if (purchaseRow?.id && dealer.webhook_url) {
+        await fireDealerWebhook(admin, dealer, lead, purchaseRow.id, price);
+      }
 
       // Increment promo usage and log it if applicable
       if (promoInfo && dealerPromo) {
