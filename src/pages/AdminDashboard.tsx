@@ -28,6 +28,7 @@ import {
   Pencil,
   Tag,
   Webhook,
+  Mail,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -60,6 +61,7 @@ import AdminPromoUsageHistory from "@/components/AdminPromoUsageHistory";
 import AdminWebhookSettings from "@/components/AdminWebhookSettings";
 import AdminLeadPricingSettings from "@/components/AdminLeadPricingSettings";
 import AdminLeadRequests from "@/components/AdminLeadRequests";
+import AdminEmailSetup from "@/components/AdminEmailSetup";
 import LeadFileUploader from "@/components/LeadFileUploader";
 import AdminLeadTable, { type AdminLead } from "@/components/AdminLeadTable";
 
@@ -436,6 +438,9 @@ const AdminDashboard = () => {
           </TabsTrigger>
           <TabsTrigger value="lead-requests" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
             <FileText className="h-4 w-4" /> Lead Requests
+          </TabsTrigger>
+          <TabsTrigger value="email-setup" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
+            <Mail className="h-4 w-4" /> Email Setup
           </TabsTrigger>
         </TabsList>
 
