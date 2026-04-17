@@ -110,7 +110,7 @@ Deno.serve(async (req) => {
     if (phoneDigits.length >= 7) {
       const { data: candidates } = await supabase
         .from("leads")
-        .select("id, reference_code, phone, notes, documents, document_files, vehicle_preference, city, province")
+        .select("id, reference_code, phone, notes, documents, document_files, vehicle_preference, city, province, sold_to_dealer_id, first_name, last_name")
         .not("phone", "is", null)
         .order("created_at", { ascending: false })
         .limit(500);
@@ -170,6 +170,29 @@ Deno.serve(async (req) => {
 
       if (updErr) {
         return new Response(JSON.stringify({ error: updErr.message }), { status: 500, headers: jsonHeaders });
+      }
+
+      // Notify owning dealer (if lead was sold) about the new ApplyNow update
+      if (matchedLead.sold_to_dealer_id) {
+        const parts: string[] = [];
+        if (documentFiles.length > 0) {
+          parts.push(`${documentFiles.length} new document${documentFiles.length === 1 ? "" : "s"} uploaded`);
+        }
+        if (notes) parts.push("notes added");
+        if (vehiclePref && vehiclePref !== matchedLead.vehicle_preference) parts.push("vehicle preference updated");
+        if (city && city !== matchedLead.city) parts.push("city updated");
+        if (province && province !== matchedLead.province) parts.push("province updated");
+
+        if (parts.length > 0) {
+          const leadName = `${matchedLead.first_name || ""} ${matchedLead.last_name || ""}`.trim() || matchedLead.reference_code;
+          const { error: notifErr } = await supabase.from("notifications").insert({
+            dealer_id: matchedLead.sold_to_dealer_id,
+            title: `New ApplyNow update — ${leadName}`,
+            message: `${parts.join(", ")} (Ref: ${matchedLead.reference_code})`,
+            link: `/orders`,
+          });
+          if (notifErr) console.error("Notification insert error:", notifErr);
+        }
       }
 
       return new Response(
