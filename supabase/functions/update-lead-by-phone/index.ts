@@ -110,7 +110,7 @@ Deno.serve(async (req) => {
     if (phoneDigits.length >= 7) {
       const { data: candidates } = await supabase
         .from("leads")
-        .select("id, reference_code, phone, notes, documents, document_files, vehicle_preference, city, province")
+        .select("id, reference_code, phone, notes, documents, document_files, vehicle_preference, city, province, sold_to_dealer_id, first_name, last_name")
         .not("phone", "is", null)
         .order("created_at", { ascending: false })
         .limit(500);
