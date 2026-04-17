@@ -210,45 +210,47 @@ const ApplyNow = () => {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground flex items-center gap-1.5"><Car className="h-3 w-3" /> Vehicle Preference</Label>
+              <div className="space-y-2">
+                <Label className="text-sm sm:text-xs text-muted-foreground flex items-center gap-1.5"><Car className="h-3.5 w-3.5" /> Vehicle Preference</Label>
                 <Input
                   value={form.vehicle_preference}
                   onChange={(e) => update("vehicle_preference", e.target.value)}
                   placeholder="e.g. Honda Civic, SUV, Truck"
-                  className="bg-background/50 border-border focus:border-primary"
+                  className="h-12 sm:h-10 text-base sm:text-sm bg-background/50 border-border focus:border-primary"
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground flex items-center gap-1.5"><Phone className="h-3 w-3" /> Phone</Label>
+              <div className="space-y-2">
+                <Label className="text-sm sm:text-xs text-muted-foreground flex items-center gap-1.5"><Phone className="h-3.5 w-3.5" /> Phone</Label>
                 <Input
+                  type="tel"
+                  inputMode="tel"
                   value={form.phone}
                   onChange={(e) => update("phone", formatPhone(e.target.value))}
                   placeholder="(416) 555-1234"
-                  className="bg-background/50 border-border focus:border-primary"
+                  className="h-12 sm:h-10 text-base sm:text-sm bg-background/50 border-border focus:border-primary"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground flex items-center gap-1.5"><MapPin className="h-3 w-3" /> City</Label>
+              <div className="space-y-2">
+                <Label className="text-sm sm:text-xs text-muted-foreground flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> City</Label>
                 <Input
                   value={form.city}
                   onChange={(e) => update("city", e.target.value)}
                   placeholder="Toronto"
-                  className="bg-background/50 border-border focus:border-primary"
+                  className="h-12 sm:h-10 text-base sm:text-sm bg-background/50 border-border focus:border-primary"
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Province</Label>
+              <div className="space-y-2">
+                <Label className="text-sm sm:text-xs text-muted-foreground">Province</Label>
                 <Select value={form.province} onValueChange={(v) => update("province", v)}>
-                  <SelectTrigger className="h-10 bg-background/50 border-border focus:border-primary">
+                  <SelectTrigger className="h-12 sm:h-10 text-base sm:text-sm bg-background/50 border-border focus:border-primary">
                     <SelectValue placeholder="Select province" />
                   </SelectTrigger>
                   <SelectContent>
                     {provinces.map((p) => (
-                      <SelectItem key={p} value={p}>{p}</SelectItem>
+                      <SelectItem key={p} value={p} className="py-3 sm:py-2 text-base sm:text-sm">{p}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -346,14 +348,14 @@ const ApplyNow = () => {
               </p>
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Notes / Additional Information</Label>
+            <div className="space-y-2">
+              <Label className="text-sm sm:text-xs text-muted-foreground">Notes / Additional Information</Label>
               <Textarea
                 value={form.notes}
                 onChange={(e) => update("notes", e.target.value)}
-                rows={3}
+                rows={4}
                 placeholder="Any additional details about your vehicle needs, timeline, or special requirements..."
-                className="bg-background/50 border-border focus:border-primary resize-none"
+                className="text-base sm:text-sm bg-background/50 border-border focus:border-primary resize-none"
               />
             </div>
 
@@ -367,7 +369,8 @@ const ApplyNow = () => {
               <Button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="gradient-blue-cyan text-foreground gap-2 px-8"
+                size="lg"
+                className="gradient-blue-cyan text-foreground gap-2 w-full sm:w-auto sm:px-8 h-12 sm:h-11 text-base"
               >
                 {submitting ? (
                   <><Loader2 className="h-4 w-4 animate-spin" /> Submitting...</>
