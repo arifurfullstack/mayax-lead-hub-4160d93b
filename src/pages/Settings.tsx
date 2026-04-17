@@ -146,13 +146,28 @@ const Settings = () => {
     setActivePromo(null);
   };
 
-  useEffect(() => {
-    const load = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-
-      const { data } = await supabase
-        .from("dealers")
+  const loadDeliveryLogs = async (dealerId: string) => {
+    setLoadingLogs(true);
+    const { data: purchases } = await supabase
+      .from("purchases")
+      .select("id")
+      .eq("dealer_id", dealerId);
+    const ids = (purchases || []).map((p) => p.id);
+    if (!ids.length) {
+      setDeliveryLogs([]);
+      setLoadingLogs(false);
+      return;
+    }
+    const { data: logs } = await supabase
+      .from("delivery_logs")
+      .select("id, success, response_code, error_details, payload_summary, endpoint, attempted_at")
+      .eq("channel", "webhook")
+      .in("purchase_id", ids)
+      .order("attempted_at", { ascending: false })
+      .limit(20);
+    setDeliveryLogs((logs as any) || []);
+    setLoadingLogs(false);
+  };
         .select("id, user_id, dealership_name, contact_person, email, phone, address, province, website, business_type, notification_email, webhook_url, webhook_secret, autopay_enabled, profile_picture_url")
         .eq("user_id", session.user.id)
         .single();
