@@ -208,6 +208,20 @@ const ApplyNow = () => {
 
       {/* Form */}
       <div className="max-w-2xl mx-auto px-4 pb-20">
+        {lookupMatch?.matched && (
+          <div className="mb-4 flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/10 p-3 sm:p-4">
+            <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+              <CheckCircle2 className="h-5 w-5 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground">We found your application</p>
+              <p className="text-xs text-muted-foreground truncate">
+                Add any missing details or documents below to complete it
+                {lookupMatch.reference ? ` (Ref: ${lookupMatch.reference})` : ""}.
+              </p>
+            </div>
+          </div>
+        )}
         <div className="glass-card p-6 sm:p-8 space-y-6">
           <div className="space-y-5">
             <div>
