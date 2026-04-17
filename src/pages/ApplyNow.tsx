@@ -60,6 +60,7 @@ const ApplyNow = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [matchInfo, setMatchInfo] = useState<{ matched: boolean; reference?: string } | null>(null);
+  const [lookupMatch, setLookupMatch] = useState<{ matched: boolean; reference?: string | null } | null>(null);
 
   const [form, setForm] = useState({
     phone: "",
@@ -73,12 +74,20 @@ const ApplyNow = () => {
   const [draggingCategory, setDraggingCategory] = useState<string | null>(null);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  // Autofill phone from ?phone= query string on mount
+  // Autofill phone from ?phone= query string on mount + lookup matching lead
   useEffect(() => {
     const incoming = searchParams.get("phone");
-    if (incoming) {
-      setForm((prev) => ({ ...prev, phone: formatPhone(incoming) }));
-    }
+    if (!incoming) return;
+    setForm((prev) => ({ ...prev, phone: formatPhone(incoming) }));
+
+    const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+    fetch(
+      `https://${projectId}.supabase.co/functions/v1/update-lead-by-phone?phone=${encodeURIComponent(incoming)}`,
+      { method: "GET" }
+    )
+      .then((r) => r.json())
+      .then((data) => setLookupMatch({ matched: !!data.matched, reference: data.reference_code }))
+      .catch(() => {});
   }, [searchParams]);
 
   const update = (key: string, value: string) =>
