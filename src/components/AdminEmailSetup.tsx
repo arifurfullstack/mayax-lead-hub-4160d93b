@@ -31,28 +31,6 @@ export default function AdminEmailSetup() {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-3">
-          <Button
-            onClick={() => {
-              // Trigger Lovable's built-in email setup dialog via the suggestion mechanism.
-              // Admins will need to reply to the AI assistant to complete setup.
-              window.open("https://docs.lovable.dev/features/cloud", "_blank");
-            }}
-            className="gradient-blue-cyan text-foreground gap-2"
-          >
-            <Mail className="h-4 w-4" />
-            Set Up Sender Email
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => window.open("https://docs.lovable.dev/features/custom-domain", "_blank")}
-            className="gap-2"
-          >
-            <ExternalLink className="h-4 w-4" />
-            Domain Docs
-          </Button>
-        </div>
-
         <div className="rounded-lg bg-warning/10 border border-warning/30 p-4 text-[11px] text-warning-foreground/80">
           <strong className="text-warning">Note:</strong> Sender email setup runs through the Lovable
           assistant. After clicking the button, ask your developer (or the AI builder) to
