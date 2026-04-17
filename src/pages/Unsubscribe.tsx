@@ -89,14 +89,14 @@ export default function Unsubscribe() {
 
         {state.kind === "done" && (
           <div className="space-y-2">
-            <CheckCircle2 className="h-8 w-8 text-green-500 mx-auto" />
+            <CheckCircle2 className="h-8 w-8 text-success mx-auto" />
             <p className="text-sm text-foreground">You've been unsubscribed.</p>
           </div>
         )}
 
         {state.kind === "already" && (
           <div className="space-y-2">
-            <CheckCircle2 className="h-8 w-8 text-green-500 mx-auto" />
+            <CheckCircle2 className="h-8 w-8 text-success mx-auto" />
             <p className="text-sm text-foreground">You're already unsubscribed.</p>
           </div>
         )}

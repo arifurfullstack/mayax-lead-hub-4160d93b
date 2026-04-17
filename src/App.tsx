@@ -24,6 +24,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import SubmitLead from "./pages/SubmitLead";
 import ApplyNow from "./pages/ApplyNow";
 import RequestLead from "./pages/RequestLead";
+import Unsubscribe from "./pages/Unsubscribe";
 import DynamicHead from "./components/DynamicHead";
 import { useApplyTheme } from "./hooks/useApplyTheme";
 
@@ -54,6 +55,7 @@ const App = () => (
           <Route path="/pending" element={<Pending />} />
           <Route path="/rejected" element={<Rejected />} />
           <Route path="/suspended" element={<Suspended />} />
+          <Route path="/unsubscribe" element={<Unsubscribe />} />
           <Route
             element={
               <ProtectedRoute>
