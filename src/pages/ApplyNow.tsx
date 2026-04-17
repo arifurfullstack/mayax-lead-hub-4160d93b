@@ -348,14 +348,14 @@ const ApplyNow = () => {
               </p>
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Notes / Additional Information</Label>
+            <div className="space-y-2">
+              <Label className="text-sm sm:text-xs text-muted-foreground">Notes / Additional Information</Label>
               <Textarea
                 value={form.notes}
                 onChange={(e) => update("notes", e.target.value)}
-                rows={3}
+                rows={4}
                 placeholder="Any additional details about your vehicle needs, timeline, or special requirements..."
-                className="bg-background/50 border-border focus:border-primary resize-none"
+                className="text-base sm:text-sm bg-background/50 border-border focus:border-primary resize-none"
               />
             </div>
 
@@ -369,7 +369,8 @@ const ApplyNow = () => {
               <Button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="gradient-blue-cyan text-foreground gap-2 px-8"
+                size="lg"
+                className="gradient-blue-cyan text-foreground gap-2 w-full sm:w-auto sm:px-8 h-12 sm:h-11 text-base"
               >
                 {submitting ? (
                   <><Loader2 className="h-4 w-4 animate-spin" /> Submitting...</>
