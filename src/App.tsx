@@ -22,6 +22,7 @@ import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import AdminDashboard from "./pages/AdminDashboard";
 import SubmitLead from "./pages/SubmitLead";
+import ApplyNow from "./pages/ApplyNow";
 import RequestLead from "./pages/RequestLead";
 import DynamicHead from "./components/DynamicHead";
 import { useApplyTheme } from "./hooks/useApplyTheme";
@@ -47,7 +48,7 @@ const App = () => (
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/apply" element={<SubmitLead />} />
-          <Route path="/applynow" element={<SubmitLead />} />
+          <Route path="/applynow" element={<ApplyNow />} />
           <Route path="/submit-lead" element={<Navigate to="/apply" replace />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/pending" element={<Pending />} />
