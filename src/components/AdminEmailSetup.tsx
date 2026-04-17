@@ -1,5 +1,4 @@
-import { Mail, Info, ExternalLink } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Mail, Info } from "lucide-react";
 
 export default function AdminEmailSetup() {
   return (
