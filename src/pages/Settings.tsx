@@ -19,6 +19,7 @@ import {
   Loader2,
   Tag,
   X,
+  Send,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -77,6 +78,7 @@ const Settings = () => {
   const [saving, setSaving] = useState(false);
   const [showWebhookSecret, setShowWebhookSecret] = useState(false);
   const [copiedSecret, setCopiedSecret] = useState(false);
+  const [testingWebhook, setTestingWebhook] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -247,6 +249,34 @@ const Settings = () => {
     navigator.clipboard.writeText(form.webhook_secret);
     setCopiedSecret(true);
     setTimeout(() => setCopiedSecret(false), 2000);
+  };
+
+  const sendTestWebhook = async () => {
+    if (!form.webhook_url) {
+      toast({ title: "Webhook URL required", description: "Add and save a webhook URL first.", variant: "destructive" });
+      return;
+    }
+    setTestingWebhook(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("test-webhook");
+      if (error) throw error;
+      if (data?.success) {
+        toast({
+          title: "Test webhook delivered ✓",
+          description: `${data.endpoint} responded with ${data.response_code}${data.signed ? " (signed)" : ""}.`,
+        });
+      } else {
+        toast({
+          title: `Test failed${data?.response_code ? ` (HTTP ${data.response_code})` : ""}`,
+          description: data?.error || "Your endpoint did not accept the payload.",
+          variant: "destructive",
+        });
+      }
+    } catch (err: any) {
+      toast({ title: "Test failed", description: err?.message || "Could not send test payload.", variant: "destructive" });
+    } finally {
+      setTestingWebhook(false);
+    }
   };
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -680,15 +710,30 @@ const Settings = () => {
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground">Webhook URL</Label>
-                <div className="relative">
-                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    value={form.webhook_url}
-                    onChange={(e) => updateField("webhook_url", e.target.value)}
-                    placeholder="https://your-crm.com/api/leads"
-                    className="pl-9 bg-card border-border"
-                  />
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      value={form.webhook_url}
+                      onChange={(e) => updateField("webhook_url", e.target.value)}
+                      placeholder="https://your-crm.com/api/leads"
+                      className="pl-9 bg-card border-border"
+                    />
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 shrink-0"
+                    onClick={sendTestWebhook}
+                    disabled={testingWebhook || !form.webhook_url}
+                  >
+                    {testingWebhook ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                    {testingWebhook ? "Sending…" : "Send test"}
+                  </Button>
                 </div>
+                <p className="text-[10px] text-muted-foreground">
+                  Sends a sample <code className="font-mono">lead.purchased</code> payload to your URL using your saved secret.
+                </p>
               </div>
 
               <div className="space-y-2">
