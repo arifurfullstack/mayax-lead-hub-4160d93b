@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
     // Get dealer
     const { data: dealer, error: dealerErr } = await admin
       .from("dealers")
-      .select("id, wallet_balance, subscription_tier")
+      .select("id, wallet_balance, subscription_tier, webhook_url, webhook_secret, dealership_name, email, notification_email")
       .eq("user_id", user.id)
       .single();
 
