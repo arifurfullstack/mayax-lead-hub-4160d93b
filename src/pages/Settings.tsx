@@ -817,18 +817,20 @@ const Settings = () => {
                 <Label className="text-xs text-muted-foreground">Example Payload</Label>
                 <pre className="bg-muted/30 border border-border rounded-lg p-4 text-xs font-mono text-muted-foreground overflow-x-auto">
 {`{
-  "event": "lead.purchased",
-  "timestamp": "2026-04-04T12:00:00Z",
-  "data": {
-    "reference_code": "MX-2026-001",
-    "first_name": "John",
-    "last_name": "Smith",
-    "phone": "+1-416-555-0100",
-    "email": "john@example.com",
-    "credit_range": "700-750",
-    "vehicle_preference": "SUV",
-    "price_paid": 45.00
-  }
+  "first_name": "John",
+  "last_name": "Smith",
+  "email": "john@example.com",
+  "phone": "+1-416-555-0100",
+  "city": "Toronto",
+  "province": "Ontario",
+  "income": 5500,
+  "credit_range_min": 700,
+  "credit_range_max": 750,
+  "vehicle_preference": "SUV",
+  "trade_in": true,
+  "trade_in vehicle": "2018 Honda Civic",
+  "bankruptcy": "",
+  "notes": "Looking for financing"
 }`}
                 </pre>
               </div>

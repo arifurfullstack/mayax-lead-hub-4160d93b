@@ -29,33 +29,20 @@ async function fireDealerWebhook(
   if (!url) return;
 
   const payload = {
-    event: "lead.purchased",
-    timestamp: new Date().toISOString(),
-    data: {
-      reference_code: lead.reference_code,
-      first_name: lead.first_name,
-      last_name: lead.last_name,
-      phone: lead.phone,
-      email: lead.email,
-      city: lead.city,
-      province: lead.province,
-      vehicle_preference: lead.vehicle_preference,
-      vehicle_price: lead.vehicle_price,
-      vehicle_mileage: lead.vehicle_mileage,
-      credit_range: lead.credit_range_min && lead.credit_range_max
-        ? `${lead.credit_range_min}-${lead.credit_range_max}` : null,
-      income: lead.income,
-      buyer_type: lead.buyer_type,
-      quality_grade: lead.quality_grade,
-      ai_score: lead.ai_score,
-      trade_in: lead.trade_in,
-      has_bankruptcy: lead.has_bankruptcy,
-      appointment_time: lead.appointment_time,
-      notes: lead.notes,
-      documents: lead.documents,
-      document_files: lead.document_files,
-      price_paid: pricePaid,
-    },
+    first_name: lead.first_name ?? "",
+    last_name: lead.last_name ?? "",
+    email: lead.email ?? "",
+    phone: lead.phone ?? "",
+    city: lead.city ?? "",
+    province: lead.province ?? "",
+    income: lead.income ?? "",
+    credit_range_min: lead.credit_range_min ?? "",
+    credit_range_max: lead.credit_range_max ?? "",
+    vehicle_preference: lead.vehicle_preference ?? "",
+    trade_in: !!lead.trade_in,
+    "trade_in vehicle": lead.trade_in_vehicle ?? "",
+    bankruptcy: lead.has_bankruptcy ? "yes" : "",
+    notes: lead.notes ?? "",
   };
   const body = JSON.stringify(payload);
 
