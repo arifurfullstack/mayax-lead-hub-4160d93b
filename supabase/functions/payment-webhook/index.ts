@@ -139,6 +139,7 @@ async function creditWallet(
     if (recipient) {
       try {
         await admin.functions.invoke("send-transactional-email", {
+          headers: { Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!}` },
           body: {
             templateName: "wallet-topup",
             recipientEmail: recipient,

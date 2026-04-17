@@ -331,6 +331,7 @@ Deno.serve(async (req) => {
       if (recipientEmail) {
         try {
           await admin.functions.invoke("send-transactional-email", {
+            headers: { Authorization: `Bearer ${serviceKey}` },
             body: {
               templateName: "lead-purchased",
               recipientEmail,
