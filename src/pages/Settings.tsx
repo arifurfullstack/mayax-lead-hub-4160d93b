@@ -251,6 +251,34 @@ const Settings = () => {
     setTimeout(() => setCopiedSecret(false), 2000);
   };
 
+  const sendTestWebhook = async () => {
+    if (!form.webhook_url) {
+      toast({ title: "Webhook URL required", description: "Add and save a webhook URL first.", variant: "destructive" });
+      return;
+    }
+    setTestingWebhook(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("test-webhook");
+      if (error) throw error;
+      if (data?.success) {
+        toast({
+          title: "Test webhook delivered ✓",
+          description: `${data.endpoint} responded with ${data.response_code}${data.signed ? " (signed)" : ""}.`,
+        });
+      } else {
+        toast({
+          title: `Test failed${data?.response_code ? ` (HTTP ${data.response_code})` : ""}`,
+          description: data?.error || "Your endpoint did not accept the payload.",
+          variant: "destructive",
+        });
+      }
+    } catch (err: any) {
+      toast({ title: "Test failed", description: err?.message || "Could not send test payload.", variant: "destructive" });
+    } finally {
+      setTestingWebhook(false);
+    }
+  };
+
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !dealer) return;
