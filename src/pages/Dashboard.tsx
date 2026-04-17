@@ -146,6 +146,30 @@ const Dashboard = () => {
       const allData = (all as unknown as PurchaseRow[]) ?? [];
       setAllPurchases(allData);
       setPurchases(allData.slice(0, 10));
+
+      // Webhook health: success rate of last 10 webhook delivery attempts
+      const webhookConfigured = !!(d as any).webhook_url;
+      if (webhookConfigured && allData.length > 0) {
+        const purchaseIds = allData.map((p) => p.id);
+        const { data: logs } = await supabase
+          .from("delivery_logs")
+          .select("success")
+          .eq("channel", "webhook")
+          .in("purchase_id", purchaseIds)
+          .order("attempted_at", { ascending: false })
+          .limit(10);
+        const total = logs?.length ?? 0;
+        const successCount = (logs ?? []).filter((l) => l.success).length;
+        setWebhookHealth({
+          configured: true,
+          total,
+          success: successCount,
+          rate: total > 0 ? Math.round((successCount / total) * 100) : 100,
+        });
+      } else {
+        setWebhookHealth({ configured: webhookConfigured, total: 0, success: 0, rate: 0 });
+      }
+
       setLoading(false);
     };
     load();
