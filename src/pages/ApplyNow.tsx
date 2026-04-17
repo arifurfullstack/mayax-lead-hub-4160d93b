@@ -243,7 +243,7 @@ const ApplyNow = () => {
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Province</Label>
                 <Select value={form.province} onValueChange={(v) => update("province", v)}>
-                  <SelectTrigger className="bg-background/50 border-border">
+                  <SelectTrigger className="h-10 bg-background/50 border-border focus:border-primary">
                     <SelectValue placeholder="Select province" />
                   </SelectTrigger>
                   <SelectContent>
