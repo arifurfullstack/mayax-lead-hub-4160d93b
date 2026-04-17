@@ -168,6 +168,14 @@ const Settings = () => {
     setDeliveryLogs((logs as any) || []);
     setLoadingLogs(false);
   };
+
+  useEffect(() => {
+    const load = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { data } = await supabase
+        .from("dealers")
         .select("id, user_id, dealership_name, contact_person, email, phone, address, province, website, business_type, notification_email, webhook_url, webhook_secret, autopay_enabled, profile_picture_url")
         .eq("user_id", session.user.id)
         .single();
