@@ -509,6 +509,23 @@ const AdminUserManager = () => {
               </Select>
             </div>
             <div className="space-y-1.5 col-span-2">
+              <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                <DollarSign className="h-3 w-3" /> Wallet Balance ($)
+              </Label>
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                value={editForm.wallet_balance}
+                onChange={(e) => setEditForm(f => ({ ...f, wallet_balance: e.target.value }))}
+                className="bg-background border-border font-mono"
+                placeholder="0.00"
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Current: ${Number(selectedUser?.wallet_balance ?? 0).toFixed(2)} — change is logged as an adjustment transaction.
+              </p>
+            </div>
+            <div className="space-y-1.5 col-span-2">
               <Label className="text-xs text-muted-foreground">Role</Label>
               <Select value={userRole} onValueChange={setUserRole}>
                 <SelectTrigger className="bg-background border-border"><SelectValue /></SelectTrigger>
