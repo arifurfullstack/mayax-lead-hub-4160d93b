@@ -275,8 +275,8 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Check tier delay
-      if (delayHours > 0) {
+      // Check tier delay (admins bypass when buying on behalf or gifting)
+      if (delayHours > 0 && !isAdmin) {
         const leadAge = (Date.now() - new Date(lead.created_at).getTime()) / (1000 * 60 * 60);
         if (leadAge < delayHours) {
           results.push({ lead_id: leadId, success: false, error: `Lead locked for ${Math.ceil(delayHours - leadAge)}h (upgrade tier for earlier access)` });
