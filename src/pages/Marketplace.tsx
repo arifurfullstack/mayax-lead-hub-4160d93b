@@ -240,7 +240,11 @@ const Marketplace = () => {
             Authorization: `Bearer ${session?.access_token}`,
             apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
           },
-          body: JSON.stringify({ lead_ids: confirmLeads.map((l) => l.id) }),
+          body: JSON.stringify({
+            lead_ids: confirmLeads.map((l) => l.id),
+            ...(isAdmin && targetDealerId ? { target_dealer_id: targetDealerId } : {}),
+            ...(isAdmin && giftMode ? { gift: true } : {}),
+          }),
         }
       );
 
@@ -253,7 +257,8 @@ const Marketplace = () => {
       }
 
       if (data.purchased > 0) {
-        setWalletBalance(data.new_balance);
+        // Only update OUR wallet balance if buying for self
+        if (!targetDealerId) setWalletBalance(data.new_balance);
         setSelectedLeads((prev) => {
           const next = new Set(prev);
           (data.results as Array<{ lead_id: string; success: boolean }>)
