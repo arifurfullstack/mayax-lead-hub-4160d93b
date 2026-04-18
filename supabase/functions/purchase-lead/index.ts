@@ -296,7 +296,10 @@ Deno.serve(async (req) => {
         }
       }
 
-      if (currentBalance < price) {
+      // Gift mode: assign at $0 with no wallet deduction
+      const effectivePrice = isGift ? 0 : price;
+
+      if (!isGift && currentBalance < price) {
         results.push({ lead_id: leadId, success: false, error: "Insufficient wallet balance" });
         continue;
       }
@@ -322,28 +325,40 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Deduct wallet
-      currentBalance -= price;
-      await admin
-        .from("dealers")
-        .update({ wallet_balance: currentBalance })
-        .eq("id", dealer.id);
+      // Deduct wallet (skip for gifts)
+      if (!isGift) {
+        currentBalance -= price;
+        await admin
+          .from("dealers")
+          .update({ wallet_balance: currentBalance })
+          .eq("id", dealer.id);
 
-      // Record transaction
-      await admin.from("wallet_transactions").insert({
-        dealer_id: dealer.id,
-        type: "purchase",
-        amount: -price,
-        balance_after: currentBalance,
-        description: `Purchased lead ${lead.reference_code}${promoInfo ? " (promo)" : ""}`,
-        reference_id: leadId,
-      });
+        // Record transaction
+        await admin.from("wallet_transactions").insert({
+          dealer_id: dealer.id,
+          type: "purchase",
+          amount: -price,
+          balance_after: currentBalance,
+          description: `Purchased lead ${lead.reference_code}${promoInfo ? " (promo)" : ""}`,
+          reference_id: leadId,
+        });
+      } else {
+        // Log a $0 admin gift for audit trail
+        await admin.from("wallet_transactions").insert({
+          dealer_id: dealer.id,
+          type: "admin_gift",
+          amount: 0,
+          balance_after: currentBalance,
+          description: `Admin gifted lead ${lead.reference_code}`,
+          reference_id: leadId,
+        });
+      }
 
       // Record purchase
       const { data: purchaseRow } = await admin.from("purchases").insert({
         dealer_id: dealer.id,
         lead_id: leadId,
-        price_paid: price,
+        price_paid: effectivePrice,
         dealer_tier_at_purchase: dealer.subscription_tier,
         delivery_status: "delivered",
         delivery_method: dealer.webhook_url ? "webhook" : "email",
@@ -351,13 +366,14 @@ Deno.serve(async (req) => {
 
       // Fire dealer webhook (if configured) — non-blocking for the response status
       if (purchaseRow?.id && dealer.webhook_url) {
-        await fireDealerWebhook(admin, dealer, lead, purchaseRow.id, price);
+        await fireDealerWebhook(admin, dealer, lead, purchaseRow.id, effectivePrice);
       }
 
       // Collect for combined email (sent once after the loop)
       if (purchaseRow?.id) {
-        successfulPurchases.push({ lead, price, purchaseId: purchaseRow.id });
+        successfulPurchases.push({ lead, price: effectivePrice, purchaseId: purchaseRow.id });
       }
+
 
       // Increment promo usage and log it if applicable
       if (promoInfo && dealerPromo) {
