@@ -127,6 +127,7 @@ const AdminUserManager = () => {
       website: u.website ?? "",
       approval_status: u.approval_status,
       subscription_tier: u.subscription_tier,
+      wallet_balance: Number(u.wallet_balance ?? 0).toFixed(2),
     });
     setUserRole(u.roles.includes("admin") ? "admin" : u.roles.includes("moderator") ? "moderator" : "user");
     setEditMode(true);
@@ -135,6 +136,14 @@ const AdminUserManager = () => {
   const saveEdit = async () => {
     if (!selectedUser) return;
     setSaving(true);
+
+    // Validate wallet balance
+    const newBalance = parseFloat(editForm.wallet_balance);
+    if (isNaN(newBalance) || newBalance < 0) {
+      toast({ title: "Invalid wallet balance", description: "Must be a non-negative number.", variant: "destructive" });
+      setSaving(false);
+      return;
+    }
 
     const { error } = await supabase.from("dealers").update({
       dealership_name: editForm.dealership_name,
@@ -147,6 +156,7 @@ const AdminUserManager = () => {
       website: editForm.website || null,
       approval_status: editForm.approval_status,
       subscription_tier: editForm.subscription_tier,
+      wallet_balance: newBalance,
     }).eq("id", selectedUser.id);
 
     if (error) {
