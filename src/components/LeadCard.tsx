@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Shield, MapPin, Clock, FileText, User, Home, Monitor, Building2, CheckCircle2, DollarSign, Lock, Car, Gauge, Phone, Mail } from "lucide-react";
+import { Shield, MapPin, Clock, FileText, User, Home, Monitor, Building2, CheckCircle2, DollarSign, Lock, Car, Gauge, Phone, Mail, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -13,6 +13,7 @@ interface LeadCardProps {
   index?: number;
   promoPrice?: number | null;
   promoType?: "flat" | "percentage" | null;
+  isAdminView?: boolean;
 }
 
 function getLeadType(lead: any): { label: string; icon: React.ReactNode } {
