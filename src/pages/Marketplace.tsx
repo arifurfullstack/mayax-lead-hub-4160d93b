@@ -68,7 +68,17 @@ const Marketplace = () => {
       .eq("user_id", session.user.id)
       .eq("role", "admin")
       .maybeSingle();
-    setIsAdmin(!!roleRow);
+    const adminFlag = !!roleRow;
+    setIsAdmin(adminFlag);
+
+    if (adminFlag) {
+      const { data: dealersData } = await supabase
+        .from("dealers")
+        .select("id, dealership_name, wallet_balance, subscription_tier")
+        .eq("approval_status", "approved")
+        .order("dealership_name", { ascending: true });
+      setAllDealers((dealersData || []) as any);
+    }
 
     const { data: dealer } = await supabase
       .from("dealers")
