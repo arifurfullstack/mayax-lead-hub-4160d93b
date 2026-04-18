@@ -56,7 +56,7 @@ const docLabels: Record<string, { icon: React.ReactNode; short: string }> = {
 };
 
 function isRevealed(lead: any): boolean {
-  return lead.first_name !== "***" && lead.email !== "xxx@xxxx.com";
+  return lead.email !== "xxx@xxxx.com" && lead.last_name !== "***";
 }
 
 export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, index = 0, promoPrice, promoType }: LeadCardProps) {
