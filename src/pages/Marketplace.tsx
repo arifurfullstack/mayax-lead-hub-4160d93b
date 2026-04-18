@@ -196,7 +196,7 @@ const Marketplace = () => {
   }, [filtered, selectedLeads, activePromo]);
 
   const executePurchase = async () => {
-    if (!confirmLead) return;
+    if (!confirmLeads || confirmLeads.length === 0) return;
     setPurchasing(true);
 
     const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
@@ -212,7 +212,7 @@ const Marketplace = () => {
             Authorization: `Bearer ${session?.access_token}`,
             apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
           },
-          body: JSON.stringify({ lead_ids: [confirmLead.id] }),
+          body: JSON.stringify({ lead_ids: confirmLeads.map((l) => l.id) }),
         }
       );
 
@@ -227,17 +227,18 @@ const Marketplace = () => {
       if (data.purchased > 0) {
         toast({
           title: "Purchase Successful!",
-          description: `Lead purchased. New balance: $${Number(data.new_balance).toFixed(2)}`,
+          description: `${data.purchased} lead${data.purchased > 1 ? "s" : ""} purchased. New balance: $${Number(data.new_balance).toFixed(2)}`,
         });
         setWalletBalance(data.new_balance);
+        setSelectedLeads(new Set());
       }
 
       if (data.failed > 0) {
         const errors = data.results.filter((r: any) => !r.success).map((r: any) => r.error).join("; ");
-        toast({ title: "Purchase failed", description: errors, variant: "destructive" });
+        toast({ title: `${data.failed} purchase(s) failed`, description: errors, variant: "destructive" });
       }
 
-      setConfirmLead(null);
+      setConfirmLeads(null);
       fetchLeads();
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
