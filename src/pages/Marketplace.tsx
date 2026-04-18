@@ -35,6 +35,7 @@ const Marketplace = () => {
   const [dealerId, setDealerId] = useState<string | null>(null);
   const [dealerTier, setDealerTier] = useState("basic");
   const [walletBalance, setWalletBalance] = useState(0);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [filters, setFilters] = useState<MarketplaceFilters>(defaultFilters);
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
   const [confirmLeads, setConfirmLeads] = useState<any[] | null>(null);
