@@ -38,6 +38,7 @@ const Marketplace = () => {
   const [filters, setFilters] = useState<MarketplaceFilters>(defaultFilters);
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
   const [confirmLeads, setConfirmLeads] = useState<any[] | null>(null);
+  const [purchaseResults, setPurchaseResults] = useState<Array<{ lead_id: string; success: boolean; error?: string }> | null>(null);
   const [purchasing, setPurchasing] = useState(false);
   const [usage, setUsage] = useState<{ leads_used: number; leads_limit: number } | null>(null);
   const [promoCode, setPromoCode] = useState("");
@@ -225,20 +226,18 @@ const Marketplace = () => {
       }
 
       if (data.purchased > 0) {
-        toast({
-          title: "Purchase Successful!",
-          description: `${data.purchased} lead${data.purchased > 1 ? "s" : ""} purchased. New balance: $${Number(data.new_balance).toFixed(2)}`,
-        });
         setWalletBalance(data.new_balance);
-        setSelectedLeads(new Set());
+        setSelectedLeads((prev) => {
+          const next = new Set(prev);
+          (data.results as Array<{ lead_id: string; success: boolean }>)
+            .filter((r) => r.success)
+            .forEach((r) => next.delete(r.lead_id));
+          return next;
+        });
       }
 
-      if (data.failed > 0) {
-        const errors = data.results.filter((r: any) => !r.success).map((r: any) => r.error).join("; ");
-        toast({ title: `${data.failed} purchase(s) failed`, description: errors, variant: "destructive" });
-      }
-
-      setConfirmLeads(null);
+      // Show per-lead results inside the dialog instead of toasts
+      setPurchaseResults(data.results || []);
       fetchLeads();
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
