@@ -38,6 +38,7 @@ const Marketplace = () => {
   const [filters, setFilters] = useState<MarketplaceFilters>(defaultFilters);
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
   const [confirmLeads, setConfirmLeads] = useState<any[] | null>(null);
+  const [purchaseResults, setPurchaseResults] = useState<Array<{ lead_id: string; success: boolean; error?: string }> | null>(null);
   const [purchasing, setPurchasing] = useState(false);
   const [usage, setUsage] = useState<{ leads_used: number; leads_limit: number } | null>(null);
   const [promoCode, setPromoCode] = useState("");
@@ -225,20 +226,18 @@ const Marketplace = () => {
       }
 
       if (data.purchased > 0) {
-        toast({
-          title: "Purchase Successful!",
-          description: `${data.purchased} lead${data.purchased > 1 ? "s" : ""} purchased. New balance: $${Number(data.new_balance).toFixed(2)}`,
-        });
         setWalletBalance(data.new_balance);
-        setSelectedLeads(new Set());
+        setSelectedLeads((prev) => {
+          const next = new Set(prev);
+          (data.results as Array<{ lead_id: string; success: boolean }>)
+            .filter((r) => r.success)
+            .forEach((r) => next.delete(r.lead_id));
+          return next;
+        });
       }
 
-      if (data.failed > 0) {
-        const errors = data.results.filter((r: any) => !r.success).map((r: any) => r.error).join("; ");
-        toast({ title: `${data.failed} purchase(s) failed`, description: errors, variant: "destructive" });
-      }
-
-      setConfirmLeads(null);
+      // Show per-lead results inside the dialog instead of toasts
+      setPurchaseResults(data.results || []);
       fetchLeads();
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -409,14 +408,94 @@ const Marketplace = () => {
       </div>
 
       {/* Confirm Purchase Dialog */}
-      <Dialog open={!!confirmLeads} onOpenChange={() => setConfirmLeads(null)}>
+      <Dialog
+        open={!!confirmLeads}
+        onOpenChange={(open) => {
+          if (!open) {
+            setConfirmLeads(null);
+            setPurchaseResults(null);
+          }
+        }}
+      >
         <DialogContent className="glass border-border max-w-md">
           <DialogHeader>
             <DialogTitle className="text-foreground">
-              Confirm Purchase {confirmLeads && confirmLeads.length > 1 ? `(${confirmLeads.length} leads)` : ""}
+              {purchaseResults
+                ? "Purchase Results"
+                : `Confirm Purchase${confirmLeads && confirmLeads.length > 1 ? ` (${confirmLeads.length} leads)` : ""}`}
             </DialogTitle>
           </DialogHeader>
-          {confirmLeads && (() => {
+
+          {/* Results view (shown after purchase completes) */}
+          {purchaseResults && confirmLeads && (() => {
+            const successCount = purchaseResults.filter((r) => r.success).length;
+            const failedCount = purchaseResults.length - successCount;
+            return (
+              <div className="space-y-3">
+                <div className="flex gap-2">
+                  <div className="flex-1 rounded-lg p-3 bg-[#22c55e]/10 border border-[#22c55e]/30 text-center">
+                    <div className="text-xs text-muted-foreground">Purchased</div>
+                    <div className="text-2xl font-bold font-mono-timer text-[#22c55e]">{successCount}</div>
+                  </div>
+                  <div className="flex-1 rounded-lg p-3 bg-destructive/10 border border-destructive/30 text-center">
+                    <div className="text-xs text-muted-foreground">Failed</div>
+                    <div className="text-2xl font-bold font-mono-timer text-destructive">{failedCount}</div>
+                  </div>
+                </div>
+                <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
+                  {purchaseResults.map((r) => {
+                    const lead = confirmLeads.find((l) => l.id === r.lead_id);
+                    return (
+                      <div
+                        key={r.lead_id}
+                        className={cn(
+                          "flex items-start justify-between gap-2 text-sm p-3 rounded-lg border",
+                          r.success
+                            ? "bg-[#22c55e]/5 border-[#22c55e]/30"
+                            : "bg-destructive/5 border-destructive/30"
+                        )}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-mono-timer text-primary text-xs">
+                              {lead?.reference_code ?? r.lead_id.slice(0, 8)}
+                            </span>
+                            {lead && (
+                              <span className="text-foreground">
+                                {lead.first_name} {lead.last_name?.charAt(0)}.
+                              </span>
+                            )}
+                          </div>
+                          {!r.success && r.error && (
+                            <p className="text-destructive text-xs mt-1 break-words">{r.error}</p>
+                          )}
+                        </div>
+                        <span
+                          className={cn(
+                            "text-xs font-semibold whitespace-nowrap px-2 py-0.5 rounded-full",
+                            r.success
+                              ? "bg-[#22c55e]/20 text-[#22c55e]"
+                              : "bg-destructive/20 text-destructive"
+                          )}
+                        >
+                          {r.success ? "✓ Purchased" : "✕ Failed"}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex justify-between text-sm border-t border-border/50 pt-3">
+                  <span className="text-muted-foreground">New Balance</span>
+                  <span className="font-semibold font-mono-timer text-foreground">
+                    ${walletBalance.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Confirmation view (shown before purchase) */}
+          {!purchaseResults && confirmLeads && (() => {
             const priceFor = (l: any) => activePromo ? activePromo.flat_price : Number(l.price);
             const total = confirmLeads.reduce((s, l) => s + priceFor(l), 0);
             const insufficient = walletBalance < total;
@@ -460,19 +539,34 @@ const Marketplace = () => {
               </div>
             );
           })()}
+
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setConfirmLeads(null)} className="border-border/60">Cancel</Button>
-            <button
-              className="gradient-cta-buy text-foreground px-5 py-2 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-40"
-              disabled={
-                purchasing ||
-                !confirmLeads ||
-                walletBalance < (confirmLeads?.reduce((s, l) => s + (activePromo ? activePromo.flat_price : Number(l.price)), 0) ?? 0)
-              }
-              onClick={executePurchase}
-            >
-              {purchasing ? "Processing..." : "Confirm Purchase"}
-            </button>
+            {purchaseResults ? (
+              <Button
+                onClick={() => {
+                  setConfirmLeads(null);
+                  setPurchaseResults(null);
+                }}
+                className="gradient-cta-buy text-foreground font-semibold"
+              >
+                Done
+              </Button>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => setConfirmLeads(null)} className="border-border/60">Cancel</Button>
+                <button
+                  className="gradient-cta-buy text-foreground px-5 py-2 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-40"
+                  disabled={
+                    purchasing ||
+                    !confirmLeads ||
+                    walletBalance < (confirmLeads?.reduce((s, l) => s + (activePromo ? activePromo.flat_price : Number(l.price)), 0) ?? 0)
+                  }
+                  onClick={executePurchase}
+                >
+                  {purchasing ? "Processing..." : "Confirm Purchase"}
+                </button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
