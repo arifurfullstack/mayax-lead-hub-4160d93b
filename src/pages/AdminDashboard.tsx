@@ -116,6 +116,7 @@ const AdminDashboard = () => {
   const [dealerEditForm, setDealerEditForm] = useState({
     dealership_name: "", contact_person: "", email: "", phone: "",
     province: "", approval_status: "pending", subscription_tier: "basic",
+    wallet_balance: "0",
   });
   const [savingDealer, setSavingDealer] = useState(false);
 
@@ -174,12 +175,20 @@ const AdminDashboard = () => {
       province: d.province ?? "",
       approval_status: d.approval_status,
       subscription_tier: d.subscription_tier,
+      wallet_balance: Number(d.wallet_balance ?? 0).toFixed(2),
     });
     setEditingDealer(true);
   };
 
   const saveEditDealer = async () => {
     if (!selectedDealer) return;
+
+    const newBalance = parseFloat(dealerEditForm.wallet_balance);
+    if (isNaN(newBalance) || newBalance < 0) {
+      toast({ title: "Invalid wallet balance", description: "Must be a non-negative number.", variant: "destructive" });
+      return;
+    }
+
     setSavingDealer(true);
     const { error } = await supabase.from("dealers").update({
       dealership_name: dealerEditForm.dealership_name,
@@ -189,16 +198,34 @@ const AdminDashboard = () => {
       province: dealerEditForm.province || null,
       approval_status: dealerEditForm.approval_status,
       subscription_tier: dealerEditForm.subscription_tier,
+      wallet_balance: newBalance,
     }).eq("id", selectedDealer.id);
-    setSavingDealer(false);
+
     if (error) {
+      setSavingDealer(false);
       toast({ title: "Error", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Updated", description: `${dealerEditForm.dealership_name} updated successfully.` });
-      setEditingDealer(false);
-      setSelectedDealer(null);
-      fetchData();
+      return;
     }
+
+    // Log wallet adjustment if balance changed
+    const prevBalance = Number(selectedDealer.wallet_balance ?? 0);
+    const delta = newBalance - prevBalance;
+    if (Math.abs(delta) > 0.001) {
+      await supabase.from("wallet_transactions").insert({
+        dealer_id: selectedDealer.id,
+        amount: delta,
+        balance_after: newBalance,
+        type: delta > 0 ? "adjustment_credit" : "adjustment_debit",
+        description: `Admin wallet adjustment (${delta > 0 ? "+" : ""}$${delta.toFixed(2)})`,
+        reference_id: `admin-edit-${Date.now()}`,
+      });
+    }
+
+    setSavingDealer(false);
+    toast({ title: "Updated", description: `${dealerEditForm.dealership_name} updated successfully.` });
+    setEditingDealer(false);
+    setSelectedDealer(null);
+    fetchData();
   };
 
   const openDeleteDealer = (d: Dealer) => {
@@ -744,6 +771,21 @@ const AdminDashboard = () => {
                   <SelectItem value="vip">VIP</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-1.5 col-span-2">
+              <Label className="text-xs text-muted-foreground">Wallet Balance ($)</Label>
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                value={dealerEditForm.wallet_balance}
+                onChange={(e) => setDealerEditForm(f => ({ ...f, wallet_balance: e.target.value }))}
+                className="bg-background border-border font-mono"
+                placeholder="0.00"
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Current: ${Number(selectedDealer?.wallet_balance ?? 0).toFixed(2)} — change is logged as an adjustment transaction.
+              </p>
             </div>
           </div>
           <DialogFooter>
