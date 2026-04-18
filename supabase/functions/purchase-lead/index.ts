@@ -231,6 +231,7 @@ Deno.serve(async (req) => {
     }
 
     const results: Array<{ lead_id: string; success: boolean; error?: string }> = [];
+    const successfulPurchases: Array<{ lead: any; price: number; purchaseId: string }> = [];
     let currentBalance = Number(dealer.wallet_balance);
     let purchasedCount = 0;
 
@@ -326,16 +327,47 @@ Deno.serve(async (req) => {
         await fireDealerWebhook(admin, dealer, lead, purchaseRow.id, price);
       }
 
-      // Send purchase confirmation email to the dealer (non-blocking on failure)
-      const recipientEmail = dealer.notification_email || dealer.email;
-      if (recipientEmail) {
-        try {
+      // Collect for combined email (sent once after the loop)
+      if (purchaseRow?.id) {
+        successfulPurchases.push({ lead, price, purchaseId: purchaseRow.id });
+      }
+
+      // Increment promo usage and log it if applicable
+      if (promoInfo && dealerPromo) {
+        const { data: currentPromo } = await admin.from("promo_codes").select("times_used").eq("id", dealerPromo.promo_code_id).single();
+        await admin
+          .from("promo_codes")
+          .update({ times_used: (currentPromo?.times_used ?? 0) + 1 })
+          .eq("id", dealerPromo.promo_code_id);
+
+        await admin.from("promo_code_usage").insert({
+          dealer_id: dealer.id,
+          promo_code_id: dealerPromo.promo_code_id,
+          lead_id: leadId,
+          price_paid: price,
+          original_price: originalPrice,
+        });
+      }
+
+      purchasedCount++;
+      results.push({ lead_id: leadId, success: true });
+    }
+
+    // Send a SINGLE confirmation email covering all successful purchases
+    const recipientEmail = dealer.notification_email || dealer.email;
+    if (recipientEmail && successfulPurchases.length > 0) {
+      try {
+        const totalPaid = successfulPurchases.reduce((sum, p) => sum + p.price, 0);
+
+        if (successfulPurchases.length === 1) {
+          // Single lead — use the existing detailed single-lead template
+          const { lead, price, purchaseId } = successfulPurchases[0];
           await admin.functions.invoke("send-transactional-email", {
             headers: { Authorization: `Bearer ${serviceKey}` },
             body: {
               templateName: "lead-purchased",
               recipientEmail,
-              idempotencyKey: `lead-purchased-${purchaseRow?.id ?? leadId}`,
+              idempotencyKey: `lead-purchased-${purchaseId}`,
               templateData: {
                 reference_code: lead.reference_code,
                 price_paid: price,
@@ -359,30 +391,37 @@ Deno.serve(async (req) => {
               },
             },
           });
-        } catch (emailErr) {
-          console.error("Failed to send purchase confirmation email", emailErr);
+        } else {
+          // Multiple leads — send one combined bulk email
+          const purchaseIds = successfulPurchases.map((p) => p.purchaseId).sort().join("-");
+          await admin.functions.invoke("send-transactional-email", {
+            headers: { Authorization: `Bearer ${serviceKey}` },
+            body: {
+              templateName: "leads-purchased-bulk",
+              recipientEmail,
+              idempotencyKey: `leads-bulk-${purchaseIds}`,
+              templateData: {
+                dealership_name: dealer.dealership_name,
+                total_paid: totalPaid,
+                lead_count: successfulPurchases.length,
+                leads: successfulPurchases.map(({ lead, price }) => ({
+                  reference_code: lead.reference_code,
+                  first_name: lead.first_name ?? "",
+                  last_name: lead.last_name ?? "",
+                  email: lead.email ?? "",
+                  phone: lead.phone ?? "",
+                  city: lead.city ?? "",
+                  province: lead.province ?? "",
+                  vehicle_preference: lead.vehicle_preference ?? "",
+                  price_paid: price,
+                })),
+              },
+            },
+          });
         }
+      } catch (emailErr) {
+        console.error("Failed to send purchase confirmation email", emailErr);
       }
-
-      // Increment promo usage and log it if applicable
-      if (promoInfo && dealerPromo) {
-        const { data: currentPromo } = await admin.from("promo_codes").select("times_used").eq("id", dealerPromo.promo_code_id).single();
-        await admin
-          .from("promo_codes")
-          .update({ times_used: (currentPromo?.times_used ?? 0) + 1 })
-          .eq("id", dealerPromo.promo_code_id);
-
-        await admin.from("promo_code_usage").insert({
-          dealer_id: dealer.id,
-          promo_code_id: dealerPromo.promo_code_id,
-          lead_id: leadId,
-          price_paid: price,
-          original_price: originalPrice,
-        });
-      }
-
-      purchasedCount++;
-      results.push({ lead_id: leadId, success: true });
     }
 
     // Update monthly usage
