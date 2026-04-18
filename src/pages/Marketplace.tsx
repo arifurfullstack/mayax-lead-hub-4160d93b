@@ -347,7 +347,7 @@ const Marketplace = () => {
                       lead={lead}
                       locked={isLocked(lead)}
                       unlockAt={getUnlockAt(lead)}
-                      onBuy={(l) => setConfirmLead(l)}
+                      onBuy={(l) => setConfirmLeads([l])}
                       selected={selectedLeads.has(lead.id)}
                       onSelect={toggleSelect}
                       index={i}
