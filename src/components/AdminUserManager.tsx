@@ -62,6 +62,7 @@ const AdminUserManager = () => {
     dealership_name: "", contact_person: "", email: "", phone: "",
     province: "", address: "", business_type: "independent", website: "",
     approval_status: "pending", subscription_tier: "basic",
+    wallet_balance: "0",
   });
 
   // Add funds
