@@ -165,6 +165,20 @@ const AdminUserManager = () => {
       return;
     }
 
+    // Log wallet adjustment if balance changed
+    const prevBalance = Number(selectedUser.wallet_balance ?? 0);
+    const delta = newBalance - prevBalance;
+    if (Math.abs(delta) > 0.001) {
+      await supabase.from("wallet_transactions").insert({
+        dealer_id: selectedUser.id,
+        amount: delta,
+        balance_after: newBalance,
+        type: delta > 0 ? "adjustment_credit" : "adjustment_debit",
+        description: `Admin wallet adjustment (${delta > 0 ? "+" : ""}$${delta.toFixed(2)})`,
+        reference_id: `admin-edit-${Date.now()}`,
+      });
+    }
+
     // Update role
     const currentRole = selectedUser.roles.includes("admin") ? "admin" : selectedUser.roles.includes("moderator") ? "moderator" : "user";
     if (userRole !== currentRole) {
