@@ -362,6 +362,7 @@ const Marketplace = () => {
                       index={i}
                        promoPrice={activePromo?.flat_price ?? null}
                        promoType={activePromo ? "flat" : null}
+                       isAdminView={isAdmin}
                     />
                   ))}
                 </div>
