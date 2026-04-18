@@ -142,6 +142,8 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const leadIds: string[] = Array.isArray(body.lead_ids) ? body.lead_ids : [body.lead_id];
+    const targetDealerId: string | undefined = typeof body.target_dealer_id === "string" ? body.target_dealer_id : undefined;
+    const giftMode: boolean = body.gift === true;
 
     if (!leadIds.length || leadIds.some((id) => typeof id !== "string")) {
       return new Response(JSON.stringify({ error: "Invalid lead_id(s)" }), {
@@ -150,12 +152,34 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get dealer
-    const { data: dealer, error: dealerErr } = await admin
-      .from("dealers")
-      .select("id, wallet_balance, subscription_tier, webhook_url, webhook_secret, dealership_name, email, notification_email")
+    // Check if caller is admin
+    const { data: adminRole } = await admin
+      .from("user_roles")
+      .select("role")
       .eq("user_id", user.id)
-      .single();
+      .eq("role", "admin")
+      .maybeSingle();
+    const isAdmin = !!adminRole;
+
+    // If admin requests buying on behalf of a target dealer, allow it.
+    // Otherwise (or for non-admins), use the caller's own dealer record.
+    let dealerQuery = admin
+      .from("dealers")
+      .select("id, wallet_balance, subscription_tier, webhook_url, webhook_secret, dealership_name, email, notification_email");
+
+    if (isAdmin && targetDealerId) {
+      dealerQuery = dealerQuery.eq("id", targetDealerId);
+    } else {
+      if (!isAdmin && (targetDealerId || giftMode)) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      dealerQuery = dealerQuery.eq("user_id", user.id);
+    }
+
+    const { data: dealer, error: dealerErr } = await dealerQuery.single();
 
     if (dealerErr || !dealer) {
       return new Response(JSON.stringify({ error: "Dealer not found" }), {
@@ -163,6 +187,9 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Only admins may use gift mode
+    const isGift = isAdmin && giftMode;
 
     // Check if dealer has an active promo code
     let promoInfo: { id: string; type: string; flat_price: number; discount_value: number } | null = null;
@@ -248,8 +275,8 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Check tier delay
-      if (delayHours > 0) {
+      // Check tier delay (admins bypass when buying on behalf or gifting)
+      if (delayHours > 0 && !isAdmin) {
         const leadAge = (Date.now() - new Date(lead.created_at).getTime()) / (1000 * 60 * 60);
         if (leadAge < delayHours) {
           results.push({ lead_id: leadId, success: false, error: `Lead locked for ${Math.ceil(delayHours - leadAge)}h (upgrade tier for earlier access)` });
@@ -269,7 +296,10 @@ Deno.serve(async (req) => {
         }
       }
 
-      if (currentBalance < price) {
+      // Gift mode: assign at $0 with no wallet deduction
+      const effectivePrice = isGift ? 0 : price;
+
+      if (!isGift && currentBalance < price) {
         results.push({ lead_id: leadId, success: false, error: "Insufficient wallet balance" });
         continue;
       }
@@ -295,28 +325,40 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Deduct wallet
-      currentBalance -= price;
-      await admin
-        .from("dealers")
-        .update({ wallet_balance: currentBalance })
-        .eq("id", dealer.id);
+      // Deduct wallet (skip for gifts)
+      if (!isGift) {
+        currentBalance -= price;
+        await admin
+          .from("dealers")
+          .update({ wallet_balance: currentBalance })
+          .eq("id", dealer.id);
 
-      // Record transaction
-      await admin.from("wallet_transactions").insert({
-        dealer_id: dealer.id,
-        type: "purchase",
-        amount: -price,
-        balance_after: currentBalance,
-        description: `Purchased lead ${lead.reference_code}${promoInfo ? " (promo)" : ""}`,
-        reference_id: leadId,
-      });
+        // Record transaction
+        await admin.from("wallet_transactions").insert({
+          dealer_id: dealer.id,
+          type: "purchase",
+          amount: -price,
+          balance_after: currentBalance,
+          description: `Purchased lead ${lead.reference_code}${promoInfo ? " (promo)" : ""}`,
+          reference_id: leadId,
+        });
+      } else {
+        // Log a $0 admin gift for audit trail
+        await admin.from("wallet_transactions").insert({
+          dealer_id: dealer.id,
+          type: "admin_gift",
+          amount: 0,
+          balance_after: currentBalance,
+          description: `Admin gifted lead ${lead.reference_code}`,
+          reference_id: leadId,
+        });
+      }
 
       // Record purchase
       const { data: purchaseRow } = await admin.from("purchases").insert({
         dealer_id: dealer.id,
         lead_id: leadId,
-        price_paid: price,
+        price_paid: effectivePrice,
         dealer_tier_at_purchase: dealer.subscription_tier,
         delivery_status: "delivered",
         delivery_method: dealer.webhook_url ? "webhook" : "email",
@@ -324,13 +366,14 @@ Deno.serve(async (req) => {
 
       // Fire dealer webhook (if configured) — non-blocking for the response status
       if (purchaseRow?.id && dealer.webhook_url) {
-        await fireDealerWebhook(admin, dealer, lead, purchaseRow.id, price);
+        await fireDealerWebhook(admin, dealer, lead, purchaseRow.id, effectivePrice);
       }
 
       // Collect for combined email (sent once after the loop)
       if (purchaseRow?.id) {
-        successfulPurchases.push({ lead, price, purchaseId: purchaseRow.id });
+        successfulPurchases.push({ lead, price: effectivePrice, purchaseId: purchaseRow.id });
       }
+
 
       // Increment promo usage and log it if applicable
       if (promoInfo && dealerPromo) {

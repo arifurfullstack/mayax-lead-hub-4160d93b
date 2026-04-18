@@ -11,6 +11,9 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import {
   MarketplaceFilterSidebar,
@@ -45,6 +48,10 @@ const Marketplace = () => {
   const [promoCode, setPromoCode] = useState("");
   const [activePromo, setActivePromo] = useState<{ code: string; flat_price: number } | null>(null);
   const [applyingPromo, setApplyingPromo] = useState(false);
+  // Admin "buy on behalf of" state
+  const [allDealers, setAllDealers] = useState<Array<{ id: string; dealership_name: string; wallet_balance: number; subscription_tier: string }>>([]);
+  const [targetDealerId, setTargetDealerId] = useState<string>(""); // empty = self
+  const [giftMode, setGiftMode] = useState(false);
 
   useEffect(() => {
     fetchLeads();
@@ -61,7 +68,17 @@ const Marketplace = () => {
       .eq("user_id", session.user.id)
       .eq("role", "admin")
       .maybeSingle();
-    setIsAdmin(!!roleRow);
+    const adminFlag = !!roleRow;
+    setIsAdmin(adminFlag);
+
+    if (adminFlag) {
+      const { data: dealersData } = await supabase
+        .from("dealers")
+        .select("id, dealership_name, wallet_balance, subscription_tier")
+        .eq("approval_status", "approved")
+        .order("dealership_name", { ascending: true });
+      setAllDealers((dealersData || []) as any);
+    }
 
     const { data: dealer } = await supabase
       .from("dealers")
@@ -223,7 +240,11 @@ const Marketplace = () => {
             Authorization: `Bearer ${session?.access_token}`,
             apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
           },
-          body: JSON.stringify({ lead_ids: confirmLeads.map((l) => l.id) }),
+          body: JSON.stringify({
+            lead_ids: confirmLeads.map((l) => l.id),
+            ...(isAdmin && targetDealerId ? { target_dealer_id: targetDealerId } : {}),
+            ...(isAdmin && giftMode ? { gift: true } : {}),
+          }),
         }
       );
 
@@ -236,7 +257,8 @@ const Marketplace = () => {
       }
 
       if (data.purchased > 0) {
-        setWalletBalance(data.new_balance);
+        // Only update OUR wallet balance if buying for self
+        if (!targetDealerId) setWalletBalance(data.new_balance);
         setSelectedLeads((prev) => {
           const next = new Set(prev);
           (data.results as Array<{ lead_id: string; success: boolean }>)
@@ -425,6 +447,8 @@ const Marketplace = () => {
           if (!open) {
             setConfirmLeads(null);
             setPurchaseResults(null);
+            setTargetDealerId("");
+            setGiftMode(false);
           }
         }}
       >
@@ -509,9 +533,43 @@ const Marketplace = () => {
           {!purchaseResults && confirmLeads && (() => {
             const priceFor = (l: any) => activePromo ? activePromo.flat_price : Number(l.price);
             const total = confirmLeads.reduce((s, l) => s + priceFor(l), 0);
-            const insufficient = walletBalance < total;
+            const targetDealer = isAdmin && targetDealerId
+              ? allDealers.find((d) => d.id === targetDealerId)
+              : null;
+            const effectiveBalance = targetDealer ? Number(targetDealer.wallet_balance) : walletBalance;
+            const effectiveTotal = isAdmin && giftMode ? 0 : total;
+            const insufficient = effectiveBalance < effectiveTotal;
             return (
               <div className="space-y-3">
+                {/* Admin: buy on behalf of */}
+                {isAdmin && (
+                  <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-3">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-primary uppercase tracking-wide">
+                      <span className="px-1.5 py-0.5 rounded bg-primary/20">Admin</span>
+                      Buy on behalf of
+                    </div>
+                    <Select value={targetDealerId || "self"} onValueChange={(v) => setTargetDealerId(v === "self" ? "" : v)}>
+                      <SelectTrigger className="bg-background/60 border-border">
+                        <SelectValue placeholder="Pick a dealer" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-72">
+                        <SelectItem value="self">— Buy for myself —</SelectItem>
+                        {allDealers.map((d) => (
+                          <SelectItem key={d.id} value={d.id}>
+                            {d.dealership_name} · ${Number(d.wallet_balance).toFixed(0)} · {d.subscription_tier}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="gift-mode" className="text-xs text-muted-foreground cursor-pointer">
+                        Gift (no charge)
+                      </Label>
+                      <Switch id="gift-mode" checked={giftMode} onCheckedChange={setGiftMode} />
+                    </div>
+                  </div>
+                )}
+
                 <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
                   {confirmLeads.map((lead) => (
                     <div key={lead.id} className="flex justify-between items-center text-sm p-3 rounded-lg bg-muted/50 border border-border/50">
@@ -529,7 +587,14 @@ const Marketplace = () => {
                 <div className="border-t border-border/50 pt-3 flex justify-between">
                   <span className="text-muted-foreground">Total</span>
                   <span className="text-lg font-bold text-foreground font-mono-timer">
-                    ${total.toFixed(2)}
+                    {isAdmin && giftMode ? (
+                      <>
+                        <span className="line-through text-muted-foreground text-sm mr-2">${total.toFixed(2)}</span>
+                        <span className="text-[#22c55e]">FREE</span>
+                      </>
+                    ) : (
+                      <>${total.toFixed(2)}</>
+                    )}
                   </span>
                 </div>
                 {activePromo && (
@@ -539,13 +604,18 @@ const Marketplace = () => {
                   </div>
                 )}
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Wallet Balance</span>
+                  <span className="text-muted-foreground">
+                    {targetDealer ? `${targetDealer.dealership_name}'s wallet` : "Wallet Balance"}
+                  </span>
                   <span className={cn("font-semibold font-mono-timer", !insufficient ? "text-[#22c55e]" : "text-destructive")}>
-                    ${walletBalance.toFixed(2)}
+                    ${effectiveBalance.toFixed(2)}
                   </span>
                 </div>
-                {insufficient && (
-                  <p className="text-destructive text-xs">Insufficient funds. Please add more funds to your wallet.</p>
+                {insufficient && !giftMode && (
+                  <p className="text-destructive text-xs">
+                    Insufficient funds in {targetDealer ? `${targetDealer.dealership_name}'s` : "your"} wallet.
+                    {isAdmin && " Toggle 'Gift (no charge)' to assign for free."}
+                  </p>
                 )}
               </div>
             );
@@ -557,6 +627,8 @@ const Marketplace = () => {
                 onClick={() => {
                   setConfirmLeads(null);
                   setPurchaseResults(null);
+                  setTargetDealerId("");
+                  setGiftMode(false);
                 }}
                 className="gradient-cta-buy text-foreground font-semibold"
               >
@@ -567,14 +639,23 @@ const Marketplace = () => {
                 <Button variant="outline" onClick={() => setConfirmLeads(null)} className="border-border/60">Cancel</Button>
                 <button
                   className="gradient-cta-buy text-foreground px-5 py-2 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-40"
-                  disabled={
-                    purchasing ||
-                    !confirmLeads ||
-                    walletBalance < (confirmLeads?.reduce((s, l) => s + (activePromo ? activePromo.flat_price : Number(l.price)), 0) ?? 0)
-                  }
+                  disabled={(() => {
+                    if (purchasing || !confirmLeads) return true;
+                    if (isAdmin && giftMode) return false;
+                    const total = confirmLeads.reduce((s, l) => s + (activePromo ? activePromo.flat_price : Number(l.price)), 0);
+                    const targetDealer = isAdmin && targetDealerId ? allDealers.find((d) => d.id === targetDealerId) : null;
+                    const bal = targetDealer ? Number(targetDealer.wallet_balance) : walletBalance;
+                    return bal < total;
+                  })()}
                   onClick={executePurchase}
                 >
-                  {purchasing ? "Processing..." : "Confirm Purchase"}
+                  {purchasing
+                    ? "Processing..."
+                    : isAdmin && giftMode
+                    ? "Gift Lead(s)"
+                    : isAdmin && targetDealerId
+                    ? "Buy for Dealer"
+                    : "Confirm Purchase"}
                 </button>
               </>
             )}
