@@ -37,7 +37,7 @@ const Marketplace = () => {
   const [walletBalance, setWalletBalance] = useState(0);
   const [filters, setFilters] = useState<MarketplaceFilters>(defaultFilters);
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
-  const [confirmLead, setConfirmLead] = useState<any | null>(null);
+  const [confirmLeads, setConfirmLeads] = useState<any[] | null>(null);
   const [purchasing, setPurchasing] = useState(false);
   const [usage, setUsage] = useState<{ leads_used: number; leads_limit: number } | null>(null);
   const [promoCode, setPromoCode] = useState("");
@@ -196,7 +196,7 @@ const Marketplace = () => {
   }, [filtered, selectedLeads, activePromo]);
 
   const executePurchase = async () => {
-    if (!confirmLead) return;
+    if (!confirmLeads || confirmLeads.length === 0) return;
     setPurchasing(true);
 
     const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
@@ -212,7 +212,7 @@ const Marketplace = () => {
             Authorization: `Bearer ${session?.access_token}`,
             apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
           },
-          body: JSON.stringify({ lead_ids: [confirmLead.id] }),
+          body: JSON.stringify({ lead_ids: confirmLeads.map((l) => l.id) }),
         }
       );
 
@@ -227,17 +227,18 @@ const Marketplace = () => {
       if (data.purchased > 0) {
         toast({
           title: "Purchase Successful!",
-          description: `Lead purchased. New balance: $${Number(data.new_balance).toFixed(2)}`,
+          description: `${data.purchased} lead${data.purchased > 1 ? "s" : ""} purchased. New balance: $${Number(data.new_balance).toFixed(2)}`,
         });
         setWalletBalance(data.new_balance);
+        setSelectedLeads(new Set());
       }
 
       if (data.failed > 0) {
         const errors = data.results.filter((r: any) => !r.success).map((r: any) => r.error).join("; ");
-        toast({ title: "Purchase failed", description: errors, variant: "destructive" });
+        toast({ title: `${data.failed} purchase(s) failed`, description: errors, variant: "destructive" });
       }
 
-      setConfirmLead(null);
+      setConfirmLeads(null);
       fetchLeads();
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -346,7 +347,7 @@ const Marketplace = () => {
                       lead={lead}
                       locked={isLocked(lead)}
                       unlockAt={getUnlockAt(lead)}
-                      onBuy={(l) => setConfirmLead(l)}
+                      onBuy={(l) => setConfirmLeads([l])}
                       selected={selectedLeads.has(lead.id)}
                       onSelect={toggleSelect}
                       index={i}
@@ -397,62 +398,77 @@ const Marketplace = () => {
               className="gradient-cta-green text-foreground px-6 py-2.5 rounded-lg font-semibold text-sm tracking-wide hover:opacity-90 transition-opacity disabled:opacity-40"
               disabled={selectedLeads.size === 0}
               onClick={() => {
-                const firstSelected = filtered.find((l) => selectedLeads.has(l.id));
-                if (firstSelected) setConfirmLead(firstSelected);
+                const selected = filtered.filter((l) => selectedLeads.has(l.id));
+                if (selected.length > 0) setConfirmLeads(selected);
               }}
             >
-              BUY LEAD
+              {selectedLeads.size > 1 ? `BUY ${selectedLeads.size} LEADS` : "BUY LEAD"}
             </button>
           </div>
         </div>
       </div>
 
       {/* Confirm Purchase Dialog */}
-      <Dialog open={!!confirmLead} onOpenChange={() => setConfirmLead(null)}>
+      <Dialog open={!!confirmLeads} onOpenChange={() => setConfirmLeads(null)}>
         <DialogContent className="glass border-border max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-foreground">Confirm Purchase</DialogTitle>
+            <DialogTitle className="text-foreground">
+              Confirm Purchase {confirmLeads && confirmLeads.length > 1 ? `(${confirmLeads.length} leads)` : ""}
+            </DialogTitle>
           </DialogHeader>
-          {confirmLead && (
-            <div className="space-y-3">
-              <div className="flex justify-between items-center text-sm p-3 rounded-lg bg-muted/50 border border-border/50">
-                <div>
-                  <span className="font-mono-timer text-primary text-xs">{confirmLead.reference_code}</span>
-                  <span className="text-foreground ml-2">{confirmLead.first_name} {confirmLead.last_name?.charAt(0)}.</span>
+          {confirmLeads && (() => {
+            const priceFor = (l: any) => activePromo ? activePromo.flat_price : Number(l.price);
+            const total = confirmLeads.reduce((s, l) => s + priceFor(l), 0);
+            const insufficient = walletBalance < total;
+            return (
+              <div className="space-y-3">
+                <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
+                  {confirmLeads.map((lead) => (
+                    <div key={lead.id} className="flex justify-between items-center text-sm p-3 rounded-lg bg-muted/50 border border-border/50">
+                      <div className="min-w-0">
+                        <span className="font-mono-timer text-primary text-xs">{lead.reference_code}</span>
+                        <span className="text-foreground ml-2">{lead.first_name} {lead.last_name?.charAt(0)}.</span>
+                      </div>
+                      <span className="font-bold text-foreground font-mono-timer whitespace-nowrap">
+                        ${priceFor(lead).toFixed(2)}
+                        {activePromo && <span className="text-xs text-primary ml-1">(promo)</span>}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-                <span className="font-bold text-foreground font-mono-timer">
-                  ${activePromo ? activePromo.flat_price.toFixed(2) : Number(confirmLead.price).toFixed(2)}
-                  {activePromo && <span className="text-xs text-primary ml-1">(promo)</span>}
-                </span>
-              </div>
-              <div className="border-t border-border/50 pt-3 flex justify-between">
-                <span className="text-muted-foreground">Total</span>
-                <span className="text-lg font-bold text-foreground font-mono-timer">
-                  ${activePromo ? activePromo.flat_price.toFixed(2) : Number(confirmLead.price).toFixed(2)}
-                </span>
-              </div>
-              {activePromo && (
-                <div className="flex items-center gap-2 text-xs text-primary bg-primary/10 px-3 py-1.5 rounded-lg">
-                  <Tag className="h-3.5 w-3.5" />
-                  <span>Promo <strong>{activePromo.code}</strong> applied — flat rate pricing</span>
+                <div className="border-t border-border/50 pt-3 flex justify-between">
+                  <span className="text-muted-foreground">Total</span>
+                  <span className="text-lg font-bold text-foreground font-mono-timer">
+                    ${total.toFixed(2)}
+                  </span>
                 </div>
-              )}
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Wallet Balance</span>
-                <span className={cn("font-semibold font-mono-timer", walletBalance >= (activePromo ? activePromo.flat_price : confirmLead.price) ? "text-[#22c55e]" : "text-destructive")}>
-                  ${walletBalance.toFixed(2)}
-                </span>
+                {activePromo && (
+                  <div className="flex items-center gap-2 text-xs text-primary bg-primary/10 px-3 py-1.5 rounded-lg">
+                    <Tag className="h-3.5 w-3.5" />
+                    <span>Promo <strong>{activePromo.code}</strong> applied — flat rate pricing</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Wallet Balance</span>
+                  <span className={cn("font-semibold font-mono-timer", !insufficient ? "text-[#22c55e]" : "text-destructive")}>
+                    ${walletBalance.toFixed(2)}
+                  </span>
+                </div>
+                {insufficient && (
+                  <p className="text-destructive text-xs">Insufficient funds. Please add more funds to your wallet.</p>
+                )}
               </div>
-              {walletBalance < (activePromo ? activePromo.flat_price : confirmLead.price) && (
-                <p className="text-destructive text-xs">Insufficient funds. Please add more funds to your wallet.</p>
-              )}
-            </div>
-          )}
+            );
+          })()}
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setConfirmLead(null)} className="border-border/60">Cancel</Button>
+            <Button variant="outline" onClick={() => setConfirmLeads(null)} className="border-border/60">Cancel</Button>
             <button
               className="gradient-cta-buy text-foreground px-5 py-2 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-40"
-              disabled={purchasing || !confirmLead || walletBalance < (activePromo ? activePromo.flat_price : confirmLead.price)}
+              disabled={
+                purchasing ||
+                !confirmLeads ||
+                walletBalance < (confirmLeads?.reduce((s, l) => s + (activePromo ? activePromo.flat_price : Number(l.price)), 0) ?? 0)
+              }
               onClick={executePurchase}
             >
               {purchasing ? "Processing..." : "Confirm Purchase"}
