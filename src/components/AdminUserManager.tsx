@@ -62,6 +62,7 @@ const AdminUserManager = () => {
     dealership_name: "", contact_person: "", email: "", phone: "",
     province: "", address: "", business_type: "independent", website: "",
     approval_status: "pending", subscription_tier: "basic",
+    wallet_balance: "0",
   });
 
   // Add funds
@@ -126,6 +127,7 @@ const AdminUserManager = () => {
       website: u.website ?? "",
       approval_status: u.approval_status,
       subscription_tier: u.subscription_tier,
+      wallet_balance: Number(u.wallet_balance ?? 0).toFixed(2),
     });
     setUserRole(u.roles.includes("admin") ? "admin" : u.roles.includes("moderator") ? "moderator" : "user");
     setEditMode(true);
@@ -134,6 +136,14 @@ const AdminUserManager = () => {
   const saveEdit = async () => {
     if (!selectedUser) return;
     setSaving(true);
+
+    // Validate wallet balance
+    const newBalance = parseFloat(editForm.wallet_balance);
+    if (isNaN(newBalance) || newBalance < 0) {
+      toast({ title: "Invalid wallet balance", description: "Must be a non-negative number.", variant: "destructive" });
+      setSaving(false);
+      return;
+    }
 
     const { error } = await supabase.from("dealers").update({
       dealership_name: editForm.dealership_name,
@@ -146,12 +156,27 @@ const AdminUserManager = () => {
       website: editForm.website || null,
       approval_status: editForm.approval_status,
       subscription_tier: editForm.subscription_tier,
+      wallet_balance: newBalance,
     }).eq("id", selectedUser.id);
 
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
       setSaving(false);
       return;
+    }
+
+    // Log wallet adjustment if balance changed
+    const prevBalance = Number(selectedUser.wallet_balance ?? 0);
+    const delta = newBalance - prevBalance;
+    if (Math.abs(delta) > 0.001) {
+      await supabase.from("wallet_transactions").insert({
+        dealer_id: selectedUser.id,
+        amount: delta,
+        balance_after: newBalance,
+        type: delta > 0 ? "adjustment_credit" : "adjustment_debit",
+        description: `Admin wallet adjustment (${delta > 0 ? "+" : ""}$${delta.toFixed(2)})`,
+        reference_id: `admin-edit-${Date.now()}`,
+      });
     }
 
     // Update role
@@ -482,6 +507,23 @@ const AdminUserManager = () => {
                   <SelectItem value="vip">VIP</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-1.5 col-span-2">
+              <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                <DollarSign className="h-3 w-3" /> Wallet Balance ($)
+              </Label>
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                value={editForm.wallet_balance}
+                onChange={(e) => setEditForm(f => ({ ...f, wallet_balance: e.target.value }))}
+                className="bg-background border-border font-mono"
+                placeholder="0.00"
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Current: ${Number(selectedUser?.wallet_balance ?? 0).toFixed(2)} — change is logged as an adjustment transaction.
+              </p>
             </div>
             <div className="space-y-1.5 col-span-2">
               <Label className="text-xs text-muted-foreground">Role</Label>
