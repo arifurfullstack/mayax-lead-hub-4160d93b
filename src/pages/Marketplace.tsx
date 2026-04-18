@@ -37,7 +37,7 @@ const Marketplace = () => {
   const [walletBalance, setWalletBalance] = useState(0);
   const [filters, setFilters] = useState<MarketplaceFilters>(defaultFilters);
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
-  const [confirmLead, setConfirmLead] = useState<any | null>(null);
+  const [confirmLeads, setConfirmLeads] = useState<any[] | null>(null);
   const [purchasing, setPurchasing] = useState(false);
   const [usage, setUsage] = useState<{ leads_used: number; leads_limit: number } | null>(null);
   const [promoCode, setPromoCode] = useState("");
