@@ -42,6 +42,12 @@ function generateRefCode(): string {
   return `MX-${year}-${seq}`;
 }
 
+// Normalize phone to last 10 digits for matching
+function normalizePhoneDigits(raw: string): string {
+  const digits = (raw || "").replace(/[^0-9]/g, "");
+  return digits.length > 10 ? digits.slice(-10) : digits;
+}
+
 const ALLOWED_MIME = [
   "application/pdf",
   "image/jpeg",
@@ -148,7 +154,39 @@ Deno.serve(async (req) => {
     else if (quality_grade === "A") price = 55;
     else if (quality_grade === "B") price = 35;
 
-    const refCode = generateRefCode();
+    // ── Dedup: try matching an existing lead by email or phone (last 10 digits) ──
+    const phoneDigits = normalizePhoneDigits(phone);
+    let matchedLead: any = null;
+
+    if (email || phoneDigits.length >= 7) {
+      // Match by email first (exact, case-insensitive)
+      if (email) {
+        const { data: byEmail } = await supabase
+          .from("leads")
+          .select("id, reference_code, phone, email, notes, documents, document_files, sold_to_dealer_id, sold_status, first_name, last_name, vehicle_preference, city, province, income, credit_range_min, credit_range_max, trade_in, appointment_time")
+          .ilike("email", email)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (byEmail) matchedLead = byEmail;
+      }
+
+      // Fallback to phone match
+      if (!matchedLead && phoneDigits.length >= 7) {
+        const { data: candidates } = await supabase
+          .from("leads")
+          .select("id, reference_code, phone, email, notes, documents, document_files, sold_to_dealer_id, sold_status, first_name, last_name, vehicle_preference, city, province, income, credit_range_min, credit_range_max, trade_in, appointment_time")
+          .not("phone", "is", null)
+          .order("created_at", { ascending: false })
+          .limit(500);
+        matchedLead = (candidates || []).find((l: any) => {
+          const lDigits = normalizePhoneDigits(l.phone || "");
+          return lDigits && lDigits === phoneDigits;
+        }) || null;
+      }
+    }
+
+    const refCode = matchedLead?.reference_code || generateRefCode();
 
     // Upload files to storage
     const documentFiles: { name: string; path: string; type: string; size: number }[] = [];
