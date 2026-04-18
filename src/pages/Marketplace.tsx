@@ -35,6 +35,7 @@ const Marketplace = () => {
   const [dealerId, setDealerId] = useState<string | null>(null);
   const [dealerTier, setDealerTier] = useState("basic");
   const [walletBalance, setWalletBalance] = useState(0);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [filters, setFilters] = useState<MarketplaceFilters>(defaultFilters);
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
   const [confirmLeads, setConfirmLeads] = useState<any[] | null>(null);
@@ -52,6 +53,15 @@ const Marketplace = () => {
   const fetchLeads = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
+
+    // Check admin role
+    const { data: roleRow } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", session.user.id)
+      .eq("role", "admin")
+      .maybeSingle();
+    setIsAdmin(!!roleRow);
 
     const { data: dealer } = await supabase
       .from("dealers")
@@ -352,6 +362,7 @@ const Marketplace = () => {
                       index={i}
                        promoPrice={activePromo?.flat_price ?? null}
                        promoType={activePromo ? "flat" : null}
+                       isAdminView={isAdmin}
                     />
                   ))}
                 </div>
