@@ -98,7 +98,17 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
         {lead.reference_code && (
           <span className="text-[10px] text-muted-foreground font-mono-timer">#{lead.reference_code}</span>
         )}
-        {lead.quality_grade && promoPrice == null && (
+        {isAdminView && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded border border-primary/40 bg-primary/15 text-primary uppercase tracking-wider font-mono-timer flex items-center gap-1 cursor-help">
+                <Eye className="h-2.5 w-2.5" /> Admin View
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">You're viewing full PII as an admin</TooltipContent>
+          </Tooltip>
+        )}
+        {lead.quality_grade && promoPrice == null && !isAdminView && (
           <span className={cn(
             "ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider font-mono-timer",
             gradeColors[lead.quality_grade.toLowerCase()] ?? gradeColors.c
