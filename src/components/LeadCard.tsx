@@ -56,7 +56,7 @@ const docLabels: Record<string, { icon: React.ReactNode; short: string }> = {
 };
 
 function isRevealed(lead: any): boolean {
-  return lead.first_name !== "***" && lead.email !== "xxx@xxxx.com";
+  return lead.email !== "xxx@xxxx.com" && lead.last_name !== "***";
 }
 
 export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, index = 0, promoPrice, promoType }: LeadCardProps) {
@@ -111,10 +111,11 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
       <div className="space-y-0.5 mb-1.5">
         <div className="flex items-center gap-1.5">
           <Tooltip><TooltipTrigger asChild><User className="h-3 w-3 text-muted-foreground cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Contact Name</TooltipContent></Tooltip>
-          <span className={cn("text-sm font-medium", revealed ? "text-foreground" : "text-muted-foreground select-none")} style={!revealed ? { filter: "blur(5px)" } : undefined}>
-            {lead.first_name} {lead.last_name?.charAt(0)}.
+          <span className="text-sm font-medium text-foreground">
+            {lead.first_name}
+            {revealed && lead.last_name ? ` ${lead.last_name.charAt(0)}.` : ""}
           </span>
-          {!revealed && <Tooltip><TooltipTrigger asChild><Lock className="h-2.5 w-2.5 text-muted-foreground/60 cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Purchase to reveal</TooltipContent></Tooltip>}
+          {!revealed && <Tooltip><TooltipTrigger asChild><Lock className="h-2.5 w-2.5 text-muted-foreground/60 cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Last name hidden until purchase</TooltipContent></Tooltip>}
         </div>
         <div className="flex items-center gap-1.5 min-w-0">
           <Tooltip><TooltipTrigger asChild><Phone className="h-3 w-3 text-muted-foreground shrink-0 cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Phone Number</TooltipContent></Tooltip>
