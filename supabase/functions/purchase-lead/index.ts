@@ -142,6 +142,8 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const leadIds: string[] = Array.isArray(body.lead_ids) ? body.lead_ids : [body.lead_id];
+    const targetDealerId: string | undefined = typeof body.target_dealer_id === "string" ? body.target_dealer_id : undefined;
+    const giftMode: boolean = body.gift === true;
 
     if (!leadIds.length || leadIds.some((id) => typeof id !== "string")) {
       return new Response(JSON.stringify({ error: "Invalid lead_id(s)" }), {
@@ -150,12 +152,34 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get dealer
-    const { data: dealer, error: dealerErr } = await admin
-      .from("dealers")
-      .select("id, wallet_balance, subscription_tier, webhook_url, webhook_secret, dealership_name, email, notification_email")
+    // Check if caller is admin
+    const { data: adminRole } = await admin
+      .from("user_roles")
+      .select("role")
       .eq("user_id", user.id)
-      .single();
+      .eq("role", "admin")
+      .maybeSingle();
+    const isAdmin = !!adminRole;
+
+    // If admin requests buying on behalf of a target dealer, allow it.
+    // Otherwise (or for non-admins), use the caller's own dealer record.
+    let dealerQuery = admin
+      .from("dealers")
+      .select("id, wallet_balance, subscription_tier, webhook_url, webhook_secret, dealership_name, email, notification_email");
+
+    if (isAdmin && targetDealerId) {
+      dealerQuery = dealerQuery.eq("id", targetDealerId);
+    } else {
+      if (!isAdmin && (targetDealerId || giftMode)) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      dealerQuery = dealerQuery.eq("user_id", user.id);
+    }
+
+    const { data: dealer, error: dealerErr } = await dealerQuery.single();
 
     if (dealerErr || !dealer) {
       return new Response(JSON.stringify({ error: "Dealer not found" }), {
@@ -163,6 +187,9 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Only admins may use gift mode
+    const isGift = isAdmin && giftMode;
 
     // Check if dealer has an active promo code
     let promoInfo: { id: string; type: string; flat_price: number; discount_value: number } | null = null;
