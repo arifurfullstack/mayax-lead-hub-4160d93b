@@ -447,6 +447,8 @@ const Marketplace = () => {
           if (!open) {
             setConfirmLeads(null);
             setPurchaseResults(null);
+            setTargetDealerId("");
+            setGiftMode(false);
           }
         }}
       >
