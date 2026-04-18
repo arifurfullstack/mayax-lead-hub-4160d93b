@@ -214,6 +214,92 @@ Deno.serve(async (req) => {
       }
     }
 
+    if (matchedLead) {
+      // Merge documents
+      const existingDocs: string[] = Array.isArray(matchedLead.documents) ? matchedLead.documents : [];
+      const incomingDocs: string[] = Array.isArray(documents) ? documents : [];
+      const mergedDocs = Array.from(new Set([...existingDocs, ...incomingDocs]));
+
+      const existingFiles = Array.isArray(matchedLead.document_files) ? matchedLead.document_files : [];
+      const mergedFiles = [...existingFiles, ...documentFiles];
+
+      const appendedNotes = notes
+        ? (matchedLead.notes ? `${matchedLead.notes}\n\n[Resubmission] ${notes}` : `[Resubmission] ${notes}`)
+        : matchedLead.notes;
+
+      // If lead is still available, refresh full info + recalc score/price.
+      // If already sold, only merge new docs/notes (don't change pricing or core info).
+      const isAvailable = matchedLead.sold_status === "available";
+
+      const updatePayload: Record<string, any> = {
+        notes: appendedNotes,
+        documents: mergedDocs.length > 0 ? mergedDocs : null,
+        document_files: mergedFiles.length > 0 ? mergedFiles : null,
+      };
+
+      if (isAvailable) {
+        Object.assign(updatePayload, {
+          first_name: firstName,
+          last_name: lastName,
+          email: email || matchedLead.email,
+          phone: phone || matchedLead.phone,
+          city: city || matchedLead.city,
+          province: province || matchedLead.province,
+          buyer_type: buyerType,
+          vehicle_preference: vehiclePref || matchedLead.vehicle_preference,
+          vehicle_price: vehiclePrice,
+          vehicle_mileage: vehicleMileage,
+          income: income ?? matchedLead.income,
+          credit_range_min: creditMin ?? matchedLead.credit_range_min,
+          credit_range_max: creditMax ?? matchedLead.credit_range_max,
+          trade_in: tradeIn,
+          appointment_time: appointmentTime,
+          ai_score,
+          quality_grade,
+          price,
+        });
+      }
+
+      const { error: updErr } = await supabase
+        .from("leads")
+        .update(updatePayload)
+        .eq("id", matchedLead.id);
+
+      if (updErr) {
+        return new Response(JSON.stringify({ error: updErr.message }), { status: 500, headers: jsonHeaders });
+      }
+
+      // Notify owning dealer if lead was already sold
+      if (!isAvailable && matchedLead.sold_to_dealer_id) {
+        const leadName = `${matchedLead.first_name || ""} ${matchedLead.last_name || ""}`.trim() || matchedLead.reference_code;
+        const parts: string[] = [];
+        if (documentFiles.length > 0) parts.push(`${documentFiles.length} new document${documentFiles.length === 1 ? "" : "s"} uploaded`);
+        if (notes) parts.push("notes added");
+        if (parts.length > 0) {
+          await supabase.from("notifications").insert({
+            dealer_id: matchedLead.sold_to_dealer_id,
+            title: `Lead resubmission — ${leadName}`,
+            message: `${parts.join(", ")} (Ref: ${matchedLead.reference_code})`,
+            link: `/orders`,
+          });
+        }
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          matched: true,
+          updated: true,
+          reference_code: matchedLead.reference_code,
+          message: isAvailable
+            ? "We found your existing application and updated it."
+            : "Your application has been received and shared with the dealer.",
+          files_uploaded: documentFiles.length,
+        }),
+        { status: 200, headers: jsonHeaders }
+      );
+    }
+
     const { error } = await supabase.from("leads").insert({
       reference_code: refCode,
       first_name: firstName,
@@ -247,7 +333,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, message: "Lead submitted successfully!", files_uploaded: documentFiles.length }),
+      JSON.stringify({ success: true, matched: false, reference_code: refCode, message: "Lead submitted successfully!", files_uploaded: documentFiles.length }),
       { status: 200, headers: jsonHeaders }
     );
   } catch (err) {
