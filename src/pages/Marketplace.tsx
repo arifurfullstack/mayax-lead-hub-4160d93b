@@ -54,6 +54,15 @@ const Marketplace = () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
 
+    // Check admin role
+    const { data: roleRow } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", session.user.id)
+      .eq("role", "admin")
+      .maybeSingle();
+    setIsAdmin(!!roleRow);
+
     const { data: dealer } = await supabase
       .from("dealers")
       .select("id, subscription_tier, wallet_balance")
