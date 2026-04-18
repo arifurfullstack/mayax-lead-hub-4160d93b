@@ -48,6 +48,10 @@ const Marketplace = () => {
   const [promoCode, setPromoCode] = useState("");
   const [activePromo, setActivePromo] = useState<{ code: string; flat_price: number } | null>(null);
   const [applyingPromo, setApplyingPromo] = useState(false);
+  // Admin "buy on behalf of" state
+  const [allDealers, setAllDealers] = useState<Array<{ id: string; dealership_name: string; wallet_balance: number; subscription_tier: string }>>([]);
+  const [targetDealerId, setTargetDealerId] = useState<string>(""); // empty = self
+  const [giftMode, setGiftMode] = useState(false);
 
   useEffect(() => {
     fetchLeads();
