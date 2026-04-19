@@ -148,6 +148,11 @@ function parseNotesFlags(notes: string | null | undefined): {
     has_appointment: /call\s?(me|today|at)|phone\s?appointment/.test(text),
   };
 }
+
+function normalizePhoneDigits(raw: string | null | undefined): string {
+  const digits = (raw ?? "").replace(/[^0-9]/g, "");
+  return digits.length > 10 ? digits.slice(-10) : digits;
+}
 // --- End pricing logic ---
 
 Deno.serve(async (req) => {
@@ -214,9 +219,48 @@ Deno.serve(async (req) => {
         continue;
       }
 
+      const inboundEmail = typeof lead.email === "string" ? lead.email.trim() : "";
+      const inboundPhone = typeof lead.phone === "string" ? lead.phone.trim() : "";
+      const inboundPhoneDigits = normalizePhoneDigits(inboundPhone);
+
+      let matchedLead: {
+        id: string;
+        reference_code: string;
+        phone: string | null;
+        email: string | null;
+        notes: string | null;
+        sold_to_dealer_id: string | null;
+        sold_status: string;
+      } | null = null;
+
+      if (inboundEmail) {
+        const { data: byEmail } = await admin
+          .from("leads")
+          .select("id, reference_code, phone, email, notes, sold_to_dealer_id, sold_status")
+          .ilike("email", inboundEmail)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (byEmail) matchedLead = byEmail;
+      }
+
+      if (!matchedLead && inboundPhoneDigits.length >= 7) {
+        const { data: phoneCandidates } = await admin
+          .from("leads")
+          .select("id, reference_code, phone, email, notes, sold_to_dealer_id, sold_status")
+          .not("phone", "is", null)
+          .order("created_at", { ascending: false })
+          .limit(1000);
+
+        matchedLead = (phoneCandidates ?? []).find((candidate: { phone: string | null }) => {
+          return normalizePhoneDigits(candidate.phone) === inboundPhoneDigits;
+        }) ?? null;
+      }
+
       const year = new Date().getFullYear();
       const seq = String(Math.floor(Math.random() * 900) + 100);
-      const referenceCode = lead.reference_code ?? `MX-${year}-${seq}`;
+      const referenceCode = matchedLead?.reference_code ?? lead.reference_code ?? `MX-${year}-${seq}`;
 
       // Parse notes for hidden flags
       const notesFlags = parseNotesFlags(lead.notes);
@@ -249,12 +293,12 @@ Deno.serve(async (req) => {
         appointment_time,
       }, pricing);
 
-      const insertData: Record<string, unknown> = {
+      const leadData: Record<string, unknown> = {
         reference_code: referenceCode,
         first_name: lead.first_name,
         last_name: lead.last_name,
-        email: lead.email ?? null,
-        phone: lead.phone ?? null,
+        email: inboundEmail || null,
+        phone: inboundPhone || null,
         city: lead.city ?? null,
         province: lead.province ?? null,
         buyer_type: lead.buyer_type ?? "online",
@@ -274,7 +318,39 @@ Deno.serve(async (req) => {
         appointment_time,
       };
 
-      const { error } = await admin.from("leads").insert(insertData);
+      if (matchedLead) {
+        const appendedNotes = lead.notes
+          ? (matchedLead.notes ? `${matchedLead.notes}\n\n[Inbound update] ${lead.notes}` : `[Inbound update] ${lead.notes}`)
+          : matchedLead.notes;
+
+        const updateData: Record<string, unknown> = {
+          notes: appendedNotes,
+        };
+
+        if (matchedLead.sold_status === "available") {
+          Object.assign(updateData, {
+            ...leadData,
+            notes: appendedNotes,
+          });
+        }
+
+        const { error } = await admin.from("leads").update(updateData).eq("id", matchedLead.id);
+
+        if (error) {
+          results.push({ reference_code: referenceCode, status: "error", error: error.message });
+        } else {
+          results.push({
+            reference_code: referenceCode,
+            status: matchedLead.sold_status === "available" ? "updated" : "merged",
+            ai_score,
+            quality_grade,
+            price,
+          });
+        }
+        continue;
+      }
+
+      const { error } = await admin.from("leads").insert(leadData);
 
       if (error) {
         results.push({ reference_code: referenceCode, status: "error", error: error.message });

@@ -60,6 +60,11 @@ const formatAmount = (v: string) => {
   return Number(digits).toLocaleString("en-US");
 };
 
+const normalizePhoneDigits = (raw: string) => {
+  const digits = raw.replace(/[^0-9]/g, "");
+  return digits.length > 10 ? digits.slice(-10) : digits;
+};
+
 interface StagedFile {
   file: File;
   name: string;
@@ -165,6 +170,32 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
 
     setSaving(true);
 
+    const trimmedEmail = form.email.trim().toLowerCase();
+    const phoneDigits = normalizePhoneDigits(form.phone);
+    let existingLeadId: string | null = null;
+
+    if (trimmedEmail) {
+      const { data: byEmail } = await supabase
+        .from("leads")
+        .select("id")
+        .ilike("email", trimmedEmail)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (byEmail?.id) existingLeadId = byEmail.id;
+    }
+
+    if (!existingLeadId && phoneDigits.length >= 7) {
+      const { data: phoneCandidates } = await supabase
+        .from("leads")
+        .select("id, phone")
+        .not("phone", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(1000);
+      const phoneMatch = (phoneCandidates || []).find((lead: { id: string; phone: string | null }) => normalizePhoneDigits(lead.phone || "") === phoneDigits);
+      if (phoneMatch?.id) existingLeadId = phoneMatch.id;
+    }
+
     const insertData = {
       reference_code: generateRefCode(),
       first_name: form.first_name,
@@ -190,10 +221,14 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
       documents: selectedDocTypes.length > 0 ? selectedDocTypes : null,
     } as any;
 
-    const { data: insertedLead, error } = await supabase.from("leads").insert(insertData).select("id").single();
+    const { reference_code: _referenceCode, ...updateData } = insertData;
+
+    const { data: insertedLead, error } = existingLeadId
+      ? await supabase.from("leads").update(updateData).eq("id", existingLeadId).select("id").single()
+      : await supabase.from("leads").insert(insertData).select("id").single();
 
     if (error) {
-      toast({ title: "Error adding lead", description: error.message, variant: "destructive" });
+      toast({ title: existingLeadId ? "Error updating lead" : "Error adding lead", description: error.message, variant: "destructive" });
       setSaving(false);
       return;
     }
@@ -223,7 +258,7 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
     }
 
     setSaving(false);
-    toast({ title: "Lead added", description: "New lead created successfully." });
+    toast({ title: existingLeadId ? "Lead updated" : "Lead added", description: existingLeadId ? "Existing lead was updated instead of creating a duplicate." : "New lead created successfully." });
     setForm({
       first_name: "", last_name: "", email: "", phone: "", city: "", province: "",
       buyer_type: "online",

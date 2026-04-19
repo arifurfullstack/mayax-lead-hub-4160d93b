@@ -259,12 +259,27 @@ const Marketplace = () => {
       if (data.purchased > 0) {
         // Only update OUR wallet balance if buying for self
         if (!targetDealerId) setWalletBalance(data.new_balance);
+        const successfulLeadIds = new Set(
+          (data.results as Array<{ lead_id: string; success: boolean }>)
+            .filter((r) => r.success)
+            .map((r) => r.lead_id)
+        );
+        setLeads((prev) => prev.filter((lead) => !successfulLeadIds.has(lead.id)));
         setSelectedLeads((prev) => {
           const next = new Set(prev);
           (data.results as Array<{ lead_id: string; success: boolean }>)
             .filter((r) => r.success)
             .forEach((r) => next.delete(r.lead_id));
           return next;
+        });
+      }
+
+      const failedResults = (data.results as Array<{ lead_id: string; success: boolean; error?: string }>).filter((r) => !r.success);
+      if (failedResults.length > 0) {
+        toast({
+          title: failedResults.length === 1 ? "Lead not assigned" : "Some leads were not assigned",
+          description: failedResults[0].error || "Please review the purchase results.",
+          variant: "destructive",
         });
       }
 
