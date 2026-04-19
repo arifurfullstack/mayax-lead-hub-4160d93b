@@ -52,7 +52,30 @@ Deno.serve(async (req) => {
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  }
+
+  // Server-to-server auth: only callers that know the service role key
+  // (passed via x-internal-service-key or Authorization: Bearer) are allowed.
+  // The Supabase gateway no longer enforces JWT for this function
+  // (verify_jwt = false) because the new key format means service-role keys
+  // are not JWTs.
+  const internalKey = req.headers.get('x-internal-service-key')
+  const authHeader = req.headers.get('authorization') || ''
+  const bearerToken = authHeader.toLowerCase().startsWith('bearer ')
+    ? authHeader.slice(7).trim()
+    : ''
+  if (
+    internalKey !== supabaseServiceKey &&
+    bearerToken !== supabaseServiceKey
+  ) {
+    return new Response(
+      JSON.stringify({ error: 'Unauthorized' }),
+      {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
+    )
+  }
     )
   }
 
