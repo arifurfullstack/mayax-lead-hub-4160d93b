@@ -130,7 +130,7 @@ const AdminDashboard = () => {
     setLoading(true);
     const [{ data: d }, { data: l }, { data: s }] = await Promise.all([
       supabase.from("dealers").select("*").order("created_at", { ascending: false }),
-      supabase.from("leads").select("*").order("created_at", { ascending: false }),
+      supabase.from("leads").select("*").order("created_at", { ascending: false }).limit(5000),
       supabase.from("platform_settings").select("*"),
     ]);
     setDealers((d as Dealer[]) ?? []);
