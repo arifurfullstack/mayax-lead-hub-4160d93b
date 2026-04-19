@@ -12,4 +12,4 @@ project_id = "ikusoyppxhubbmrbxzfc"
   [functions.process-email-queue]
     verify_jwt = true
   [functions.send-transactional-email]
-    verify_jwt = true
+    verify_jwt = false
