@@ -398,72 +398,101 @@ Deno.serve(async (req) => {
 
     // Send a SINGLE confirmation email covering all successful purchases
     const recipientEmail = dealer.notification_email || dealer.email;
+    const sendEmail = async (payload: Record<string, unknown>) => {
+      const url = `${supabaseUrl}/functions/v1/send-transactional-email`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${serviceKey}`,
+          apikey: serviceKey,
+        },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        console.error("send-transactional-email failed", { status: res.status, body: txt });
+      } else {
+        console.log("send-transactional-email queued", { template: payload.templateName, to: payload.recipientEmail });
+      }
+    };
+
     if (recipientEmail && successfulPurchases.length > 0) {
       try {
         const totalPaid = successfulPurchases.reduce((sum, p) => sum + p.price, 0);
 
         if (successfulPurchases.length === 1) {
-          // Single lead — use the existing detailed single-lead template
           const { lead, price, purchaseId } = successfulPurchases[0];
-          await admin.functions.invoke("send-transactional-email", {
-            headers: { Authorization: `Bearer ${serviceKey}` },
-            body: {
-              templateName: "lead-purchased",
-              recipientEmail,
-              idempotencyKey: `lead-purchased-${purchaseId}`,
-              templateData: {
-                reference_code: lead.reference_code,
-                price_paid: price,
-                dealership_name: dealer.dealership_name,
-                lead: {
-                  first_name: lead.first_name ?? "",
-                  last_name: lead.last_name ?? "",
-                  email: lead.email ?? "",
-                  phone: lead.phone ?? "",
-                  city: lead.city ?? "",
-                  province: lead.province ?? "",
-                  income: lead.income ?? "",
-                  credit_range_min: lead.credit_range_min ?? "",
-                  credit_range_max: lead.credit_range_max ?? "",
-                  vehicle_preference: lead.vehicle_preference ?? "",
-                  trade_in: !!lead.trade_in,
-                  trade_in_vehicle: lead.trade_in_vehicle ?? "",
-                  bankruptcy: lead.has_bankruptcy ? "yes" : "",
-                  notes: lead.notes ?? "",
-                },
+          await sendEmail({
+            templateName: "lead-purchased",
+            recipientEmail,
+            idempotencyKey: `lead-purchased-${purchaseId}`,
+            templateData: {
+              reference_code: lead.reference_code,
+              price_paid: price,
+              dealership_name: dealer.dealership_name,
+              lead: {
+                first_name: lead.first_name ?? "",
+                last_name: lead.last_name ?? "",
+                email: lead.email ?? "",
+                phone: lead.phone ?? "",
+                city: lead.city ?? "",
+                province: lead.province ?? "",
+                income: lead.income ?? "",
+                credit_range_min: lead.credit_range_min ?? "",
+                credit_range_max: lead.credit_range_max ?? "",
+                vehicle_preference: lead.vehicle_preference ?? "",
+                trade_in: !!lead.trade_in,
+                trade_in_vehicle: lead.trade_in_vehicle ?? "",
+                bankruptcy: lead.has_bankruptcy ? "yes" : "",
+                notes: lead.notes ?? "",
               },
             },
           });
         } else {
-          // Multiple leads — send one combined bulk email
           const purchaseIds = successfulPurchases.map((p) => p.purchaseId).sort().join("-");
-          await admin.functions.invoke("send-transactional-email", {
-            headers: { Authorization: `Bearer ${serviceKey}` },
-            body: {
-              templateName: "leads-purchased-bulk",
-              recipientEmail,
-              idempotencyKey: `leads-bulk-${purchaseIds}`,
-              templateData: {
-                dealership_name: dealer.dealership_name,
-                total_paid: totalPaid,
-                lead_count: successfulPurchases.length,
-                leads: successfulPurchases.map(({ lead, price }) => ({
-                  reference_code: lead.reference_code,
-                  first_name: lead.first_name ?? "",
-                  last_name: lead.last_name ?? "",
-                  email: lead.email ?? "",
-                  phone: lead.phone ?? "",
-                  city: lead.city ?? "",
-                  province: lead.province ?? "",
-                  vehicle_preference: lead.vehicle_preference ?? "",
-                  price_paid: price,
-                })),
-              },
+          await sendEmail({
+            templateName: "leads-purchased-bulk",
+            recipientEmail,
+            idempotencyKey: `leads-bulk-${purchaseIds}`,
+            templateData: {
+              dealership_name: dealer.dealership_name,
+              total_paid: totalPaid,
+              lead_count: successfulPurchases.length,
+              leads: successfulPurchases.map(({ lead, price }) => ({
+                reference_code: lead.reference_code,
+                first_name: lead.first_name ?? "",
+                last_name: lead.last_name ?? "",
+                email: lead.email ?? "",
+                phone: lead.phone ?? "",
+                city: lead.city ?? "",
+                province: lead.province ?? "",
+                vehicle_preference: lead.vehicle_preference ?? "",
+                price_paid: price,
+              })),
             },
           });
         }
       } catch (emailErr) {
         console.error("Failed to send purchase confirmation email", emailErr);
+      }
+    }
+
+    // Create in-app notifications for each successful purchase
+    if (successfulPurchases.length > 0) {
+      try {
+        const notifs = successfulPurchases.map(({ lead, price, purchaseId }) => ({
+          dealer_id: dealer.id,
+          title: isGift
+            ? `🎁 Lead gifted — ${lead.first_name} ${lead.last_name}`
+            : `New lead purchased — ${lead.first_name} ${lead.last_name}`,
+          message: `Reference ${lead.reference_code}${isGift ? "" : ` • $${Number(price).toFixed(2)}`} • ${lead.city ?? ""}${lead.province ? `, ${lead.province}` : ""}`,
+          link: `/orders?purchase=${purchaseId}`,
+        }));
+        const { error: notifErr } = await admin.from("notifications").insert(notifs);
+        if (notifErr) console.error("Failed to create purchase notifications", notifErr);
+      } catch (notifErr) {
+        console.error("Failed to create purchase notifications", notifErr);
       }
     }
 
