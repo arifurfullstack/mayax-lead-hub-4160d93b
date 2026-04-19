@@ -30,9 +30,11 @@ function generateToken(): string {
     .join('')
 }
 
-// Auth note: this function uses verify_jwt = true in config.toml, so Supabase's
-// gateway validates the caller's JWT (anon or service_role) before the request
-// reaches this code. No in-function auth check is needed.
+// Auth note: this function uses verify_jwt = false in config.toml so it can be
+// invoked server-to-server by other edge functions (the platform's new key
+// format means service-role keys are not JWTs). The function still trusts only
+// callers that know SUPABASE_SERVICE_ROLE_KEY via the x-internal-service-key
+// header below; unauthenticated public calls are rejected.
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
@@ -50,7 +52,30 @@ Deno.serve(async (req) => {
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  }
+
+  // Server-to-server auth: only callers that know the service role key
+  // (passed via x-internal-service-key or Authorization: Bearer) are allowed.
+  // The Supabase gateway no longer enforces JWT for this function
+  // (verify_jwt = false) because the new key format means service-role keys
+  // are not JWTs.
+  const internalKey = req.headers.get('x-internal-service-key')
+  const authHeader = req.headers.get('authorization') || ''
+  const bearerToken = authHeader.toLowerCase().startsWith('bearer ')
+    ? authHeader.slice(7).trim()
+    : ''
+  if (
+    internalKey !== supabaseServiceKey &&
+    bearerToken !== supabaseServiceKey
+  ) {
+    return new Response(
+      JSON.stringify({ error: 'Unauthorized' }),
+      {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
+    )
+  }
     )
   }
 

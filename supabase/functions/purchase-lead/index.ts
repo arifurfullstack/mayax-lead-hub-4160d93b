@@ -126,6 +126,7 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
     const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
@@ -400,12 +401,15 @@ Deno.serve(async (req) => {
     const recipientEmail = dealer.notification_email || dealer.email;
     const sendEmail = async (payload: Record<string, unknown>) => {
       const url = `${supabaseUrl}/functions/v1/send-transactional-email`;
+      // Use anon key (a real JWT) for the gateway, service key as a custom header
+      // so the function still has admin-level trust to do its work.
       const res = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${serviceKey}`,
-          apikey: serviceKey,
+          Authorization: `Bearer ${anonKey}`,
+          apikey: anonKey,
+          "x-internal-service-key": serviceKey,
         },
         body: JSON.stringify(payload),
       });
