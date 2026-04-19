@@ -1,0 +1,1 @@
+DELETE FROM public.leads WHERE id = 'fb38f18e-a100-498d-9394-da44bc0e4de9' AND sold_status = 'available';
