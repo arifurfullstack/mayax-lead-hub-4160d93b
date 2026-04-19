@@ -121,14 +121,21 @@ export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props
       };
     }
     let start: Date;
+    let end: Date = new Date(8640000000000000);
     switch (timePeriod) {
       case "today": start = startOfDay(now); break;
+      case "yesterday": {
+        const y = subDays(now, 1);
+        start = startOfDay(y);
+        end = endOfDay(y);
+        break;
+      }
       case "week": start = startOfWeek(now, { weekStartsOn: 1 }); break;
       case "month": start = startOfMonth(now); break;
       case "year": start = startOfYear(now); break;
       default: start = new Date(0);
     }
-    return { start, end: new Date(8640000000000000) };
+    return { start, end };
   }, [timePeriod, customFrom, customTo]);
 
   // Filter
