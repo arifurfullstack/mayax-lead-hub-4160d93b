@@ -221,8 +221,10 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
       documents: selectedDocTypes.length > 0 ? selectedDocTypes : null,
     } as any;
 
+    const { reference_code: _referenceCode, ...updateData } = insertData;
+
     const { data: insertedLead, error } = existingLeadId
-      ? await supabase.from("leads").update({ ...insertData, reference_code: undefined }).eq("id", existingLeadId).select("id").single()
+      ? await supabase.from("leads").update(updateData).eq("id", existingLeadId).select("id").single()
       : await supabase.from("leads").insert(insertData).select("id").single();
 
     if (error) {
