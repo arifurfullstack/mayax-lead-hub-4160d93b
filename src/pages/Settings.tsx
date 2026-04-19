@@ -752,6 +752,10 @@ const Settings = () => {
                       onChange={(e) => updateField("webhook_url", e.target.value)}
                       placeholder="https://your-crm.com/api/leads"
                       className="pl-9 bg-card border-border"
+                      autoComplete="off"
+                      name="mx-webhook-url"
+                      data-lpignore="true"
+                      data-1p-ignore="true"
                     />
                   </div>
                   <Button
@@ -784,6 +788,10 @@ const Settings = () => {
                       type={showWebhookSecret ? "text" : "password"}
                       placeholder="whsec_..."
                       className="pl-9 pr-20 bg-card border-border font-mono text-xs"
+                      autoComplete="off"
+                      name="mx-webhook-secret"
+                      data-lpignore="true"
+                      data-1p-ignore="true"
                     />
                     <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
                       <Button
