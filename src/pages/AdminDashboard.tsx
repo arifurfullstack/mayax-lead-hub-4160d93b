@@ -433,7 +433,7 @@ const AdminDashboard = () => {
 
       {/* Tabs */}
       <Tabs defaultValue="dealers" className="space-y-6">
-        <TabsList className="bg-card border border-border">
+        <TabsList className="bg-card border border-border flex flex-wrap h-auto justify-start gap-1 p-1 w-full">
           <TabsTrigger value="dealers" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
             <Users className="h-4 w-4" /> Dealers
           </TabsTrigger>
