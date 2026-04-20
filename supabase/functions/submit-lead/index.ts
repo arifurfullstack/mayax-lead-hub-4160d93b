@@ -218,13 +218,23 @@ Deno.serve(async (req) => {
     const appointmentTime = body.appointment_time || null;
     const documents = Array.isArray(body.documents) ? body.documents.slice(0, 10) : null;
 
-    const { ai_score, quality_grade } = calculateAiScore({
-      income,
-      vehicle_preference: vehiclePref,
-      buyer_type: buyerType,
-      trade_in: tradeIn,
-      appointment_time: appointmentTime,
-    });
+    const { scoreCfg, bucketCfg } = await loadGradingConfig(supabase);
+    const { ai_score, quality_grade } = calculateAiScore(
+      {
+        income,
+        vehicle_preference: vehiclePref,
+        buyer_type: buyerType,
+        trade_in: tradeIn,
+        has_bankruptcy: /bankrupt/i.test(notes),
+        appointment_time: appointmentTime,
+        email,
+        phone,
+        document_files: [], // re-evaluated after upload below if needed
+        documents,
+      },
+      scoreCfg,
+      bucketCfg,
+    );
 
     let price = 25;
     if (quality_grade === "A+") price = 75;
