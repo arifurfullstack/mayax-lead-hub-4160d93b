@@ -30,6 +30,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import AdminAddLeadDialog from "@/components/AdminAddLeadDialog";
 
 interface LeadFileEntry {
@@ -514,6 +515,7 @@ export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props
                     </span>
                   </th>
                 ))}
+                <th className="p-3 text-xs text-muted-foreground font-medium text-left">Notes</th>
                 <th className="text-right p-3 text-xs text-muted-foreground font-medium">Actions</th>
               </tr>
             </thead>
@@ -549,6 +551,22 @@ export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props
                   <td className="p-3 text-muted-foreground text-xs">
                     {new Date(l.created_at).toLocaleDateString()}
                   </td>
+                  <td className="p-3 text-muted-foreground text-xs max-w-[180px]">
+                    {l.notes && l.notes.trim() ? (
+                      <TooltipProvider delayDuration={200}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="block truncate cursor-help text-foreground/80">{l.notes}</span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-sm whitespace-pre-wrap break-words">
+                            {l.notes}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ) : (
+                      <span className="text-muted-foreground/50">—</span>
+                    )}
+                  </td>
                   <td className="p-3 text-right">
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onSelectLead(l)}>
                       <Eye className="h-4 w-4 text-muted-foreground" />
@@ -558,7 +576,7 @@ export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props
               ))}
               {paged.length === 0 && (
                 <tr>
-                  <td colSpan={11} className="p-8 text-center text-muted-foreground">No leads found.</td>
+                  <td colSpan={12} className="p-8 text-center text-muted-foreground">No leads found.</td>
                 </tr>
               )}
             </tbody>

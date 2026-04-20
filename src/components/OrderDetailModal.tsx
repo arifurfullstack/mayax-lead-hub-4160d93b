@@ -303,14 +303,16 @@ const OrderDetailModal = ({ order, open, onOpenChange }: Props) => {
           </Section>
 
           {/* Notes */}
-          {lead.notes && (
-            <Section title="Notes">
-              <div className="flex items-start gap-2 text-sm">
-                <StickyNote className="h-3.5 w-3.5 text-muted-foreground mt-0.5" />
+          <Section title="Notes">
+            <div className="flex items-start gap-2 text-sm">
+              <StickyNote className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+              {lead.notes && lead.notes.trim() ? (
                 <span className="text-foreground whitespace-pre-wrap">{lead.notes}</span>
-              </div>
-            </Section>
-          )}
+              ) : (
+                <span className="text-muted-foreground italic">No notes from seller.</span>
+              )}
+            </div>
+          </Section>
 
           {/* Downloadable Files */}
           {files.length > 0 && (
