@@ -515,6 +515,7 @@ export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props
                     </span>
                   </th>
                 ))}
+                <th className="p-3 text-xs text-muted-foreground font-medium text-left">Notes</th>
                 <th className="text-right p-3 text-xs text-muted-foreground font-medium">Actions</th>
               </tr>
             </thead>
