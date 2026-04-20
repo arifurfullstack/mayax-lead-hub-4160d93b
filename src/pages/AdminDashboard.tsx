@@ -894,9 +894,14 @@ const AdminDashboard = () => {
                 <div><span className="text-muted-foreground text-xs">Bankruptcy</span><p className="text-foreground">{selectedLead.has_bankruptcy ? "Yes" : "No"}</p></div>
                 <div><span className="text-muted-foreground text-xs">Appointment</span><p className="text-foreground">{selectedLead.appointment_time ? new Date(selectedLead.appointment_time).toLocaleString() : "—"}</p></div>
                 <div className="col-span-2"><span className="text-muted-foreground text-xs">Created</span><p className="text-foreground">{new Date(selectedLead.created_at).toLocaleString()}</p></div>
-                {selectedLead.notes && (
-                  <div className="col-span-2"><span className="text-muted-foreground text-xs">Notes</span><p className="text-foreground text-xs whitespace-pre-wrap">{selectedLead.notes}</p></div>
-                )}
+                <div className="col-span-2">
+                  <span className="text-muted-foreground text-xs">Notes</span>
+                  {selectedLead.notes && selectedLead.notes.trim() ? (
+                    <p className="text-foreground text-xs whitespace-pre-wrap mt-1 p-2 rounded-md bg-muted/30 border border-border/50">{selectedLead.notes}</p>
+                  ) : (
+                    <p className="text-muted-foreground text-xs italic mt-1">No notes — click Edit to add internal notes for this lead.</p>
+                  )}
+                </div>
               </div>
               <div className="border-t border-border pt-4">
                 <LeadFileUploader
