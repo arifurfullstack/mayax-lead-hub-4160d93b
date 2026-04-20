@@ -7,33 +7,110 @@ const corsHeaders = {
 
 const GENERIC_VEHICLES = ["car", "suv", "truck", "sedan", "van", "minivan", "coupe", "hatchback", "wagon", "pickup"];
 
-function calculateAiScore(lead: {
-  income?: number | null;
-  vehicle_preference?: string | null;
-  buyer_type?: string | null;
-  trade_in?: boolean | null;
-  appointment_time?: string | null;
-}): { ai_score: number; quality_grade: string } {
-  let score = 65;
-  const income = lead.income ?? 0;
-  if (income >= 5000) score += 10;
-  else if (income >= 1800) score += 5;
+type Op = "gte" | "lte" | "between" | "specific" | "generic" | "true" | "present" | "count_capped";
+interface Rule { id: string; label: string; field: string; op: Op; value?: number | number[]; points: number; }
+interface Bucket { grade: string; min: number; max: number; }
 
-  const veh = (lead.vehicle_preference ?? "").trim().toLowerCase();
-  if (veh) {
-    const isGeneric = GENERIC_VEHICLES.some((g) => veh === g);
-    score += isGeneric ? 5 : 10;
+const DEFAULT_RULES: { base: number; rules: Rule[] } = {
+  base: 65,
+  rules: [
+    { id: "income_high", label: "Income ≥ $5,000", field: "income", op: "gte", value: 5000, points: 15 },
+    { id: "income_mid", label: "Income $1,800–$4,999", field: "income", op: "between", value: [1800, 4999], points: 8 },
+    { id: "vehicle_specific", label: "Specific vehicle preference", field: "vehicle_preference", op: "specific", points: 10 },
+    { id: "vehicle_generic", label: "Generic vehicle preference", field: "vehicle_preference", op: "generic", points: 5 },
+    { id: "trade_in", label: "Trade-in available", field: "trade_in", op: "true", points: 5 },
+    { id: "appointment", label: "Appointment scheduled", field: "appointment_time", op: "present", points: 5 },
+    { id: "bankruptcy", label: "Bankruptcy disclosed", field: "has_bankruptcy", op: "true", points: 3 },
+    { id: "email", label: "Email provided", field: "email", op: "present", points: 2 },
+    { id: "phone", label: "Phone provided", field: "phone", op: "present", points: 2 },
+    { id: "docs", label: "Documents uploaded", field: "document_files", op: "count_capped", value: 3, points: 3 },
+  ],
+};
+const DEFAULT_BUCKETS: { buckets: Bucket[] } = {
+  buckets: [
+    { grade: "A+", min: 95, max: 100 },
+    { grade: "A", min: 88, max: 94 },
+    { grade: "B+", min: 82, max: 87 },
+    { grade: "B", min: 75, max: 81 },
+    { grade: "C+", min: 68, max: 74 },
+    { grade: "C", min: 60, max: 67 },
+    { grade: "D+", min: 50, max: 59 },
+    { grade: "D", min: 0, max: 49 },
+  ],
+};
+
+function evalRule(rule: Rule, lead: Record<string, unknown>): number {
+  const v = lead[rule.field];
+  switch (rule.op) {
+    case "gte": return (typeof v === "number" ? v : Number(v ?? 0)) >= Number(rule.value ?? 0) ? rule.points : 0;
+    case "lte": return (typeof v === "number" ? v : Number(v ?? 0)) <= Number(rule.value ?? 0) ? rule.points : 0;
+    case "between": {
+      const n = typeof v === "number" ? v : Number(v ?? 0);
+      const r = Array.isArray(rule.value) ? rule.value : [0, 0];
+      return n >= r[0] && n <= r[1] ? rule.points : 0;
+    }
+    case "specific": {
+      const s = typeof v === "string" ? v.trim().toLowerCase() : "";
+      return s && !GENERIC_VEHICLES.includes(s) ? rule.points : 0;
+    }
+    case "generic": {
+      const s = typeof v === "string" ? v.trim().toLowerCase() : "";
+      return s && GENERIC_VEHICLES.includes(s) ? rule.points : 0;
+    }
+    case "true": return v === true ? rule.points : 0;
+    case "present": {
+      if (v === null || v === undefined) return 0;
+      if (typeof v === "string" && v.trim() === "") return 0;
+      return rule.points;
+    }
+    case "count_capped": {
+      const cap = Number(rule.value ?? 1);
+      const count = Array.isArray(v) ? v.length : (typeof v === "number" ? v : 0);
+      return Math.min(count, cap) * rule.points;
+    }
+    default: return 0;
   }
+}
 
-  if (lead.trade_in) score += 5;
-  if (lead.appointment_time) score += 5;
+function gradeFor(score: number, buckets: Bucket[]): string {
+  const sorted = [...buckets].sort((a, b) => b.min - a.min);
+  for (const b of sorted) if (score >= b.min && score <= b.max) return b.grade;
+  return sorted[sorted.length - 1]?.grade ?? "D";
+}
 
-  score = Math.min(100, Math.max(0, score));
-  let grade = "C";
-  if (score >= 90) grade = "A+";
-  else if (score >= 80) grade = "A";
-  else if (score >= 70) grade = "B";
-  return { ai_score: score, quality_grade: grade };
+async function loadGradingConfig(supabase: ReturnType<typeof createClient>) {
+  let scoreCfg = DEFAULT_RULES;
+  let bucketCfg = DEFAULT_BUCKETS;
+  try {
+    const { data } = await supabase
+      .from("platform_settings")
+      .select("key, value")
+      .in("key", ["grading_score_rules", "grading_grade_buckets"]);
+    for (const row of data ?? []) {
+      try {
+        if (row.key === "grading_score_rules" && row.value) {
+          const p = JSON.parse(row.value);
+          if (typeof p?.base === "number" && Array.isArray(p?.rules)) scoreCfg = p;
+        }
+        if (row.key === "grading_grade_buckets" && row.value) {
+          const p = JSON.parse(row.value);
+          if (Array.isArray(p?.buckets) && p.buckets.length > 0) bucketCfg = p;
+        }
+      } catch { /* ignore */ }
+    }
+  } catch { /* ignore */ }
+  return { scoreCfg, bucketCfg };
+}
+
+function calculateAiScore(
+  lead: Record<string, unknown>,
+  scoreCfg: { base: number; rules: Rule[] },
+  bucketCfg: { buckets: Bucket[] },
+): { ai_score: number; quality_grade: string } {
+  let score = scoreCfg.base;
+  for (const r of scoreCfg.rules) score += evalRule(r, lead);
+  score = Math.min(100, Math.max(0, Math.round(score)));
+  return { ai_score: score, quality_grade: gradeFor(score, bucketCfg.buckets) };
 }
 
 function generateRefCode(): string {
@@ -141,13 +218,23 @@ Deno.serve(async (req) => {
     const appointmentTime = body.appointment_time || null;
     const documents = Array.isArray(body.documents) ? body.documents.slice(0, 10) : null;
 
-    const { ai_score, quality_grade } = calculateAiScore({
-      income,
-      vehicle_preference: vehiclePref,
-      buyer_type: buyerType,
-      trade_in: tradeIn,
-      appointment_time: appointmentTime,
-    });
+    const { scoreCfg, bucketCfg } = await loadGradingConfig(supabase);
+    const { ai_score, quality_grade } = calculateAiScore(
+      {
+        income,
+        vehicle_preference: vehiclePref,
+        buyer_type: buyerType,
+        trade_in: tradeIn,
+        has_bankruptcy: /bankrupt/i.test(notes),
+        appointment_time: appointmentTime,
+        email,
+        phone,
+        document_files: [], // re-evaluated after upload below if needed
+        documents,
+      },
+      scoreCfg,
+      bucketCfg,
+    );
 
     let price = 25;
     if (quality_grade === "A+") price = 75;

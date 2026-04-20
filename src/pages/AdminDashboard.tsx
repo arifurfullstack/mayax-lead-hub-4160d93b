@@ -60,6 +60,7 @@ import AdminPromoCodeManager from "@/components/AdminPromoCodeManager";
 import AdminPromoUsageHistory from "@/components/AdminPromoUsageHistory";
 import AdminWebhookSettings from "@/components/AdminWebhookSettings";
 import AdminLeadPricingSettings from "@/components/AdminLeadPricingSettings";
+import AdminGradeSettings from "@/components/AdminGradeSettings";
 import AdminLeadRequests from "@/components/AdminLeadRequests";
 import AdminEmailSetup from "@/components/AdminEmailSetup";
 import { AdminFindDuplicates } from "@/components/AdminFindDuplicates";
@@ -461,6 +462,9 @@ const AdminDashboard = () => {
           <TabsTrigger value="lead-pricing" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
             <TrendingUp className="h-4 w-4" /> Lead Pricing
           </TabsTrigger>
+          <TabsTrigger value="grading" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
+            <TrendingUp className="h-4 w-4" /> Grade & AI Score
+          </TabsTrigger>
           <TabsTrigger value="webhooks" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
             <Webhook className="h-4 w-4" /> Webhooks
           </TabsTrigger>
@@ -667,6 +671,13 @@ const AdminDashboard = () => {
         {/* ─── Lead Pricing Tab ─── */}
         <TabsContent value="lead-pricing" className="space-y-4">
           <AdminLeadPricingSettings
+            platformSettings={platformSettings}
+            onSaved={fetchData}
+          />
+        </TabsContent>
+        {/* ─── Grade & AI Score Tab ─── */}
+        <TabsContent value="grading" className="space-y-4">
+          <AdminGradeSettings
             platformSettings={platformSettings}
             onSaved={fetchData}
           />
