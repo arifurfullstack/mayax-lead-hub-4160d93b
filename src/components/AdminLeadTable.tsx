@@ -301,6 +301,32 @@ export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props
     }
   };
 
+  const bulkResetToAvailable = async () => {
+    if (selected.size === 0) return;
+    setBulkResetting(true);
+    const ids = Array.from(selected);
+    const { data, error } = await supabase.rpc("admin_reset_leads_to_available", {
+      _lead_ids: ids,
+      _reason: resetReason.trim() || null,
+    });
+    setBulkResetting(false);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    const reset = row?.reset_count ?? 0;
+    const skipped = row?.skipped_count ?? 0;
+    toast({
+      title: "Leads reset",
+      description: `${reset} lead(s) reset to Available${skipped ? ` • ${skipped} already available` : ""}.`,
+    });
+    setSelected(new Set());
+    setResetDialogOpen(false);
+    setResetReason("");
+    onRefresh();
+  };
+
   // Time-based stats
   const timeStats = useMemo(() => {
     const periodLeads = leads.filter((l) => {
