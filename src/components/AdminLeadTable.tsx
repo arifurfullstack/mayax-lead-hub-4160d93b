@@ -13,11 +13,23 @@ import {
   CalendarDays,
   DollarSign,
   TrendingUp,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Select,
   SelectContent,
@@ -101,6 +113,9 @@ export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [resetReason, setResetReason] = useState("");
+  const [bulkResetting, setBulkResetting] = useState(false);
 
   const provinces = useMemo(
     () => [...new Set(leads.map((l) => l.province).filter(Boolean))].sort() as string[],
@@ -286,6 +301,32 @@ export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props
     }
   };
 
+  const bulkResetToAvailable = async () => {
+    if (selected.size === 0) return;
+    setBulkResetting(true);
+    const ids = Array.from(selected);
+    const { data, error } = await supabase.rpc("admin_reset_leads_to_available", {
+      _lead_ids: ids,
+      _reason: resetReason.trim() || null,
+    });
+    setBulkResetting(false);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    const reset = row?.reset_count ?? 0;
+    const skipped = row?.skipped_count ?? 0;
+    toast({
+      title: "Leads reset",
+      description: `${reset} lead(s) reset to Available${skipped ? ` • ${skipped} already available` : ""}.`,
+    });
+    setSelected(new Set());
+    setResetDialogOpen(false);
+    setResetReason("");
+    onRefresh();
+  };
+
   // Time-based stats
   const timeStats = useMemo(() => {
     const periodLeads = leads.filter((l) => {
@@ -444,6 +485,14 @@ export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props
       {selected.size > 0 && (
         <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-destructive/10 border border-destructive/20">
           <span className="text-sm text-foreground font-medium">{selected.size} lead(s) selected</span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 border-cyan/40 text-cyan hover:bg-cyan/10 hover:text-cyan"
+            onClick={() => setResetDialogOpen(true)}
+          >
+            <RotateCcw className="h-3.5 w-3.5" /> Reset to Available
+          </Button>
           {!confirmBulkDelete ? (
             <Button variant="destructive" size="sm" className="gap-1.5" onClick={() => setConfirmBulkDelete(true)}>
               <Trash2 className="h-3.5 w-3.5" /> Delete Selected
@@ -462,6 +511,39 @@ export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props
           </Button>
         </div>
       )}
+
+      {/* Reset to Available confirmation dialog */}
+      <AlertDialog open={resetDialogOpen} onOpenChange={(o) => { if (!bulkResetting) setResetDialogOpen(o); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset {selected.size} lead(s) to Available?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will move the selected leads back into the Marketplace as <b>available</b> and clear their buyer/sold timestamp. The previous buyer and status are recorded in the audit log. Existing purchase records remain untouched.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Reason (optional, saved to audit log)
+            </label>
+            <Textarea
+              placeholder="e.g. Marked sold by mistake during bulk import"
+              value={resetReason}
+              onChange={(e) => setResetReason(e.target.value)}
+              className="bg-card border-border"
+              rows={3}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkResetting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={bulkResetting}
+              onClick={(e) => { e.preventDefault(); bulkResetToAvailable(); }}
+            >
+              {bulkResetting ? "Resetting…" : "Yes, reset to Available"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Table */}
       <div className="glass-card overflow-hidden">

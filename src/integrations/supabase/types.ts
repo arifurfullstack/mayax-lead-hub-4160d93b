@@ -356,6 +356,48 @@ export type Database = {
         }
         Relationships: []
       }
+      lead_audit_log: {
+        Row: {
+          action: string
+          actor_user_id: string | null
+          created_at: string
+          id: string
+          lead_id: string
+          metadata: Json | null
+          new_status: string | null
+          previous_sold_at: string | null
+          previous_sold_to_dealer_id: string | null
+          previous_status: string | null
+          reason: string | null
+        }
+        Insert: {
+          action: string
+          actor_user_id?: string | null
+          created_at?: string
+          id?: string
+          lead_id: string
+          metadata?: Json | null
+          new_status?: string | null
+          previous_sold_at?: string | null
+          previous_sold_to_dealer_id?: string | null
+          previous_status?: string | null
+          reason?: string | null
+        }
+        Update: {
+          action?: string
+          actor_user_id?: string | null
+          created_at?: string
+          id?: string
+          lead_id?: string
+          metadata?: Json | null
+          new_status?: string | null
+          previous_sold_at?: string | null
+          previous_sold_to_dealer_id?: string | null
+          previous_status?: string | null
+          reason?: string | null
+        }
+        Relationships: []
+      }
       lead_requests: {
         Row: {
           admin_notes: string | null
@@ -967,6 +1009,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_reset_leads_to_available: {
+        Args: { _lead_ids: string[]; _reason?: string }
+        Returns: {
+          reset_count: number
+          skipped_count: number
+        }[]
+      }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
