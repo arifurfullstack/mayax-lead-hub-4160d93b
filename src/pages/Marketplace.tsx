@@ -57,6 +57,54 @@ const Marketplace = () => {
     fetchLeads();
   }, []);
 
+  // Realtime: instantly add new available leads & remove sold/deleted ones
+  useEffect(() => {
+    const channel = supabase
+      .channel("marketplace-leads")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "leads" },
+        (payload) => {
+          const newLead = payload.new as any;
+          if (newLead?.sold_status !== "available") return;
+          setLeads((prev) => {
+            if (prev.some((l) => l.id === newLead.id)) return prev;
+            return [newLead, ...prev];
+          });
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "leads" },
+        (payload) => {
+          const updated = payload.new as any;
+          setLeads((prev) => {
+            const exists = prev.some((l) => l.id === updated.id);
+            if (updated.sold_status !== "available") {
+              return exists ? prev.filter((l) => l.id !== updated.id) : prev;
+            }
+            if (exists) {
+              return prev.map((l) => (l.id === updated.id ? { ...l, ...updated } : l));
+            }
+            return [updated, ...prev];
+          });
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "leads" },
+        (payload) => {
+          const oldLead = payload.old as any;
+          setLeads((prev) => prev.filter((l) => l.id !== oldLead.id));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   const fetchLeads = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
