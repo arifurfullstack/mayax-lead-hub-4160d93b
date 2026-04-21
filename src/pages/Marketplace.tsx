@@ -71,6 +71,10 @@ const Marketplace = () => {
             if (prev.some((l) => l.id === newLead.id)) return prev;
             return [newLead, ...prev];
           });
+          toast({
+            title: "🚗 New lead just arrived!",
+            description: `${newLead.buyer_type === "finance" ? "Finance" : "Marketplace"} lead${newLead.city ? ` from ${newLead.city}` : ""} • $${Number(newLead.price ?? 0).toFixed(0)}`,
+          });
         }
       )
       .on(
