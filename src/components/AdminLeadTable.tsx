@@ -113,6 +113,9 @@ export default function AdminLeadTable({ leads, onSelectLead, onRefresh }: Props
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [resetReason, setResetReason] = useState("");
+  const [bulkResetting, setBulkResetting] = useState(false);
 
   const provinces = useMemo(
     () => [...new Set(leads.map((l) => l.province).filter(Boolean))].sort() as string[],
