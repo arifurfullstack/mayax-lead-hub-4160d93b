@@ -602,7 +602,7 @@ const Marketplace = () => {
                     onClick={insertTestLead}
                     disabled={insertingTestLead}
                     title="Admin only — insert a synthetic lead and verify realtime delivery"
-                    className="h-7 ml-1 text-[11px] gap-1.5 border-amber-500/40 text-amber-500 hover:bg-amber-500/10 hover:text-amber-500"
+                    className="h-7 ml-1 text-[11px] gap-1.5 border-warning/40 text-warning hover:bg-warning/10 hover:text-warning"
                   >
                     {insertingTestLead ? (
                       <Loader2 className="h-3 w-3 animate-spin" />
