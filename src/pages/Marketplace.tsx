@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { ChevronDown, ChevronRight, Tag, X, Wifi, WifiOff, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Tag, X, Wifi, WifiOff, Loader2, FlaskConical } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
@@ -59,6 +59,7 @@ const Marketplace = () => {
   // re-fetch (catch-up) the moment it reconnects — events fired during the
   // outage would otherwise be lost.
   const wasDisconnectedRef = useRef(false);
+  const [insertingTestLead, setInsertingTestLead] = useState(false);
 
   useEffect(() => {
     fetchLeads();
@@ -285,6 +286,83 @@ const Marketplace = () => {
     await supabase.from("dealer_promo_codes").delete().eq("dealer_id", dealerId);
     setActivePromo(null);
     toast({ title: "Promo Removed", description: "Regular pricing restored." });
+  };
+
+  // Admin-only: insert a synthetic test lead and verify it shows up via realtime.
+  const insertTestLead = async () => {
+    if (!isAdmin) return;
+    setInsertingTestLead(true);
+    const before = leads.length;
+    const ref = `TEST-${Date.now().toString(36).toUpperCase()}`;
+    const cities = ["Toronto", "Vancouver", "Montreal", "Calgary", "Ottawa"];
+    const provinces = ["ON", "BC", "QC", "AB", "ON"];
+    const idx = Math.floor(Math.random() * cities.length);
+
+    const { data, error } = await supabase
+      .from("leads")
+      .insert({
+        reference_code: ref,
+        first_name: "Test",
+        last_name: "Lead",
+        email: `test+${Date.now()}@example.com`,
+        phone: `416-555-${String(Math.floor(1000 + Math.random() * 9000))}`,
+        city: cities[idx],
+        province: provinces[idx],
+        buyer_type: Math.random() > 0.5 ? "finance" : "online",
+        credit_range_min: 600,
+        credit_range_max: 700,
+        income: 60000,
+        vehicle_preference: "Sedan",
+        vehicle_price: 25000,
+        ai_score: 75,
+        quality_grade: "B",
+        price: 49,
+        sold_status: "available",
+        notes: "🧪 Synthetic test lead — safe to delete.",
+      })
+      .select()
+      .single();
+
+    if (error) {
+      toast({ title: "Insert failed", description: error.message, variant: "destructive" });
+      setInsertingTestLead(false);
+      return;
+    }
+
+    toast({
+      title: "Test lead inserted",
+      description: `Ref ${ref} • Verifying realtime delivery…`,
+    });
+
+    // Verify the realtime subscription delivered it within 5s.
+    const insertedId = data?.id;
+    const startedAt = Date.now();
+    const verify = () => {
+      setLeads((current) => {
+        const arrived = insertedId
+          ? current.some((l) => l.id === insertedId)
+          : current.length > before;
+        if (arrived) {
+          toast({
+            title: "✅ Realtime verified",
+            description: `Test lead ${ref} appeared in the marketplace.`,
+          });
+        } else if (Date.now() - startedAt > 5000) {
+          toast({
+            title: "⚠️ Realtime not received",
+            description:
+              "Test lead was created but did not arrive via realtime within 5s. Refreshing now.",
+            variant: "destructive",
+          });
+          fetchLeads();
+        } else {
+          setTimeout(verify, 500);
+        }
+        return current;
+      });
+    };
+    setTimeout(verify, 500);
+    setInsertingTestLead(false);
   };
 
   const delayHours = tierDelayHours[dealerTier] ?? 24;
@@ -517,6 +595,23 @@ const Marketplace = () => {
                     </div>
                   );
                 })()}
+                {isAdmin && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={insertTestLead}
+                    disabled={insertingTestLead}
+                    title="Admin only — insert a synthetic lead and verify realtime delivery"
+                    className="h-7 ml-1 text-[11px] gap-1.5 border-warning/40 text-warning hover:bg-warning/10 hover:text-warning"
+                  >
+                    {insertingTestLead ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <FlaskConical className="h-3 w-3" />
+                    )}
+                    Insert test lead
+                  </Button>
+                )}
               </div>
               <div className="flex items-center gap-3 flex-wrap">
                 {/* Promo code */}
