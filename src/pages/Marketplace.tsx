@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { ChevronDown, ChevronRight, Tag, X, Wifi, WifiOff, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -55,6 +55,10 @@ const Marketplace = () => {
   const [realtimeStatus, setRealtimeStatus] = useState<
     "connecting" | "connected" | "reconnecting" | "disconnected" | "error"
   >("connecting");
+  // Track whether the realtime channel was previously dropped so we can
+  // re-fetch (catch-up) the moment it reconnects — events fired during the
+  // outage would otherwise be lost.
+  const wasDisconnectedRef = useRef(false);
 
   useEffect(() => {
     fetchLeads();
@@ -112,13 +116,55 @@ const Marketplace = () => {
       .subscribe((status) => {
         console.log("[Marketplace realtime] subscription status:", status);
         // Supabase emits: SUBSCRIBED | TIMED_OUT | CLOSED | CHANNEL_ERROR
-        if (status === "SUBSCRIBED") setRealtimeStatus("connected");
-        else if (status === "CHANNEL_ERROR") setRealtimeStatus("error");
-        else if (status === "TIMED_OUT") setRealtimeStatus("reconnecting");
-        else if (status === "CLOSED") setRealtimeStatus("disconnected");
+        if (status === "SUBSCRIBED") {
+          setRealtimeStatus("connected");
+          // Catch up on anything we missed while disconnected.
+          if (wasDisconnectedRef.current) {
+            wasDisconnectedRef.current = false;
+            console.log("[Marketplace realtime] reconnected — re-fetching leads");
+            fetchLeads();
+            toast({
+              title: "Reconnected",
+              description: "Marketplace is live again. Refreshed leads.",
+            });
+          }
+        } else if (status === "CHANNEL_ERROR") {
+          setRealtimeStatus("error");
+          wasDisconnectedRef.current = true;
+        } else if (status === "TIMED_OUT") {
+          setRealtimeStatus("reconnecting");
+          wasDisconnectedRef.current = true;
+        } else if (status === "CLOSED") {
+          setRealtimeStatus("disconnected");
+          wasDisconnectedRef.current = true;
+        }
       });
 
+    // If the browser regains network, force the realtime client to reconnect.
+    const handleOnline = () => {
+      console.log("[Marketplace realtime] browser online — forcing reconnect");
+      wasDisconnectedRef.current = true;
+      try {
+        supabase.realtime.disconnect();
+        supabase.realtime.connect();
+      } catch (e) {
+        console.warn("[Marketplace realtime] reconnect attempt failed", e);
+      }
+    };
+    // If the tab becomes visible again after being hidden, re-fetch to catch up
+    // (Supabase auto-reconnects, but events during the gap are lost).
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        console.log("[Marketplace realtime] tab visible — refreshing leads");
+        fetchLeads();
+      }
+    };
+    window.addEventListener("online", handleOnline);
+    document.addEventListener("visibilitychange", handleVisibility);
+
     return () => {
+      window.removeEventListener("online", handleOnline);
+      document.removeEventListener("visibilitychange", handleVisibility);
       supabase.removeChannel(channel);
     };
   }, []);
