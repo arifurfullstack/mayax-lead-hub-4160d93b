@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { ChevronDown, ChevronRight, Tag, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Tag, X, Wifi, WifiOff, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
@@ -52,6 +52,9 @@ const Marketplace = () => {
   const [allDealers, setAllDealers] = useState<Array<{ id: string; dealership_name: string; wallet_balance: number; subscription_tier: string }>>([]);
   const [targetDealerId, setTargetDealerId] = useState<string>(""); // empty = self
   const [giftMode, setGiftMode] = useState(false);
+  const [realtimeStatus, setRealtimeStatus] = useState<
+    "connecting" | "connected" | "reconnecting" | "disconnected" | "error"
+  >("connecting");
 
   useEffect(() => {
     fetchLeads();
@@ -108,6 +111,11 @@ const Marketplace = () => {
       )
       .subscribe((status) => {
         console.log("[Marketplace realtime] subscription status:", status);
+        // Supabase emits: SUBSCRIBED | TIMED_OUT | CLOSED | CHANNEL_ERROR
+        if (status === "SUBSCRIBED") setRealtimeStatus("connected");
+        else if (status === "CHANNEL_ERROR") setRealtimeStatus("error");
+        else if (status === "TIMED_OUT") setRealtimeStatus("reconnecting");
+        else if (status === "CLOSED") setRealtimeStatus("disconnected");
       });
 
     return () => {
