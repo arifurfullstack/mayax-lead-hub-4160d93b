@@ -595,6 +595,23 @@ const Marketplace = () => {
                     </div>
                   );
                 })()}
+                {isAdmin && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={insertTestLead}
+                    disabled={insertingTestLead}
+                    title="Admin only — insert a synthetic lead and verify realtime delivery"
+                    className="h-7 ml-1 text-[11px] gap-1.5 border-amber-500/40 text-amber-500 hover:bg-amber-500/10 hover:text-amber-500"
+                  >
+                    {insertingTestLead ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <FlaskConical className="h-3 w-3" />
+                    )}
+                    Insert test lead
+                  </Button>
+                )}
               </div>
               <div className="flex items-center gap-3 flex-wrap">
                 {/* Promo code */}
