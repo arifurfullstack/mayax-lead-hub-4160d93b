@@ -67,10 +67,10 @@ const Marketplace = () => {
         (payload) => {
           const newLead = payload.new as any;
           if (newLead?.sold_status !== "available") return;
-          setLeads((prev) => {
-            if (prev.some((l) => l.id === newLead.id)) return prev;
-            return [newLead, ...prev];
-          });
+          console.log("[Marketplace realtime] INSERT received", newLead.id);
+          // Re-fetch via RPC so the new lead arrives with the same shape
+          // (masked PII, tier-delay filtering) as the rest of the list.
+          fetchLeads();
           toast({
             title: "🚗 New lead just arrived!",
             description: `${newLead.buyer_type === "finance" ? "Finance" : "Marketplace"} lead${newLead.city ? ` from ${newLead.city}` : ""} • $${Number(newLead.price ?? 0).toFixed(0)}`,
@@ -82,6 +82,7 @@ const Marketplace = () => {
         { event: "UPDATE", schema: "public", table: "leads" },
         (payload) => {
           const updated = payload.new as any;
+          console.log("[Marketplace realtime] UPDATE received", updated.id, updated.sold_status);
           setLeads((prev) => {
             const exists = prev.some((l) => l.id === updated.id);
             if (updated.sold_status !== "available") {
@@ -90,7 +91,9 @@ const Marketplace = () => {
             if (exists) {
               return prev.map((l) => (l.id === updated.id ? { ...l, ...updated } : l));
             }
-            return [updated, ...prev];
+            // New lead became available — re-fetch for proper shape.
+            fetchLeads();
+            return prev;
           });
         }
       )
@@ -99,10 +102,13 @@ const Marketplace = () => {
         { event: "DELETE", schema: "public", table: "leads" },
         (payload) => {
           const oldLead = payload.old as any;
+          console.log("[Marketplace realtime] DELETE received", oldLead.id);
           setLeads((prev) => prev.filter((l) => l.id !== oldLead.id));
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("[Marketplace realtime] subscription status:", status);
+      });
 
     return () => {
       supabase.removeChannel(channel);
