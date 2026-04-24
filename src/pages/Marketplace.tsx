@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { ChevronDown, ChevronRight, Tag, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Tag, X, Wifi, WifiOff, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
@@ -52,6 +52,9 @@ const Marketplace = () => {
   const [allDealers, setAllDealers] = useState<Array<{ id: string; dealership_name: string; wallet_balance: number; subscription_tier: string }>>([]);
   const [targetDealerId, setTargetDealerId] = useState<string>(""); // empty = self
   const [giftMode, setGiftMode] = useState(false);
+  const [realtimeStatus, setRealtimeStatus] = useState<
+    "connecting" | "connected" | "reconnecting" | "disconnected" | "error"
+  >("connecting");
 
   useEffect(() => {
     fetchLeads();
@@ -108,6 +111,11 @@ const Marketplace = () => {
       )
       .subscribe((status) => {
         console.log("[Marketplace realtime] subscription status:", status);
+        // Supabase emits: SUBSCRIBED | TIMED_OUT | CLOSED | CHANNEL_ERROR
+        if (status === "SUBSCRIBED") setRealtimeStatus("connected");
+        else if (status === "CHANNEL_ERROR") setRealtimeStatus("error");
+        else if (status === "TIMED_OUT") setRealtimeStatus("reconnecting");
+        else if (status === "CLOSED") setRealtimeStatus("disconnected");
       });
 
     return () => {
@@ -393,6 +401,76 @@ const Marketplace = () => {
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-semibold text-foreground">Leads</h2>
                 <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                {(() => {
+                  const map = {
+                    connected: {
+                      label: "Live",
+                      title: "Real-time updates connected",
+                      dot: "bg-emerald-500 shadow-[0_0_8px_hsl(var(--primary)/0.6)]",
+                      text: "text-emerald-500",
+                      Icon: Wifi,
+                      pulse: true,
+                    },
+                    connecting: {
+                      label: "Connecting…",
+                      title: "Connecting to real-time updates",
+                      dot: "bg-muted-foreground",
+                      text: "text-muted-foreground",
+                      Icon: Loader2,
+                      pulse: false,
+                    },
+                    reconnecting: {
+                      label: "Reconnecting…",
+                      title: "Connection timed out, reconnecting",
+                      dot: "bg-amber-500",
+                      text: "text-amber-500",
+                      Icon: Loader2,
+                      pulse: false,
+                    },
+                    disconnected: {
+                      label: "Offline",
+                      title: "Real-time updates disconnected",
+                      dot: "bg-muted-foreground",
+                      text: "text-muted-foreground",
+                      Icon: WifiOff,
+                      pulse: false,
+                    },
+                    error: {
+                      label: "Error",
+                      title: "Real-time connection error",
+                      dot: "bg-destructive",
+                      text: "text-destructive",
+                      Icon: WifiOff,
+                      pulse: false,
+                    },
+                  } as const;
+                  const s = map[realtimeStatus];
+                  const isSpinner = s.Icon === Loader2;
+                  return (
+                    <div
+                      title={s.title}
+                      className="ml-2 flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-border/60 bg-muted/30"
+                    >
+                      <span
+                        className={cn(
+                          "h-1.5 w-1.5 rounded-full",
+                          s.dot,
+                          s.pulse && "animate-pulse"
+                        )}
+                      />
+                      <s.Icon
+                        className={cn(
+                          "h-3 w-3",
+                          s.text,
+                          isSpinner && "animate-spin"
+                        )}
+                      />
+                      <span className={cn("text-[10px] font-medium leading-none", s.text)}>
+                        {s.label}
+                      </span>
+                    </div>
+                  );
+                })()}
               </div>
               <div className="flex items-center gap-3 flex-wrap">
                 {/* Promo code */}
