@@ -950,14 +950,18 @@ const AdminWebhookTester = () => {
                                       variant="outline"
                                       size="sm"
                                       className="h-6 px-2 text-[10px] gap-1 shrink-0 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/15 hover:text-emerald-200"
-                                      onClick={() => applyFix(iss, fix)}
+                                      onClick={() => previewFix(iss, fix)}
                                     >
                                       <Wand2 className="h-3 w-3" />
-                                      {fix.label}
+                                      Preview fix
                                     </Button>
                                   </TooltipTrigger>
                                   <TooltipContent side="left" className="max-w-xs">
-                                    <p className="text-xs">{fix.description}</p>
+                                    <p className="text-xs font-medium">{fix.label}</p>
+                                    <p className="text-xs text-muted-foreground mt-0.5">{fix.description}</p>
+                                    <p className="text-[10px] text-muted-foreground mt-1 italic">
+                                      Opens a side-by-side diff. Nothing is changed until you confirm.
+                                    </p>
                                   </TooltipContent>
                                 </Tooltip>
                               ) : (
@@ -979,10 +983,10 @@ const AdminWebhookTester = () => {
                             variant="outline"
                             size="sm"
                             className="h-7 px-2 text-[11px] gap-1 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/15 hover:text-emerald-200"
-                            onClick={applyAllFixes}
+                            onClick={previewAllFixes}
                           >
                             <Wand2 className="h-3 w-3" />
-                            Apply all suggested fixes
+                            Preview all suggested fixes
                           </Button>
                         </div>
                       )}
