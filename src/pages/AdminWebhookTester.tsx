@@ -468,6 +468,77 @@ const AdminWebhookTester = () => {
             {parseError && (
               <p className="text-xs text-red-400">JSON error: {parseError}</p>
             )}
+
+            {/* --- Live validation summary --- */}
+            {(() => {
+              if (validation.jsonError) {
+                return (
+                  <Alert className="border-red-500/40 bg-red-500/10 py-2">
+                    <ShieldAlert className="h-4 w-4 text-red-400" />
+                    <AlertTitle className="text-xs">Invalid JSON</AlertTitle>
+                    <AlertDescription className="text-xs font-mono">
+                      {validation.jsonError}
+                    </AlertDescription>
+                  </Alert>
+                );
+              }
+              if (validation.issues.length > 0) {
+                return (
+                  <Alert className="border-red-500/40 bg-red-500/10 py-2">
+                    <ShieldAlert className="h-4 w-4 text-red-400" />
+                    <AlertTitle className="text-xs">
+                      {validation.issues.length} validation{" "}
+                      {validation.issues.length === 1 ? "error" : "errors"} across{" "}
+                      {validation.totalLeads} lead{validation.totalLeads === 1 ? "" : "s"}
+                    </AlertTitle>
+                    <AlertDescription>
+                      <ul className="text-xs space-y-1 mt-2 max-h-40 overflow-auto">
+                        {validation.issues.slice(0, 20).map((iss, i) => (
+                          <li key={i} className="font-mono">
+                            <span className="text-red-300">
+                              {iss.leadIndex !== null ? `lead[${iss.leadIndex}]` : "root"}
+                              {iss.field !== "(root)" && <>.{iss.field}</>}
+                            </span>{" "}
+                            <span className="text-muted-foreground">— {iss.message}</span>
+                          </li>
+                        ))}
+                        {validation.issues.length > 20 && (
+                          <li className="text-muted-foreground">…and {validation.issues.length - 20} more</li>
+                        )}
+                      </ul>
+                      {validation.warnings.length > 0 && (
+                        <p className="text-[11px] text-amber-300 mt-2">
+                          + {validation.warnings.length} warning{validation.warnings.length === 1 ? "" : "s"} (see below)
+                        </p>
+                      )}
+                    </AlertDescription>
+                  </Alert>
+                );
+              }
+              return (
+                <Alert className="border-emerald-500/40 bg-emerald-500/10 py-2">
+                  <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                  <AlertTitle className="text-xs">
+                    Schema OK — {validation.totalLeads} lead{validation.totalLeads === 1 ? "" : "s"} ready to send
+                  </AlertTitle>
+                  {validation.warnings.length > 0 && (
+                    <AlertDescription>
+                      <ul className="text-xs space-y-1 mt-2 max-h-32 overflow-auto">
+                        {validation.warnings.slice(0, 10).map((w, i) => (
+                          <li key={i} className="font-mono">
+                            <span className="text-amber-300">
+                              lead[{w.leadIndex}].{w.field}
+                            </span>{" "}
+                            <span className="text-muted-foreground">— {w.message}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </AlertDescription>
+                  )}
+                </Alert>
+              );
+            })()}
+
             <div className="space-y-2">
               <label className="text-xs text-muted-foreground">
                 <code>x-webhook-secret</code> (optional — only if configured)
@@ -481,9 +552,9 @@ const AdminWebhookTester = () => {
               />
             </div>
             <div className="flex flex-wrap gap-2 pt-2">
-              <Button onClick={runDryRun} disabled={loading} className="gap-2">
+              <Button onClick={runDryRun} disabled={loading || !validation.ok} className="gap-2">
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FlaskConical className="h-4 w-4" />}
-                Run dry-run
+                {validation.ok ? "Run dry-run" : "Fix errors to run"}
               </Button>
               <Button variant="outline" onClick={formatPayload} disabled={loading} className="gap-2">
                 <Wand2 className="h-4 w-4" /> Format JSON
