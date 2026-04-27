@@ -5,13 +5,21 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, FlaskConical, Copy, AlertTriangle, CheckCircle2, RefreshCw, Wand2, BookOpen, Info, ShieldAlert, ShieldCheck } from "lucide-react";
+import { Loader2, FlaskConical, Copy, AlertTriangle, CheckCircle2, RefreshCw, Wand2, BookOpen, Info, ShieldAlert, ShieldCheck, FileJson, ChevronDown } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 
 // --- Schema reference (mirrors supabase/functions/inbound-webhook/index.ts) ---
@@ -313,6 +321,195 @@ const SAMPLE_PAYLOAD = JSON.stringify(
   null,
   2,
 );
+
+// --- Payload templates ---
+// Each template returns a JSON string ready to drop into the editor.
+// Designed to exercise different code paths in the inbound webhook
+// (single vs. batch, dedupe edge cases, scoring/pricing modifiers).
+type PayloadTemplate = {
+  id: string;
+  label: string;
+  description: string;
+  group: "single" | "batch";
+  build: () => string;
+};
+
+const stringify = (obj: unknown) => JSON.stringify(obj, null, 2);
+
+const PAYLOAD_TEMPLATES: PayloadTemplate[] = [
+  {
+    id: "single-minimal",
+    label: "Single — minimal",
+    description: "Only first_name + last_name. Tests required-fields path.",
+    group: "single",
+    build: () =>
+      stringify({
+        first_name: "Test",
+        last_name: "Lead",
+      }),
+  },
+  {
+    id: "single-full",
+    label: "Single — full lead",
+    description: "All fields populated. High AI score + max pricing modifiers.",
+    group: "single",
+    build: () =>
+      stringify({
+        first_name: "Alex",
+        last_name: "Martin",
+        email: "alex.martin@example.com",
+        phone: "647 555 0142",
+        city: "Toronto",
+        province: "Ontario",
+        buyer_type: "online",
+        income: "$6,800",
+        credit_range_min: 720,
+        credit_range_max: 780,
+        vehicle_preference: "2024 Honda CR-V Hybrid",
+        vehicle_mileage: 12000,
+        vehicle_price: 38000,
+        trade_in: true,
+        appointment_time: new Date(Date.now() + 86_400_000).toISOString(),
+        notes: "Wants to trade in 2018 Civic. Prefers weekend appointment.",
+      }),
+  },
+  {
+    id: "single-appointment",
+    label: "Single — with appointment",
+    description: "Triggers appointment pricing bonus + AI score boost.",
+    group: "single",
+    build: () =>
+      stringify({
+        first_name: "Priya",
+        last_name: "Sharma",
+        email: "priya.sharma@example.com",
+        phone: "905 555 0188",
+        city: "Mississauga",
+        province: "Ontario",
+        income: 5200,
+        vehicle_preference: "2023 Toyota RAV4",
+        appointment_time: new Date(Date.now() + 2 * 86_400_000).toISOString(),
+        notes: "Confirmed phone appointment for Saturday morning.",
+      }),
+  },
+  {
+    id: "single-bankruptcy",
+    label: "Single — bankruptcy flag",
+    description: 'Notes contain "bankrupt" — auto-flags has_bankruptcy.',
+    group: "single",
+    build: () =>
+      stringify({
+        first_name: "Jordan",
+        last_name: "Reid",
+        email: "jordan.reid@example.com",
+        phone: "416 555 0199",
+        city: "Toronto",
+        province: "Ontario",
+        income: "$3,200",
+        vehicle_preference: "Sedan",
+        notes: "Discharged bankruptcy 18 months ago, looking to rebuild credit.",
+      }),
+  },
+  {
+    id: "batch-mixed",
+    label: "Batch — mixed quality",
+    description: "3 leads spanning A+ to D grades. Good for grading sanity check.",
+    group: "batch",
+    build: () =>
+      stringify([
+        {
+          first_name: "Olivia",
+          last_name: "Tremblay",
+          email: "olivia.t@example.com",
+          phone: "514 555 0123",
+          city: "Montreal",
+          province: "Quebec",
+          income: "$7,500",
+          vehicle_preference: "2024 Tesla Model Y",
+          trade_in: true,
+          appointment_time: new Date(Date.now() + 86_400_000).toISOString(),
+          notes: "Cash buyer, trade-in available.",
+        },
+        {
+          first_name: "Marcus",
+          last_name: "Bell",
+          email: "marcus.bell@example.com",
+          phone: "604 555 0177",
+          city: "Vancouver",
+          province: "British Columbia",
+          income: 2400,
+          vehicle_preference: "Truck",
+          notes: "",
+        },
+        {
+          first_name: "Sara",
+          last_name: "Lopez",
+          phone: "780 555 0145",
+          city: "Edmonton",
+          province: "Alberta",
+        },
+      ]),
+  },
+  {
+    id: "batch-dedupe",
+    label: "Batch — dedupe test",
+    description: "Two leads sharing email/phone. Second should match the first.",
+    group: "batch",
+    build: () =>
+      stringify([
+        {
+          first_name: "Daniel",
+          last_name: "Kim",
+          email: "daniel.kim@example.com",
+          phone: "416 555 0210",
+          city: "Toronto",
+          province: "Ontario",
+          income: 4200,
+          vehicle_preference: "2022 Mazda CX-5",
+          notes: "Initial inquiry.",
+        },
+        {
+          first_name: "Daniel",
+          last_name: "Kim",
+          email: "DANIEL.KIM@example.com",
+          phone: "(416) 555-0210",
+          income: 4500,
+          notes: "Follow-up — bumped income, wants test drive.",
+        },
+      ]),
+  },
+  {
+    id: "batch-large",
+    label: "Batch — 5 leads",
+    description: "Larger batch to exercise the loop and per-lead results UI.",
+    group: "batch",
+    build: () => {
+      const provinces = ["Ontario", "Quebec", "British Columbia", "Alberta", "Manitoba"];
+      const cities = ["Toronto", "Montreal", "Vancouver", "Calgary", "Winnipeg"];
+      const vehicles = [
+        "2024 Honda CR-V",
+        "2023 Ford F-150",
+        "SUV",
+        "2022 Hyundai Elantra",
+        "Minivan",
+      ];
+      const incomes = ["$6,200", 3800, "$1,900", 5500, 2100];
+      const leads = Array.from({ length: 5 }, (_, i) => ({
+        first_name: ["Emma", "Liam", "Noah", "Ava", "Mia"][i],
+        last_name: ["Brown", "Singh", "Nguyen", "Patel", "Garcia"][i],
+        email: `lead${i + 1}@example.com`,
+        phone: `416 555 02${String(10 + i).padStart(2, "0")}`,
+        city: cities[i],
+        province: provinces[i],
+        income: incomes[i],
+        vehicle_preference: vehicles[i],
+        trade_in: i % 2 === 0,
+        notes: i === 2 ? "Recent bankruptcy, rebuilding credit." : "",
+      }));
+      return stringify(leads);
+    },
+  },
+];
 
 type LeadResult = {
   reference_code: string;
@@ -764,6 +961,59 @@ const AdminWebhookTester = () => {
               <Button variant="outline" onClick={formatPayload} disabled={loading} className="gap-2">
                 <Wand2 className="h-4 w-4" /> Format JSON
               </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" disabled={loading} className="gap-2">
+                    <FileJson className="h-4 w-4" /> Templates
+                    <ChevronDown className="h-3.5 w-3.5 opacity-70" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-72">
+                  <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                    Single lead
+                  </DropdownMenuLabel>
+                  {PAYLOAD_TEMPLATES.filter((t) => t.group === "single").map((t) => (
+                    <DropdownMenuItem
+                      key={t.id}
+                      onClick={() => {
+                        setPayload(t.build());
+                        setParseError(null);
+                        setResponse(null);
+                        setHttpStatus(null);
+                        toast.success(`Loaded template: ${t.label}`);
+                      }}
+                      className="flex flex-col items-start gap-0.5 py-2"
+                    >
+                      <span className="text-xs font-medium">{t.label}</span>
+                      <span className="text-[11px] text-muted-foreground leading-snug">
+                        {t.description}
+                      </span>
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                    Multi-lead batch
+                  </DropdownMenuLabel>
+                  {PAYLOAD_TEMPLATES.filter((t) => t.group === "batch").map((t) => (
+                    <DropdownMenuItem
+                      key={t.id}
+                      onClick={() => {
+                        setPayload(t.build());
+                        setParseError(null);
+                        setResponse(null);
+                        setHttpStatus(null);
+                        toast.success(`Loaded template: ${t.label}`);
+                      }}
+                      className="flex flex-col items-start gap-0.5 py-2"
+                    >
+                      <span className="text-xs font-medium">{t.label}</span>
+                      <span className="text-[11px] text-muted-foreground leading-snug">
+                        {t.description}
+                      </span>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button
                 variant="outline"
                 onClick={() => {
