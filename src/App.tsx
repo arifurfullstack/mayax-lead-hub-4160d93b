@@ -22,6 +22,7 @@ import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminEmails from "./pages/AdminEmails";
+import AdminWebhookTester from "./pages/AdminWebhookTester";
 import SubmitLead from "./pages/SubmitLead";
 import ApplyNow from "./pages/ApplyNow";
 import RequestLead from "./pages/RequestLead";
@@ -74,6 +75,7 @@ const App = () => (
             <Route path="/request-lead" element={<RequestLead />} />
             <Route path="/admin" element={<ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute>} />
             <Route path="/admin/emails" element={<ProtectedRoute requireAdmin><AdminEmails /></ProtectedRoute>} />
+            <Route path="/admin/webhook-tester" element={<ProtectedRoute requireAdmin><AdminWebhookTester /></ProtectedRoute>} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
