@@ -172,6 +172,18 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const admin = createClient(supabaseUrl, serviceKey);
 
+    // --- Inbound observability ---
+    const requestId = crypto.randomUUID();
+    const sourceIp =
+      req.headers.get("x-forwarded-for") ??
+      req.headers.get("cf-connecting-ip") ??
+      "unknown";
+    const userAgent = req.headers.get("user-agent") ?? "unknown";
+    const hasSecretHeader = !!(req.headers.get("x-webhook-secret") ?? "").trim();
+    console.log(
+      `[inbound-webhook ${requestId}] HIT method=${req.method} ip=${sourceIp} ua="${userAgent}" hasSecret=${hasSecretHeader}`,
+    );
+
     // Fetch all platform_settings (webhook secret + pricing)
     const { data: settingsRows } = await admin
       .from("platform_settings")
@@ -185,6 +197,9 @@ Deno.serve(async (req) => {
     if (configuredSecret) {
       const providedSecret = req.headers.get("x-webhook-secret") ?? "";
       if (providedSecret !== configuredSecret) {
+        console.warn(
+          `[inbound-webhook ${requestId}] 401 invalid secret hasSecretHeader=${hasSecretHeader} ip=${sourceIp} ua="${userAgent}"`,
+        );
         return new Response(JSON.stringify({ error: "Invalid webhook secret" }), {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -196,9 +211,15 @@ Deno.serve(async (req) => {
     const pricing = parsePricingFromRows(settingsRows ?? []);
 
     let body: unknown;
+    let rawBytes = 0;
     try {
-      body = parseInboundPayload(await req.text());
+      const raw = await req.text();
+      rawBytes = raw.length;
+      body = parseInboundPayload(raw);
     } catch (_error) {
+      console.error(
+        `[inbound-webhook ${requestId}] 400 invalid JSON bytes=${rawBytes}`,
+      );
       return new Response(JSON.stringify({
         error: 'Invalid payload. Send amounts as plain numbers (12345) or quoted strings ("12,345").',
       }), {
@@ -207,6 +228,18 @@ Deno.serve(async (req) => {
       });
     }
     const leadsInput = Array.isArray(body) ? body : [body];
+    console.log(
+      `[inbound-webhook ${requestId}] parsed bytes=${rawBytes} count=${leadsInput.length} summary=` +
+        JSON.stringify(
+          leadsInput.slice(0, 5).map((l: any) => ({
+            first_name: l?.first_name ?? null,
+            last_name: l?.last_name ?? null,
+            email: l?.email ?? null,
+            phone: l?.phone ?? null,
+            reference_code: l?.reference_code ?? null,
+          })),
+        ),
+    );
     const results: { reference_code: string; status: string; ai_score?: number; quality_grade?: string; price?: number; error?: string }[] = [];
 
     for (const lead of leadsInput) {
