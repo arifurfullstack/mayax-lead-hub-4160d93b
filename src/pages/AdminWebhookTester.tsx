@@ -1228,6 +1228,119 @@ const AdminWebhookTester = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* --- Suggested fix preview dialog --- */}
+      <Dialog open={pendingFix !== null} onOpenChange={(open) => { if (!open) setPendingFix(null); }}>
+        <DialogContent className="max-w-5xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wand2 className="h-4 w-4 text-emerald-400" />
+              {pendingFix?.kind === "single"
+                ? `Preview fix: ${pendingFix.fix.label}`
+                : pendingFix?.kind === "all"
+                ? `Preview all suggested fixes`
+                : "Preview fix"}
+            </DialogTitle>
+            <DialogDescription>
+              {pendingFix?.kind === "single" ? (
+                <>
+                  Targeting{" "}
+                  <code className="text-xs">
+                    lead[{pendingFix.issue.leadIndex}]
+                    {pendingFix.issue.field !== "(root)" && `.${pendingFix.issue.field}`}
+                  </code>{" "}
+                  — {pendingFix.fix.description}
+                </>
+              ) : pendingFix?.kind === "all" ? (
+                <>
+                  {pendingFix.appliedCount} fix{pendingFix.appliedCount === 1 ? "" : "es"} will be applied
+                  {pendingFix.skippedCount > 0 && (
+                    <> · {pendingFix.skippedCount} issue{pendingFix.skippedCount === 1 ? "" : "s"} have no auto-fix</>
+                  )}
+                  . Review the diff below.
+                </>
+              ) : null}
+            </DialogDescription>
+          </DialogHeader>
+
+          {pendingFix && (() => {
+            const { left, right } = buildDiff(payload, pendingFix.nextPayload);
+            const removedCount = left.filter((l) => l.kind === "removed").length;
+            const addedCount = right.filter((l) => l.kind === "added").length;
+            return (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                  <Badge variant="outline" className="bg-red-500/15 text-red-300 border-red-500/40">
+                    − {removedCount} removed
+                  </Badge>
+                  <Badge variant="outline" className="bg-emerald-500/15 text-emerald-300 border-emerald-500/40">
+                    + {addedCount} added
+                  </Badge>
+                  {removedCount === 0 && addedCount === 0 && (
+                    <span className="italic">No textual change — fix may be a no-op.</span>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-md border border-border/60 overflow-hidden">
+                    <div className="px-3 py-1.5 bg-muted/40 border-b border-border/60 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                      Before
+                    </div>
+                    <pre className="text-[11px] font-mono leading-relaxed max-h-[60vh] overflow-auto">
+                      {left.map((line, i) => (
+                        <div
+                          key={i}
+                          className={
+                            line.kind === "removed"
+                              ? "bg-red-500/15 text-red-300 px-3"
+                              : "px-3 text-muted-foreground"
+                          }
+                        >
+                          <span className="inline-block w-3 select-none opacity-60">
+                            {line.kind === "removed" ? "−" : " "}
+                          </span>{" "}
+                          {line.text || "\u00A0"}
+                        </div>
+                      ))}
+                    </pre>
+                  </div>
+                  <div className="rounded-md border border-border/60 overflow-hidden">
+                    <div className="px-3 py-1.5 bg-muted/40 border-b border-border/60 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                      After
+                    </div>
+                    <pre className="text-[11px] font-mono leading-relaxed max-h-[60vh] overflow-auto">
+                      {right.map((line, i) => (
+                        <div
+                          key={i}
+                          className={
+                            line.kind === "added"
+                              ? "bg-emerald-500/15 text-emerald-300 px-3"
+                              : "px-3 text-muted-foreground"
+                          }
+                        >
+                          <span className="inline-block w-3 select-none opacity-60">
+                            {line.kind === "added" ? "+" : " "}
+                          </span>{" "}
+                          {line.text || "\u00A0"}
+                        </div>
+                      ))}
+                    </pre>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setPendingFix(null)}>
+              Cancel
+            </Button>
+            <Button onClick={confirmPendingFix} className="gap-2">
+              <CheckCircle2 className="h-4 w-4" />
+              Apply fix
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
     </TooltipProvider>
   );
