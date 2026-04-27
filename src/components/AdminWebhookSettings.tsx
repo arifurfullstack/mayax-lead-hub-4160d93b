@@ -74,11 +74,17 @@ export default function AdminWebhookSettings({ settingsForm, setSettingsForm, pl
         </div>
 
         <div className="rounded-lg bg-muted/30 p-4 space-y-2">
-          <p className="text-xs font-medium text-foreground">Expected JSON payload:</p>
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="text-xs font-medium text-foreground">Expected JSON payload:</p>
+            <p className="text-[10px] text-muted-foreground">
+              <span className="text-destructive">first_name</span> and{" "}
+              <span className="text-destructive">last_name</span> are required — all other fields are optional.
+            </p>
+          </div>
           <pre className="text-[11px] text-muted-foreground overflow-x-auto">
 {`{
-  "first_name": "John",        // required
-  "last_name": "Doe",          // required
+  "first_name": "John",
+  "last_name": "Doe",
   "email": "john@email.com",
   "phone": "416 454 6556",
   "city": "Toronto",
