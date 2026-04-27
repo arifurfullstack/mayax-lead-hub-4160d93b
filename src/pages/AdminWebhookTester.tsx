@@ -1434,6 +1434,23 @@ const AdminWebhookTester = () => {
             <Button variant="outline" onClick={() => setPendingFix(null)}>
               Cancel
             </Button>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={async () => {
+                if (!pendingFix) return;
+                try {
+                  await navigator.clipboard.writeText(pendingFix.nextPayload);
+                  toast.success("After JSON copied to clipboard");
+                } catch {
+                  toast.error("Clipboard unavailable in this browser");
+                }
+              }}
+              disabled={!pendingFix}
+            >
+              <Copy className="h-4 w-4" />
+              Copy after JSON
+            </Button>
             <Button onClick={confirmPendingFix} className="gap-2">
               <CheckCircle2 className="h-4 w-4" />
               Apply fix
