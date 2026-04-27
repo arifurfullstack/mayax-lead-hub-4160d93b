@@ -267,10 +267,32 @@ Deno.serve(async (req) => {
 
     for (const lead of leadsInput) {
       if (!lead.first_name || !lead.last_name) {
+        const rejectionError = "Missing required fields: first_name, last_name";
+        if (!dryRun) {
+          try {
+            await admin.from("rejected_inbound_leads").insert({
+              request_id: requestId,
+              reference_code: lead?.reference_code ?? null,
+              error_message: rejectionError,
+              error_type: "validation",
+              first_name: lead?.first_name ?? null,
+              last_name: lead?.last_name ?? null,
+              email: typeof lead?.email === "string" ? lead.email : null,
+              phone: typeof lead?.phone === "string" ? lead.phone : null,
+              city: lead?.city ?? null,
+              province: lead?.province ?? null,
+              payload: lead ?? {},
+              source_ip: sourceIp,
+              user_agent: userAgent,
+            });
+          } catch (logErr) {
+            console.error(`[inbound-webhook ${requestId}] failed to log rejection`, logErr);
+          }
+        }
         results.push({
           reference_code: lead.reference_code ?? "unknown",
           status: "error",
-          error: "Missing required fields: first_name, last_name",
+          error: rejectionError,
           ...(dryRun ? { dry_run: true } : {}),
         });
         continue;
