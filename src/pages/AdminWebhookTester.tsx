@@ -479,6 +479,7 @@ const AdminWebhookTester = () => {
         </Card>
       </div>
     </div>
+    </TooltipProvider>
   );
 };
 
