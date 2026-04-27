@@ -28,6 +28,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
 // --- Schema reference (mirrors supabase/functions/inbound-webhook/index.ts) ---
@@ -571,6 +573,9 @@ const AdminWebhookTester = () => {
     | { kind: "single"; issue: ValidationIssue; fix: FixSuggestion; nextPayload: string; appliedCount: number }
     | { kind: "all"; nextPayload: string; appliedCount: number; skippedCount: number };
   const [pendingFix, setPendingFix] = useState<PendingFix | null>(null);
+  // "Changes only" toggle inside the preview dialog. Hides unchanged context lines
+  // so reviewers can focus on additions/removals on large payloads.
+  const [changesOnly, setChangesOnly] = useState(false);
 
   // Pure: compute the resulting JSON string for a single fix without mutating state.
   // Returns null if payload is unparseable or the fix can't be located.
@@ -1230,7 +1235,15 @@ const AdminWebhookTester = () => {
       </div>
 
       {/* --- Suggested fix preview dialog --- */}
-      <Dialog open={pendingFix !== null} onOpenChange={(open) => { if (!open) setPendingFix(null); }}>
+      <Dialog
+        open={pendingFix !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPendingFix(null);
+            setChangesOnly(false);
+          }
+        }}
+      >
         <DialogContent className="max-w-5xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -1267,18 +1280,71 @@ const AdminWebhookTester = () => {
             const { left, right } = buildDiff(payload, pendingFix.nextPayload);
             const removedCount = left.filter((l) => l.kind === "removed").length;
             const addedCount = right.filter((l) => l.kind === "added").length;
+
+            // When "Changes only" is enabled, drop unchanged ("same") lines and insert
+            // a single ellipsis row wherever a run of context was removed. The original
+            // line number is preserved as a 1-based gutter so reviewers can correlate
+            // back to the full payload.
+            type RenderRow =
+              | { type: "line"; kind: "same" | "added" | "removed"; text: string; lineNo: number }
+              | { type: "gap"; skipped: number };
+            const collapse = (lines: typeof left): RenderRow[] => {
+              if (!changesOnly) {
+                return lines.map((l, i) => ({
+                  type: "line",
+                  kind: l.kind,
+                  text: l.text,
+                  lineNo: i + 1,
+                }));
+              }
+              const out: RenderRow[] = [];
+              let pendingGap = 0;
+              lines.forEach((l, i) => {
+                if (l.kind === "same") {
+                  pendingGap++;
+                  return;
+                }
+                if (pendingGap > 0) {
+                  out.push({ type: "gap", skipped: pendingGap });
+                  pendingGap = 0;
+                }
+                out.push({ type: "line", kind: l.kind, text: l.text, lineNo: i + 1 });
+              });
+              if (pendingGap > 0) out.push({ type: "gap", skipped: pendingGap });
+              return out;
+            };
+            const leftRows = collapse(left);
+            const rightRows = collapse(right);
+            const noChanges = removedCount === 0 && addedCount === 0;
+
             return (
               <div className="space-y-3">
-                <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                  <Badge variant="outline" className="bg-red-500/15 text-red-300 border-red-500/40">
-                    − {removedCount} removed
-                  </Badge>
-                  <Badge variant="outline" className="bg-emerald-500/15 text-emerald-300 border-emerald-500/40">
-                    + {addedCount} added
-                  </Badge>
-                  {removedCount === 0 && addedCount === 0 && (
-                    <span className="italic">No textual change — fix may be a no-op.</span>
-                  )}
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Badge variant="outline" className="bg-red-500/15 text-red-300 border-red-500/40">
+                      − {removedCount} removed
+                    </Badge>
+                    <Badge variant="outline" className="bg-emerald-500/15 text-emerald-300 border-emerald-500/40">
+                      + {addedCount} added
+                    </Badge>
+                    {noChanges && (
+                      <span className="italic">No textual change — fix may be a no-op.</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id="changes-only-toggle"
+                      checked={changesOnly}
+                      onCheckedChange={setChangesOnly}
+                      disabled={noChanges}
+                    />
+                    <Label
+                      htmlFor="changes-only-toggle"
+                      className="text-xs text-muted-foreground cursor-pointer select-none"
+                    >
+                      Changes only
+                    </Label>
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-md border border-border/60 overflow-hidden">
@@ -1286,21 +1352,38 @@ const AdminWebhookTester = () => {
                       Before
                     </div>
                     <pre className="text-[11px] font-mono leading-relaxed max-h-[60vh] overflow-auto">
-                      {left.map((line, i) => (
-                        <div
-                          key={i}
-                          className={
-                            line.kind === "removed"
-                              ? "bg-red-500/15 text-red-300 px-3"
-                              : "px-3 text-muted-foreground"
-                          }
-                        >
-                          <span className="inline-block w-3 select-none opacity-60">
-                            {line.kind === "removed" ? "−" : " "}
-                          </span>{" "}
-                          {line.text || "\u00A0"}
+                      {leftRows.length === 0 && (
+                        <div className="px-3 py-2 text-muted-foreground italic">
+                          No removed lines.
                         </div>
-                      ))}
+                      )}
+                      {leftRows.map((row, i) =>
+                        row.type === "gap" ? (
+                          <div
+                            key={i}
+                            className="px-3 text-[10px] text-muted-foreground/70 bg-muted/20 border-y border-border/40 select-none"
+                          >
+                            ⋯ {row.skipped} unchanged line{row.skipped === 1 ? "" : "s"} hidden
+                          </div>
+                        ) : (
+                          <div
+                            key={i}
+                            className={
+                              row.kind === "removed"
+                                ? "flex bg-red-500/15 text-red-300"
+                                : "flex text-muted-foreground"
+                            }
+                          >
+                            <span className="w-10 text-right pr-2 select-none opacity-50 border-r border-border/30">
+                              {row.lineNo}
+                            </span>
+                            <span className="inline-block w-4 text-center select-none opacity-70">
+                              {row.kind === "removed" ? "−" : " "}
+                            </span>
+                            <span className="flex-1 pr-3">{row.text || "\u00A0"}</span>
+                          </div>
+                        ),
+                      )}
                     </pre>
                   </div>
                   <div className="rounded-md border border-border/60 overflow-hidden">
@@ -1308,21 +1391,38 @@ const AdminWebhookTester = () => {
                       After
                     </div>
                     <pre className="text-[11px] font-mono leading-relaxed max-h-[60vh] overflow-auto">
-                      {right.map((line, i) => (
-                        <div
-                          key={i}
-                          className={
-                            line.kind === "added"
-                              ? "bg-emerald-500/15 text-emerald-300 px-3"
-                              : "px-3 text-muted-foreground"
-                          }
-                        >
-                          <span className="inline-block w-3 select-none opacity-60">
-                            {line.kind === "added" ? "+" : " "}
-                          </span>{" "}
-                          {line.text || "\u00A0"}
+                      {rightRows.length === 0 && (
+                        <div className="px-3 py-2 text-muted-foreground italic">
+                          No added lines.
                         </div>
-                      ))}
+                      )}
+                      {rightRows.map((row, i) =>
+                        row.type === "gap" ? (
+                          <div
+                            key={i}
+                            className="px-3 text-[10px] text-muted-foreground/70 bg-muted/20 border-y border-border/40 select-none"
+                          >
+                            ⋯ {row.skipped} unchanged line{row.skipped === 1 ? "" : "s"} hidden
+                          </div>
+                        ) : (
+                          <div
+                            key={i}
+                            className={
+                              row.kind === "added"
+                                ? "flex bg-emerald-500/15 text-emerald-300"
+                                : "flex text-muted-foreground"
+                            }
+                          >
+                            <span className="w-10 text-right pr-2 select-none opacity-50 border-r border-border/30">
+                              {row.lineNo}
+                            </span>
+                            <span className="inline-block w-4 text-center select-none opacity-70">
+                              {row.kind === "added" ? "+" : " "}
+                            </span>
+                            <span className="flex-1 pr-3">{row.text || "\u00A0"}</span>
+                          </div>
+                        ),
+                      )}
                     </pre>
                   </div>
                 </div>
