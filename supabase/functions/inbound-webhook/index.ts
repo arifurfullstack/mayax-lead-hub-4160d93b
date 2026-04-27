@@ -370,11 +370,18 @@ Deno.serve(async (req) => {
         const { error } = await admin.from("leads").update(updateData).eq("id", matchedLead.id);
 
         if (error) {
+          console.error(
+            `[inbound-webhook ${requestId}] update error ref=${referenceCode} match_id=${matchedLead.id} sold_status=${matchedLead.sold_status} error="${error.message}"`,
+          );
           results.push({ reference_code: referenceCode, status: "error", error: error.message });
         } else {
+          const status = matchedLead.sold_status === "available" ? "updated" : "merged";
+          console.log(
+            `[inbound-webhook ${requestId}] ${status} ref=${referenceCode} match_id=${matchedLead.id} sold_status=${matchedLead.sold_status} price=${price} grade=${quality_grade}`,
+          );
           results.push({
             reference_code: referenceCode,
-            status: matchedLead.sold_status === "available" ? "updated" : "merged",
+            status,
             ai_score,
             quality_grade,
             price,
@@ -386,12 +393,21 @@ Deno.serve(async (req) => {
       const { error } = await admin.from("leads").insert(leadData);
 
       if (error) {
+        console.error(
+          `[inbound-webhook ${requestId}] insert error ref=${referenceCode} email=${inboundEmail || "none"} phone=${inboundPhoneDigits || "none"} error="${error.message}"`,
+        );
         results.push({ reference_code: referenceCode, status: "error", error: error.message });
       } else {
+        console.log(
+          `[inbound-webhook ${requestId}] created ref=${referenceCode} email=${inboundEmail || "none"} phone=${inboundPhoneDigits || "none"} price=${price} grade=${quality_grade} ai_score=${ai_score}`,
+        );
         results.push({ reference_code: referenceCode, status: "created", ai_score, quality_grade, price });
       }
     }
 
+    console.log(
+      `[inbound-webhook ${requestId}] DONE results=` + JSON.stringify(results),
+    );
     return new Response(
       JSON.stringify({ success: true, results }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
