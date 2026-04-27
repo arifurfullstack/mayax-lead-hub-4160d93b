@@ -180,8 +180,21 @@ Deno.serve(async (req) => {
       "unknown";
     const userAgent = req.headers.get("user-agent") ?? "unknown";
     const hasSecretHeader = !!(req.headers.get("x-webhook-secret") ?? "").trim();
+
+    // --- Dry-run / test mode ---
+    // Triggered by ?dry_run=1 (or true/yes) OR header `x-dry-run: 1`.
+    // Validates payload, computes price/grade/ai_score, looks up duplicates,
+    // and returns the same per-lead `status` (created / updated / merged / error)
+    // WITHOUT writing anything to the leads table.
+    const url = new URL(req.url);
+    const dryRunQuery = (url.searchParams.get("dry_run") ?? "").toLowerCase();
+    const dryRunHeader = (req.headers.get("x-dry-run") ?? "").toLowerCase();
+    const dryRun =
+      dryRunQuery === "1" || dryRunQuery === "true" || dryRunQuery === "yes" ||
+      dryRunHeader === "1" || dryRunHeader === "true" || dryRunHeader === "yes";
+
     console.log(
-      `[inbound-webhook ${requestId}] HIT method=${req.method} ip=${sourceIp} ua="${userAgent}" hasSecret=${hasSecretHeader}`,
+      `[inbound-webhook ${requestId}] HIT method=${req.method} ip=${sourceIp} ua="${userAgent}" hasSecret=${hasSecretHeader} dryRun=${dryRun}`,
     );
 
     // Fetch all platform_settings (webhook secret + pricing)
@@ -240,7 +253,17 @@ Deno.serve(async (req) => {
           })),
         ),
     );
-    const results: { reference_code: string; status: string; ai_score?: number; quality_grade?: string; price?: number; error?: string }[] = [];
+    const results: {
+      reference_code: string;
+      status: string;
+      ai_score?: number;
+      quality_grade?: string;
+      price?: number;
+      error?: string;
+      dry_run?: boolean;
+      matched?: { id: string; reference_code: string; sold_status: string } | null;
+      computed?: Record<string, unknown>;
+    }[] = [];
 
     for (const lead of leadsInput) {
       if (!lead.first_name || !lead.last_name) {
@@ -248,6 +271,7 @@ Deno.serve(async (req) => {
           reference_code: lead.reference_code ?? "unknown",
           status: "error",
           error: "Missing required fields: first_name, last_name",
+          ...(dryRun ? { dry_run: true } : {}),
         });
         continue;
       }
@@ -367,6 +391,42 @@ Deno.serve(async (req) => {
           });
         }
 
+        if (dryRun) {
+          const status = matchedLead.sold_status === "available" ? "updated" : "merged";
+          console.log(
+            `[inbound-webhook ${requestId}] DRY-RUN ${status} ref=${referenceCode} match_id=${matchedLead.id} sold_status=${matchedLead.sold_status} price=${price} grade=${quality_grade}`,
+          );
+          results.push({
+            reference_code: referenceCode,
+            status,
+            ai_score,
+            quality_grade,
+            price,
+            dry_run: true,
+            matched: {
+              id: matchedLead.id,
+              reference_code: matchedLead.reference_code,
+              sold_status: matchedLead.sold_status,
+            },
+            computed: {
+              email: leadData.email,
+              phone: leadData.phone,
+              city: leadData.city,
+              province: leadData.province,
+              income: leadData.income,
+              vehicle_preference: leadData.vehicle_preference,
+              trade_in,
+              has_bankruptcy,
+              appointment_time,
+              would_update_fields:
+                matchedLead.sold_status === "available"
+                  ? Object.keys(leadData)
+                  : ["notes"],
+            },
+          });
+          continue;
+        }
+
         const { error } = await admin.from("leads").update(updateData).eq("id", matchedLead.id);
 
         if (error) {
@@ -390,6 +450,33 @@ Deno.serve(async (req) => {
         continue;
       }
 
+      if (dryRun) {
+        console.log(
+          `[inbound-webhook ${requestId}] DRY-RUN created ref=${referenceCode} email=${inboundEmail || "none"} phone=${inboundPhoneDigits || "none"} price=${price} grade=${quality_grade} ai_score=${ai_score}`,
+        );
+        results.push({
+          reference_code: referenceCode,
+          status: "created",
+          ai_score,
+          quality_grade,
+          price,
+          dry_run: true,
+          matched: null,
+          computed: {
+            email: leadData.email,
+            phone: leadData.phone,
+            city: leadData.city,
+            province: leadData.province,
+            income: leadData.income,
+            vehicle_preference: leadData.vehicle_preference,
+            trade_in,
+            has_bankruptcy,
+            appointment_time,
+          },
+        });
+        continue;
+      }
+
       const { error } = await admin.from("leads").insert(leadData);
 
       if (error) {
@@ -406,10 +493,10 @@ Deno.serve(async (req) => {
     }
 
     console.log(
-      `[inbound-webhook ${requestId}] DONE results=` + JSON.stringify(results),
+      `[inbound-webhook ${requestId}] DONE dryRun=${dryRun} results=` + JSON.stringify(results),
     );
     return new Response(
-      JSON.stringify({ success: true, results }),
+      JSON.stringify({ success: true, dry_run: dryRun, results }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
