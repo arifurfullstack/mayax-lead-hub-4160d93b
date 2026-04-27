@@ -573,6 +573,9 @@ const AdminWebhookTester = () => {
     | { kind: "single"; issue: ValidationIssue; fix: FixSuggestion; nextPayload: string; appliedCount: number }
     | { kind: "all"; nextPayload: string; appliedCount: number; skippedCount: number };
   const [pendingFix, setPendingFix] = useState<PendingFix | null>(null);
+  // "Changes only" toggle inside the preview dialog. Hides unchanged context lines
+  // so reviewers can focus on additions/removals on large payloads.
+  const [changesOnly, setChangesOnly] = useState(false);
 
   // Pure: compute the resulting JSON string for a single fix without mutating state.
   // Returns null if payload is unparseable or the fix can't be located.
