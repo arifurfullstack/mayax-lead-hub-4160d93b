@@ -4,8 +4,43 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, FlaskConical, Copy, AlertTriangle, CheckCircle2, RefreshCw, Wand2 } from "lucide-react";
+import { Loader2, FlaskConical, Copy, AlertTriangle, CheckCircle2, RefreshCw, Wand2, BookOpen, Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { toast } from "sonner";
+
+// --- Schema reference (mirrors supabase/functions/inbound-webhook/index.ts) ---
+type FieldDef = {
+  name: string;
+  type: string;
+  required?: boolean;
+  notes: string;
+  example?: string;
+};
+
+const SCHEMA_FIELDS: FieldDef[] = [
+  { name: "first_name", type: "string", required: true, notes: "Required. Used together with phone/email for dedupe.", example: '"Jose"' },
+  { name: "last_name", type: "string", required: true, notes: "Required.", example: '"Chocano"' },
+  { name: "email", type: "string", notes: "Used for dedupe (case-insensitive). Strongly recommended.", example: '"jose@example.com"' },
+  { name: "phone", type: "string", notes: "Dedupe falls back to last 10 digits. Any format accepted (spaces, dashes, +1).", example: '"416 418 6379"' },
+  { name: "city", type: "string", notes: "Free text.", example: '"King City"' },
+  { name: "province", type: "string", notes: "Free text. Any province/state.", example: '"Ontario"' },
+  { name: "buyer_type", type: "string", notes: 'Defaults to "online" if omitted.', example: '"online"' },
+  { name: "income", type: "number | string", notes: 'Monthly income. Comma-grouped strings ("$5,000") are auto-stripped. ≥ $1,800 adds tier1 pricing; ≥ $5,000 adds tier1+tier2.', example: '5000 or "$5,000"' },
+  { name: "credit_range_min", type: "number", notes: "Optional credit score floor.", example: "680" },
+  { name: "credit_range_max", type: "number", notes: "Optional credit score ceiling.", example: "720" },
+  { name: "vehicle_preference", type: "string", notes: 'Specific vehicles ("2024 Honda CR-V") score higher than generic ("SUV", "truck").', example: '"2023 Audi Q4 e-tron"' },
+  { name: "vehicle_mileage", type: "number", notes: "Optional km/mi.", example: "45000" },
+  { name: "vehicle_price", type: "number", notes: "Optional asking price.", example: "32000" },
+  { name: "trade_in", type: "boolean", notes: 'Adds trade-in pricing. Also auto-detected from notes containing "trade".', example: "true" },
+  { name: "appointment_time", type: "string (ISO8601)", notes: "Adds appointment pricing. Auto-set if notes mention an appointment.", example: '"2026-04-28T14:00:00-04:00"' },
+  { name: "notes", type: "string", notes: 'Free text. Auto-flags: "trade", "bankrupt", "appointment". Appended on duplicates.', example: '"Wants to trade in 2018 Civic"' },
+  { name: "reference_code", type: "string", notes: "Optional. If omitted, generated as MX-YYYY-XXX. Existing match takes precedence.", example: '"MX-2026-123"' },
+];
 
 const FUNCTIONS_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/inbound-webhook`;
 const ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
