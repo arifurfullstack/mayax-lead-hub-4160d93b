@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, FlaskConical, Copy, AlertTriangle, CheckCircle2, RefreshCw, Wand2, BookOpen, Info } from "lucide-react";
+import { Loader2, FlaskConical, Copy, AlertTriangle, CheckCircle2, RefreshCw, Wand2, BookOpen, Info, ShieldAlert, ShieldCheck } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Collapsible,
@@ -41,6 +42,147 @@ const SCHEMA_FIELDS: FieldDef[] = [
   { name: "notes", type: "string", notes: 'Free text. Auto-flags: "trade", "bankrupt", "appointment". Appended on duplicates.', example: '"Wants to trade in 2018 Civic"' },
   { name: "reference_code", type: "string", notes: "Optional. If omitted, generated as MX-YYYY-XXX. Existing match takes precedence.", example: '"MX-2026-123"' },
 ];
+
+// --- Client-side validation schema (mirrors webhook contract) ---
+// Numbers may arrive as plain numbers or comma-grouped strings ($5,000) — server strips them.
+const numericLike = z
+  .union([z.number(), z.string()])
+  .optional()
+  .nullable()
+  .refine(
+    (v) => {
+      if (v === undefined || v === null || v === "") return true;
+      if (typeof v === "number") return Number.isFinite(v);
+      const cleaned = v.replace(/[$£€¥,\s]/g, "");
+      if (cleaned === "") return true;
+      return !Number.isNaN(Number(cleaned));
+    },
+    { message: "must be a number or numeric string (e.g. 5000 or \"$5,000\")" },
+  );
+
+const isoLike = z
+  .union([z.string(), z.null(), z.undefined()])
+  .optional()
+  .refine(
+    (v) => {
+      if (v === undefined || v === null || v === "") return true;
+      if (typeof v !== "string") return false;
+      return !Number.isNaN(Date.parse(v));
+    },
+    { message: "must be a valid ISO8601 date string" },
+  );
+
+const leadSchema = z
+  .object({
+    first_name: z.string().trim().min(1, { message: "first_name is required" }).max(100),
+    last_name: z.string().trim().min(1, { message: "last_name is required" }).max(100),
+    email: z.string().trim().email({ message: "must be a valid email" }).max(255).optional().or(z.literal("")),
+    phone: z.string().trim().max(40).optional().or(z.literal("")),
+    city: z.string().trim().max(100).optional().or(z.literal("")),
+    province: z.string().trim().max(100).optional().or(z.literal("")),
+    buyer_type: z.string().trim().max(50).optional().or(z.literal("")),
+    income: numericLike,
+    credit_range_min: numericLike,
+    credit_range_max: numericLike,
+    vehicle_preference: z.string().trim().max(200).optional().or(z.literal("")),
+    vehicle_mileage: numericLike,
+    vehicle_price: numericLike,
+    trade_in: z.boolean().optional(),
+    appointment_time: isoLike,
+    notes: z.string().max(5000).optional().or(z.literal("")),
+    reference_code: z.string().trim().max(50).optional().or(z.literal("")),
+  })
+  .passthrough(); // unknown fields allowed (server ignores them)
+
+type ValidationIssue = {
+  leadIndex: number | null; // null = top-level (e.g. payload not object/array)
+  field: string;
+  message: string;
+};
+
+type ValidationResult = {
+  ok: boolean;
+  jsonError: string | null;
+  totalLeads: number;
+  issues: ValidationIssue[];
+  warnings: ValidationIssue[];
+};
+
+function validatePayload(raw: string): ValidationResult {
+  if (!raw.trim()) {
+    return { ok: false, jsonError: "Payload is empty", totalLeads: 0, issues: [], warnings: [] };
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (e) {
+    return {
+      ok: false,
+      jsonError: e instanceof Error ? e.message : "Invalid JSON",
+      totalLeads: 0,
+      issues: [],
+      warnings: [],
+    };
+  }
+  if (parsed === null || typeof parsed !== "object") {
+    return {
+      ok: false,
+      jsonError: null,
+      totalLeads: 0,
+      issues: [{ leadIndex: null, field: "(root)", message: "must be an object or an array of objects" }],
+      warnings: [],
+    };
+  }
+  const leads = Array.isArray(parsed) ? parsed : [parsed];
+  const issues: ValidationIssue[] = [];
+  const warnings: ValidationIssue[] = [];
+
+  leads.forEach((lead, idx) => {
+    if (lead === null || typeof lead !== "object" || Array.isArray(lead)) {
+      issues.push({ leadIndex: idx, field: "(root)", message: "each lead must be a JSON object" });
+      return;
+    }
+    const result = leadSchema.safeParse(lead);
+    if (!result.success) {
+      result.error.issues.forEach((iss) => {
+        issues.push({
+          leadIndex: idx,
+          field: iss.path.join(".") || "(root)",
+          message: iss.message,
+        });
+      });
+    }
+    // Soft warnings — won't block submit, but very likely to cause downstream issues
+    const l = lead as Record<string, unknown>;
+    const hasEmail = typeof l.email === "string" && l.email.trim() !== "";
+    const hasPhone = typeof l.phone === "string" && l.phone.trim() !== "";
+    if (!hasEmail && !hasPhone) {
+      warnings.push({
+        leadIndex: idx,
+        field: "email / phone",
+        message: "no email or phone — dedupe will not work, every send creates a new lead",
+      });
+    }
+    if (hasPhone && typeof l.phone === "string") {
+      const digits = l.phone.replace(/[^0-9]/g, "");
+      if (digits.length < 7) {
+        warnings.push({
+          leadIndex: idx,
+          field: "phone",
+          message: `only ${digits.length} digits — dedupe needs at least 7`,
+        });
+      }
+    }
+  });
+
+  return {
+    ok: issues.length === 0,
+    jsonError: null,
+    totalLeads: leads.length,
+    issues,
+    warnings,
+  };
+}
 
 const FUNCTIONS_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/inbound-webhook`;
 const ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
@@ -124,6 +266,8 @@ const AdminWebhookTester = () => {
   const [httpStatus, setHttpStatus] = useState<number | null>(null);
   const [latencyMs, setLatencyMs] = useState<number | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
+
+  const validation = useMemo(() => validatePayload(payload), [payload]);
 
   const formatPayload = () => {
     try {
