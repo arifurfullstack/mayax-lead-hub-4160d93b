@@ -4,8 +4,43 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, FlaskConical, Copy, AlertTriangle, CheckCircle2, RefreshCw, Wand2 } from "lucide-react";
+import { Loader2, FlaskConical, Copy, AlertTriangle, CheckCircle2, RefreshCw, Wand2, BookOpen, Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { toast } from "sonner";
+
+// --- Schema reference (mirrors supabase/functions/inbound-webhook/index.ts) ---
+type FieldDef = {
+  name: string;
+  type: string;
+  required?: boolean;
+  notes: string;
+  example?: string;
+};
+
+const SCHEMA_FIELDS: FieldDef[] = [
+  { name: "first_name", type: "string", required: true, notes: "Required. Used together with phone/email for dedupe.", example: '"Jose"' },
+  { name: "last_name", type: "string", required: true, notes: "Required.", example: '"Chocano"' },
+  { name: "email", type: "string", notes: "Used for dedupe (case-insensitive). Strongly recommended.", example: '"jose@example.com"' },
+  { name: "phone", type: "string", notes: "Dedupe falls back to last 10 digits. Any format accepted (spaces, dashes, +1).", example: '"416 418 6379"' },
+  { name: "city", type: "string", notes: "Free text.", example: '"King City"' },
+  { name: "province", type: "string", notes: "Free text. Any province/state.", example: '"Ontario"' },
+  { name: "buyer_type", type: "string", notes: 'Defaults to "online" if omitted.', example: '"online"' },
+  { name: "income", type: "number | string", notes: 'Monthly income. Comma-grouped strings ("$5,000") are auto-stripped. ≥ $1,800 adds tier1 pricing; ≥ $5,000 adds tier1+tier2.', example: '5000 or "$5,000"' },
+  { name: "credit_range_min", type: "number", notes: "Optional credit score floor.", example: "680" },
+  { name: "credit_range_max", type: "number", notes: "Optional credit score ceiling.", example: "720" },
+  { name: "vehicle_preference", type: "string", notes: 'Specific vehicles ("2024 Honda CR-V") score higher than generic ("SUV", "truck").', example: '"2023 Audi Q4 e-tron"' },
+  { name: "vehicle_mileage", type: "number", notes: "Optional km/mi.", example: "45000" },
+  { name: "vehicle_price", type: "number", notes: "Optional asking price.", example: "32000" },
+  { name: "trade_in", type: "boolean", notes: 'Adds trade-in pricing. Also auto-detected from notes containing "trade".', example: "true" },
+  { name: "appointment_time", type: "string (ISO8601)", notes: "Adds appointment pricing. Auto-set if notes mention an appointment.", example: '"2026-04-28T14:00:00-04:00"' },
+  { name: "notes", type: "string", notes: 'Free text. Auto-flags: "trade", "bankrupt", "appointment". Appended on duplicates.', example: '"Wants to trade in 2018 Civic"' },
+  { name: "reference_code", type: "string", notes: "Optional. If omitted, generated as MX-YYYY-XXX. Existing match takes precedence.", example: '"MX-2026-123"' },
+];
 
 const FUNCTIONS_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/inbound-webhook`;
 const ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
@@ -162,6 +197,7 @@ const AdminWebhookTester = () => {
       : null;
 
   return (
+    <TooltipProvider delayDuration={150}>
     <div className="space-y-6 p-6 max-w-7xl mx-auto">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
@@ -182,10 +218,96 @@ const AdminWebhookTester = () => {
         </AlertDescription>
       </Alert>
 
+      <Collapsible defaultOpen className="rounded-lg border border-border/60 bg-card/40">
+        <CollapsibleTrigger className="w-full flex items-center justify-between gap-2 px-4 py-3 text-left hover:bg-card/60 transition-colors">
+          <div className="flex items-center gap-2">
+            <BookOpen className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium">Payload schema reference</span>
+            <Badge variant="outline" className="text-[10px] font-mono">
+              {SCHEMA_FIELDS.filter((f) => f.required).length} required
+            </Badge>
+          </div>
+          <span className="text-xs text-muted-foreground">click to toggle</span>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="px-4 pb-4 pt-1 space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Send a single object or an array of objects. Unknown fields are ignored. Hover any field for details.
+            </p>
+            <div className="overflow-auto rounded border border-border/50">
+              <table className="w-full text-xs">
+                <thead className="bg-muted/40 text-muted-foreground">
+                  <tr>
+                    <th className="text-left font-medium px-3 py-2">Field</th>
+                    <th className="text-left font-medium px-3 py-2">Type</th>
+                    <th className="text-left font-medium px-3 py-2">Required</th>
+                    <th className="text-left font-medium px-3 py-2">Notes</th>
+                    <th className="text-left font-medium px-3 py-2">Example</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {SCHEMA_FIELDS.map((f) => (
+                    <tr key={f.name} className="border-t border-border/40 hover:bg-muted/20">
+                      <td className="px-3 py-2 font-mono whitespace-nowrap">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex items-center gap-1 cursor-help">
+                              {f.name}
+                              <Info className="h-3 w-3 text-muted-foreground" />
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="right" className="max-w-xs">
+                            <p className="text-xs leading-relaxed">{f.notes}</p>
+                            {f.example && (
+                              <p className="text-[11px] font-mono text-muted-foreground mt-1">
+                                e.g. {f.example}
+                              </p>
+                            )}
+                          </TooltipContent>
+                        </Tooltip>
+                      </td>
+                      <td className="px-3 py-2 font-mono text-muted-foreground whitespace-nowrap">{f.type}</td>
+                      <td className="px-3 py-2">
+                        {f.required ? (
+                          <Badge variant="outline" className="bg-red-500/15 text-red-300 border-red-500/40 text-[10px]">
+                            required
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-[11px]">optional</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-muted-foreground">{f.notes}</td>
+                      <td className="px-3 py-2 font-mono text-[11px] text-muted-foreground">{f.example ?? "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              <strong>Dedupe priority:</strong> email (case-insensitive) → phone (last 10 digits). If a match exists and is{" "}
+              <code>available</code>, all fields are refreshed and notes appended. If the match is <code>sold</code>, only notes are appended.
+            </p>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Request payload</CardTitle>
+            <CardTitle className="text-base flex items-center gap-2">
+              Request payload
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent side="right" className="max-w-sm">
+                  <p className="text-xs leading-relaxed">
+                    Required: <code>first_name</code>, <code>last_name</code>. Recommended: <code>email</code> and{" "}
+                    <code>phone</code> for dedupe. See the schema reference above for all fields.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </CardTitle>
             <CardDescription>
               JSON object or array. Same shape Make.com sends in production.
             </CardDescription>
@@ -357,6 +479,7 @@ const AdminWebhookTester = () => {
         </Card>
       </div>
     </div>
+    </TooltipProvider>
   );
 };
 
