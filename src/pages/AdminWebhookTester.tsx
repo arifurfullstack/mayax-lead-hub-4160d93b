@@ -100,6 +100,98 @@ type ValidationIssue = {
   message: string;
 };
 
+// --- Suggested fix engine ---
+// Given a validation issue, propose a safe value to drop into the offending field
+// so the user can re-run without manual JSON editing.
+type FixSuggestion = {
+  label: string; // short button label, e.g. `Set "Unknown"`
+  description: string; // tooltip / aria description
+  apply: (lead: Record<string, unknown>) => void;
+};
+
+function suggestFix(issue: ValidationIssue): FixSuggestion | null {
+  if (issue.leadIndex === null) return null;
+  const field = issue.field;
+  const msg = issue.message.toLowerCase();
+
+  // Required string fields
+  if (field === "first_name" || field === "last_name") {
+    const val = field === "first_name" ? "Unknown" : "Lead";
+    return {
+      label: `Set "${val}"`,
+      description: `Fill ${field} with placeholder "${val}" so the webhook accepts the lead.`,
+      apply: (lead) => {
+        lead[field] = val;
+      },
+    };
+  }
+
+  // Email — invalid format → drop the field (it's optional)
+  if (field === "email") {
+    return {
+      label: "Clear email",
+      description: "Remove the invalid email. Dedupe will fall back to phone.",
+      apply: (lead) => {
+        delete lead.email;
+      },
+    };
+  }
+
+  // Numeric-like fields → coerce to number or null
+  const numericFields = new Set([
+    "income",
+    "credit_range_min",
+    "credit_range_max",
+    "vehicle_mileage",
+    "vehicle_price",
+  ]);
+  if (numericFields.has(field) && msg.includes("number")) {
+    return {
+      label: "Clear value",
+      description: `Remove ${field}. The webhook will treat it as not provided.`,
+      apply: (lead) => {
+        delete lead[field];
+      },
+    };
+  }
+
+  // ISO8601 appointment_time
+  if (field === "appointment_time") {
+    return {
+      label: "Clear appointment",
+      description: "Remove the invalid appointment_time so the webhook ignores it.",
+      apply: (lead) => {
+        delete lead.appointment_time;
+      },
+    };
+  }
+
+  // Length overflow on free-text fields → truncate to 100 chars (safe upper bound)
+  if (msg.includes("at most") || msg.includes("characters") || msg.includes("max")) {
+    return {
+      label: "Truncate",
+      description: `Shorten ${field} to a safe length.`,
+      apply: (lead) => {
+        const v = lead[field];
+        if (typeof v === "string") lead[field] = v.slice(0, 100);
+      },
+    };
+  }
+
+  // Lead is not an object → replace with empty stub
+  if (issue.field === "(root)" && msg.includes("object")) {
+    return {
+      label: "Replace with stub",
+      description: "Replace this entry with an empty lead object.",
+      apply: () => {
+        // handled at array level — see applyFix
+      },
+    };
+  }
+
+  return null;
+}
+
 type ValidationResult = {
   ok: boolean;
   jsonError: string | null;
@@ -268,6 +360,74 @@ const AdminWebhookTester = () => {
   const [parseError, setParseError] = useState<string | null>(null);
 
   const validation = useMemo(() => validatePayload(payload), [payload]);
+
+  // Apply a suggested fix to the parsed payload, then re-serialize.
+  // Returns true on success, false if JSON could not be parsed.
+  const applyFix = (issue: ValidationIssue, fix: FixSuggestion): boolean => {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(payload);
+    } catch (e) {
+      toast.error("Cannot apply fix — JSON is invalid");
+      return false;
+    }
+    const isArray = Array.isArray(parsed);
+    const leads = isArray ? (parsed as unknown[]) : [parsed];
+    if (issue.leadIndex === null || issue.leadIndex < 0 || issue.leadIndex >= leads.length) {
+      toast.error("Cannot apply fix — lead index out of range");
+      return false;
+    }
+    const target = leads[issue.leadIndex];
+    // Special case: replace non-object lead with empty stub
+    if (target === null || typeof target !== "object" || Array.isArray(target)) {
+      leads[issue.leadIndex] = { first_name: "Unknown", last_name: "Lead" };
+    } else {
+      fix.apply(target as Record<string, unknown>);
+    }
+    const next = isArray ? leads : leads[0];
+    setPayload(JSON.stringify(next, null, 2));
+    toast.success(`Applied: ${fix.label}`);
+    return true;
+  };
+
+  // Apply every suggested fix in one click.
+  const applyAllFixes = () => {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(payload);
+    } catch {
+      toast.error("Cannot auto-fix — JSON is invalid");
+      return;
+    }
+    const isArray = Array.isArray(parsed);
+    const leads = isArray ? (parsed as unknown[]) : [parsed];
+    let applied = 0;
+    let skipped = 0;
+    for (const iss of validation.issues) {
+      const fix = suggestFix(iss);
+      if (!fix || iss.leadIndex === null) {
+        skipped++;
+        continue;
+      }
+      const target = leads[iss.leadIndex];
+      if (target === null || typeof target !== "object" || Array.isArray(target)) {
+        leads[iss.leadIndex] = { first_name: "Unknown", last_name: "Lead" };
+      } else {
+        fix.apply(target as Record<string, unknown>);
+      }
+      applied++;
+    }
+    if (applied === 0) {
+      toast.error("No suggested fixes available");
+      return;
+    }
+    const next = isArray ? leads : leads[0];
+    setPayload(JSON.stringify(next, null, 2));
+    toast.success(
+      `Applied ${applied} fix${applied === 1 ? "" : "es"}` +
+        (skipped > 0 ? ` · ${skipped} had no suggestion` : ""),
+    );
+  };
 
   const formatPayload = () => {
     try {
