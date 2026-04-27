@@ -20,6 +20,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 // --- Schema reference (mirrors supabase/functions/inbound-webhook/index.ts) ---
@@ -558,43 +566,52 @@ const AdminWebhookTester = () => {
 
   const validation = useMemo(() => validatePayload(payload), [payload]);
 
-  // Apply a suggested fix to the parsed payload, then re-serialize.
-  // Returns true on success, false if JSON could not be parsed.
-  const applyFix = (issue: ValidationIssue, fix: FixSuggestion): boolean => {
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(payload);
-    } catch (e) {
-      toast.error("Cannot apply fix — JSON is invalid");
-      return false;
-    }
-    const isArray = Array.isArray(parsed);
-    const leads = isArray ? (parsed as unknown[]) : [parsed];
-    if (issue.leadIndex === null || issue.leadIndex < 0 || issue.leadIndex >= leads.length) {
-      toast.error("Cannot apply fix — lead index out of range");
-      return false;
-    }
-    const target = leads[issue.leadIndex];
-    // Special case: replace non-object lead with empty stub
-    if (target === null || typeof target !== "object" || Array.isArray(target)) {
-      leads[issue.leadIndex] = { first_name: "Unknown", last_name: "Lead" };
-    } else {
-      fix.apply(target as Record<string, unknown>);
-    }
-    const next = isArray ? leads : leads[0];
-    setPayload(JSON.stringify(next, null, 2));
-    toast.success(`Applied: ${fix.label}`);
-    return true;
-  };
+  // Preview state — when set, the diff dialog is open showing before/after.
+  type PendingFix =
+    | { kind: "single"; issue: ValidationIssue; fix: FixSuggestion; nextPayload: string; appliedCount: number }
+    | { kind: "all"; nextPayload: string; appliedCount: number; skippedCount: number };
+  const [pendingFix, setPendingFix] = useState<PendingFix | null>(null);
 
-  // Apply every suggested fix in one click.
-  const applyAllFixes = () => {
+  // Pure: compute the resulting JSON string for a single fix without mutating state.
+  // Returns null if payload is unparseable or the fix can't be located.
+  const computeSingleFix = (
+    issue: ValidationIssue,
+    fix: FixSuggestion,
+  ): { nextPayload: string } | null => {
     let parsed: unknown;
     try {
       parsed = JSON.parse(payload);
     } catch {
-      toast.error("Cannot auto-fix — JSON is invalid");
-      return;
+      return null;
+    }
+    const isArray = Array.isArray(parsed);
+    const leads = isArray ? (parsed as unknown[]) : [parsed];
+    if (issue.leadIndex === null || issue.leadIndex < 0 || issue.leadIndex >= leads.length) {
+      return null;
+    }
+    const target = leads[issue.leadIndex];
+    if (target === null || typeof target !== "object" || Array.isArray(target)) {
+      leads[issue.leadIndex] = { first_name: "Unknown", last_name: "Lead" };
+    } else {
+      // Deep-clone the lead so the original `parsed` (and therefore preview) stays intact
+      // even though we already re-stringify below — safer if logic evolves.
+      fix.apply(target as Record<string, unknown>);
+    }
+    const next = isArray ? leads : leads[0];
+    return { nextPayload: JSON.stringify(next, null, 2) };
+  };
+
+  // Pure: compute the resulting JSON for "apply all" without mutating state.
+  const computeAllFixes = (): {
+    nextPayload: string;
+    appliedCount: number;
+    skippedCount: number;
+  } | null => {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(payload);
+    } catch {
+      return null;
     }
     const isArray = Array.isArray(parsed);
     const leads = isArray ? (parsed as unknown[]) : [parsed];
@@ -614,16 +631,77 @@ const AdminWebhookTester = () => {
       }
       applied++;
     }
-    if (applied === 0) {
-      toast.error("No suggested fixes available");
+    if (applied === 0) return null;
+    const next = isArray ? leads : leads[0];
+    return {
+      nextPayload: JSON.stringify(next, null, 2),
+      appliedCount: applied,
+      skippedCount: skipped,
+    };
+  };
+
+  // Open the preview dialog for a single suggested fix.
+  const previewFix = (issue: ValidationIssue, fix: FixSuggestion) => {
+    const computed = computeSingleFix(issue, fix);
+    if (!computed) {
+      toast.error("Cannot preview fix — JSON is invalid or out of range");
       return;
     }
-    const next = isArray ? leads : leads[0];
-    setPayload(JSON.stringify(next, null, 2));
-    toast.success(
-      `Applied ${applied} fix${applied === 1 ? "" : "es"}` +
-        (skipped > 0 ? ` · ${skipped} had no suggestion` : ""),
-    );
+    setPendingFix({
+      kind: "single",
+      issue,
+      fix,
+      nextPayload: computed.nextPayload,
+      appliedCount: 1,
+    });
+  };
+
+  // Open the preview dialog for "apply all suggested fixes".
+  const previewAllFixes = () => {
+    const computed = computeAllFixes();
+    if (!computed) {
+      toast.error("No suggested fixes available or JSON is invalid");
+      return;
+    }
+    setPendingFix({ kind: "all", ...computed });
+  };
+
+  // Confirm the currently-pending fix: commit it to the editor.
+  const confirmPendingFix = () => {
+    if (!pendingFix) return;
+    setPayload(pendingFix.nextPayload);
+    if (pendingFix.kind === "single") {
+      toast.success(`Applied: ${pendingFix.fix.label}`);
+    } else {
+      toast.success(
+        `Applied ${pendingFix.appliedCount} fix${pendingFix.appliedCount === 1 ? "" : "es"}` +
+          (pendingFix.skippedCount > 0
+            ? ` · ${pendingFix.skippedCount} had no suggestion`
+            : ""),
+      );
+    }
+    setPendingFix(null);
+  };
+
+  // Lightweight per-line diff for the side-by-side preview.
+  // Marks a line as "added" if it's only in `next`, "removed" if only in `prev`,
+  // and "same" otherwise. Index-aligned for simple visual scanning — not a true LCS diff,
+  // but sufficient for the small JSON snippets we're showing.
+  type DiffLine = { kind: "same" | "added" | "removed"; text: string };
+  const buildDiff = (prev: string, next: string): { left: DiffLine[]; right: DiffLine[] } => {
+    const prevLines = prev.split("\n");
+    const nextLines = next.split("\n");
+    const prevSet = new Set(prevLines);
+    const nextSet = new Set(nextLines);
+    const left: DiffLine[] = prevLines.map((text) => ({
+      kind: nextSet.has(text) ? "same" : "removed",
+      text,
+    }));
+    const right: DiffLine[] = nextLines.map((text) => ({
+      kind: prevSet.has(text) ? "same" : "added",
+      text,
+    }));
+    return { left, right };
   };
 
   const formatPayload = () => {
@@ -872,14 +950,18 @@ const AdminWebhookTester = () => {
                                       variant="outline"
                                       size="sm"
                                       className="h-6 px-2 text-[10px] gap-1 shrink-0 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/15 hover:text-emerald-200"
-                                      onClick={() => applyFix(iss, fix)}
+                                      onClick={() => previewFix(iss, fix)}
                                     >
                                       <Wand2 className="h-3 w-3" />
-                                      {fix.label}
+                                      Preview fix
                                     </Button>
                                   </TooltipTrigger>
                                   <TooltipContent side="left" className="max-w-xs">
-                                    <p className="text-xs">{fix.description}</p>
+                                    <p className="text-xs font-medium">{fix.label}</p>
+                                    <p className="text-xs text-muted-foreground mt-0.5">{fix.description}</p>
+                                    <p className="text-[10px] text-muted-foreground mt-1 italic">
+                                      Opens a side-by-side diff. Nothing is changed until you confirm.
+                                    </p>
                                   </TooltipContent>
                                 </Tooltip>
                               ) : (
@@ -901,10 +983,10 @@ const AdminWebhookTester = () => {
                             variant="outline"
                             size="sm"
                             className="h-7 px-2 text-[11px] gap-1 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/15 hover:text-emerald-200"
-                            onClick={applyAllFixes}
+                            onClick={previewAllFixes}
                           >
                             <Wand2 className="h-3 w-3" />
-                            Apply all suggested fixes
+                            Preview all suggested fixes
                           </Button>
                         </div>
                       )}
@@ -1146,6 +1228,119 @@ const AdminWebhookTester = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* --- Suggested fix preview dialog --- */}
+      <Dialog open={pendingFix !== null} onOpenChange={(open) => { if (!open) setPendingFix(null); }}>
+        <DialogContent className="max-w-5xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wand2 className="h-4 w-4 text-emerald-400" />
+              {pendingFix?.kind === "single"
+                ? `Preview fix: ${pendingFix.fix.label}`
+                : pendingFix?.kind === "all"
+                ? `Preview all suggested fixes`
+                : "Preview fix"}
+            </DialogTitle>
+            <DialogDescription>
+              {pendingFix?.kind === "single" ? (
+                <>
+                  Targeting{" "}
+                  <code className="text-xs">
+                    lead[{pendingFix.issue.leadIndex}]
+                    {pendingFix.issue.field !== "(root)" && `.${pendingFix.issue.field}`}
+                  </code>{" "}
+                  — {pendingFix.fix.description}
+                </>
+              ) : pendingFix?.kind === "all" ? (
+                <>
+                  {pendingFix.appliedCount} fix{pendingFix.appliedCount === 1 ? "" : "es"} will be applied
+                  {pendingFix.skippedCount > 0 && (
+                    <> · {pendingFix.skippedCount} issue{pendingFix.skippedCount === 1 ? "" : "s"} have no auto-fix</>
+                  )}
+                  . Review the diff below.
+                </>
+              ) : null}
+            </DialogDescription>
+          </DialogHeader>
+
+          {pendingFix && (() => {
+            const { left, right } = buildDiff(payload, pendingFix.nextPayload);
+            const removedCount = left.filter((l) => l.kind === "removed").length;
+            const addedCount = right.filter((l) => l.kind === "added").length;
+            return (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                  <Badge variant="outline" className="bg-red-500/15 text-red-300 border-red-500/40">
+                    − {removedCount} removed
+                  </Badge>
+                  <Badge variant="outline" className="bg-emerald-500/15 text-emerald-300 border-emerald-500/40">
+                    + {addedCount} added
+                  </Badge>
+                  {removedCount === 0 && addedCount === 0 && (
+                    <span className="italic">No textual change — fix may be a no-op.</span>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-md border border-border/60 overflow-hidden">
+                    <div className="px-3 py-1.5 bg-muted/40 border-b border-border/60 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                      Before
+                    </div>
+                    <pre className="text-[11px] font-mono leading-relaxed max-h-[60vh] overflow-auto">
+                      {left.map((line, i) => (
+                        <div
+                          key={i}
+                          className={
+                            line.kind === "removed"
+                              ? "bg-red-500/15 text-red-300 px-3"
+                              : "px-3 text-muted-foreground"
+                          }
+                        >
+                          <span className="inline-block w-3 select-none opacity-60">
+                            {line.kind === "removed" ? "−" : " "}
+                          </span>{" "}
+                          {line.text || "\u00A0"}
+                        </div>
+                      ))}
+                    </pre>
+                  </div>
+                  <div className="rounded-md border border-border/60 overflow-hidden">
+                    <div className="px-3 py-1.5 bg-muted/40 border-b border-border/60 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                      After
+                    </div>
+                    <pre className="text-[11px] font-mono leading-relaxed max-h-[60vh] overflow-auto">
+                      {right.map((line, i) => (
+                        <div
+                          key={i}
+                          className={
+                            line.kind === "added"
+                              ? "bg-emerald-500/15 text-emerald-300 px-3"
+                              : "px-3 text-muted-foreground"
+                          }
+                        >
+                          <span className="inline-block w-3 select-none opacity-60">
+                            {line.kind === "added" ? "+" : " "}
+                          </span>{" "}
+                          {line.text || "\u00A0"}
+                        </div>
+                      ))}
+                    </pre>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setPendingFix(null)}>
+              Cancel
+            </Button>
+            <Button onClick={confirmPendingFix} className="gap-2">
+              <CheckCircle2 className="h-4 w-4" />
+              Apply fix
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
     </TooltipProvider>
   );
