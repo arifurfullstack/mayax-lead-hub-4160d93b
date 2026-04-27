@@ -100,6 +100,98 @@ type ValidationIssue = {
   message: string;
 };
 
+// --- Suggested fix engine ---
+// Given a validation issue, propose a safe value to drop into the offending field
+// so the user can re-run without manual JSON editing.
+type FixSuggestion = {
+  label: string; // short button label, e.g. `Set "Unknown"`
+  description: string; // tooltip / aria description
+  apply: (lead: Record<string, unknown>) => void;
+};
+
+function suggestFix(issue: ValidationIssue): FixSuggestion | null {
+  if (issue.leadIndex === null) return null;
+  const field = issue.field;
+  const msg = issue.message.toLowerCase();
+
+  // Required string fields
+  if (field === "first_name" || field === "last_name") {
+    const val = field === "first_name" ? "Unknown" : "Lead";
+    return {
+      label: `Set "${val}"`,
+      description: `Fill ${field} with placeholder "${val}" so the webhook accepts the lead.`,
+      apply: (lead) => {
+        lead[field] = val;
+      },
+    };
+  }
+
+  // Email — invalid format → drop the field (it's optional)
+  if (field === "email") {
+    return {
+      label: "Clear email",
+      description: "Remove the invalid email. Dedupe will fall back to phone.",
+      apply: (lead) => {
+        delete lead.email;
+      },
+    };
+  }
+
+  // Numeric-like fields → coerce to number or null
+  const numericFields = new Set([
+    "income",
+    "credit_range_min",
+    "credit_range_max",
+    "vehicle_mileage",
+    "vehicle_price",
+  ]);
+  if (numericFields.has(field) && msg.includes("number")) {
+    return {
+      label: "Clear value",
+      description: `Remove ${field}. The webhook will treat it as not provided.`,
+      apply: (lead) => {
+        delete lead[field];
+      },
+    };
+  }
+
+  // ISO8601 appointment_time
+  if (field === "appointment_time") {
+    return {
+      label: "Clear appointment",
+      description: "Remove the invalid appointment_time so the webhook ignores it.",
+      apply: (lead) => {
+        delete lead.appointment_time;
+      },
+    };
+  }
+
+  // Length overflow on free-text fields → truncate to 100 chars (safe upper bound)
+  if (msg.includes("at most") || msg.includes("characters") || msg.includes("max")) {
+    return {
+      label: "Truncate",
+      description: `Shorten ${field} to a safe length.`,
+      apply: (lead) => {
+        const v = lead[field];
+        if (typeof v === "string") lead[field] = v.slice(0, 100);
+      },
+    };
+  }
+
+  // Lead is not an object → replace with empty stub
+  if (issue.field === "(root)" && msg.includes("object")) {
+    return {
+      label: "Replace with stub",
+      description: "Replace this entry with an empty lead object.",
+      apply: () => {
+        // handled at array level — see applyFix
+      },
+    };
+  }
+
+  return null;
+}
+
 type ValidationResult = {
   ok: boolean;
   jsonError: string | null;
@@ -268,6 +360,74 @@ const AdminWebhookTester = () => {
   const [parseError, setParseError] = useState<string | null>(null);
 
   const validation = useMemo(() => validatePayload(payload), [payload]);
+
+  // Apply a suggested fix to the parsed payload, then re-serialize.
+  // Returns true on success, false if JSON could not be parsed.
+  const applyFix = (issue: ValidationIssue, fix: FixSuggestion): boolean => {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(payload);
+    } catch (e) {
+      toast.error("Cannot apply fix — JSON is invalid");
+      return false;
+    }
+    const isArray = Array.isArray(parsed);
+    const leads = isArray ? (parsed as unknown[]) : [parsed];
+    if (issue.leadIndex === null || issue.leadIndex < 0 || issue.leadIndex >= leads.length) {
+      toast.error("Cannot apply fix — lead index out of range");
+      return false;
+    }
+    const target = leads[issue.leadIndex];
+    // Special case: replace non-object lead with empty stub
+    if (target === null || typeof target !== "object" || Array.isArray(target)) {
+      leads[issue.leadIndex] = { first_name: "Unknown", last_name: "Lead" };
+    } else {
+      fix.apply(target as Record<string, unknown>);
+    }
+    const next = isArray ? leads : leads[0];
+    setPayload(JSON.stringify(next, null, 2));
+    toast.success(`Applied: ${fix.label}`);
+    return true;
+  };
+
+  // Apply every suggested fix in one click.
+  const applyAllFixes = () => {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(payload);
+    } catch {
+      toast.error("Cannot auto-fix — JSON is invalid");
+      return;
+    }
+    const isArray = Array.isArray(parsed);
+    const leads = isArray ? (parsed as unknown[]) : [parsed];
+    let applied = 0;
+    let skipped = 0;
+    for (const iss of validation.issues) {
+      const fix = suggestFix(iss);
+      if (!fix || iss.leadIndex === null) {
+        skipped++;
+        continue;
+      }
+      const target = leads[iss.leadIndex];
+      if (target === null || typeof target !== "object" || Array.isArray(target)) {
+        leads[iss.leadIndex] = { first_name: "Unknown", last_name: "Lead" };
+      } else {
+        fix.apply(target as Record<string, unknown>);
+      }
+      applied++;
+    }
+    if (applied === 0) {
+      toast.error("No suggested fixes available");
+      return;
+    }
+    const next = isArray ? leads : leads[0];
+    setPayload(JSON.stringify(next, null, 2));
+    toast.success(
+      `Applied ${applied} fix${applied === 1 ? "" : "es"}` +
+        (skipped > 0 ? ` · ${skipped} had no suggestion` : ""),
+    );
+  };
 
   const formatPayload = () => {
     try {
@@ -492,20 +652,65 @@ const AdminWebhookTester = () => {
                       {validation.totalLeads} lead{validation.totalLeads === 1 ? "" : "s"}
                     </AlertTitle>
                     <AlertDescription>
-                      <ul className="text-xs space-y-1 mt-2 max-h-40 overflow-auto">
-                        {validation.issues.slice(0, 20).map((iss, i) => (
-                          <li key={i} className="font-mono">
-                            <span className="text-red-300">
-                              {iss.leadIndex !== null ? `lead[${iss.leadIndex}]` : "root"}
-                              {iss.field !== "(root)" && <>.{iss.field}</>}
-                            </span>{" "}
-                            <span className="text-muted-foreground">— {iss.message}</span>
-                          </li>
-                        ))}
+                      <ul className="text-xs space-y-1.5 mt-2 max-h-56 overflow-auto">
+                        {validation.issues.slice(0, 20).map((iss, i) => {
+                          const fix = suggestFix(iss);
+                          return (
+                            <li
+                              key={i}
+                              className="flex items-start justify-between gap-2 font-mono"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <span className="text-red-300">
+                                  {iss.leadIndex !== null ? `lead[${iss.leadIndex}]` : "root"}
+                                  {iss.field !== "(root)" && <>.{iss.field}</>}
+                                </span>{" "}
+                                <span className="text-muted-foreground">— {iss.message}</span>
+                              </div>
+                              {fix ? (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-6 px-2 text-[10px] gap-1 shrink-0 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/15 hover:text-emerald-200"
+                                      onClick={() => applyFix(iss, fix)}
+                                    >
+                                      <Wand2 className="h-3 w-3" />
+                                      {fix.label}
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="left" className="max-w-xs">
+                                    <p className="text-xs">{fix.description}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              ) : (
+                                <span className="text-[10px] text-muted-foreground shrink-0 italic">
+                                  no auto-fix
+                                </span>
+                              )}
+                            </li>
+                          );
+                        })}
                         {validation.issues.length > 20 && (
                           <li className="text-muted-foreground">…and {validation.issues.length - 20} more</li>
                         )}
                       </ul>
+                      {validation.issues.some((i) => suggestFix(i)) && (
+                        <div className="mt-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 text-[11px] gap-1 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/15 hover:text-emerald-200"
+                            onClick={applyAllFixes}
+                          >
+                            <Wand2 className="h-3 w-3" />
+                            Apply all suggested fixes
+                          </Button>
+                        </div>
+                      )}
                       {validation.warnings.length > 0 && (
                         <p className="text-[11px] text-amber-300 mt-2">
                           + {validation.warnings.length} warning{validation.warnings.length === 1 ? "" : "s"} (see below)
