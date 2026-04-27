@@ -566,43 +566,52 @@ const AdminWebhookTester = () => {
 
   const validation = useMemo(() => validatePayload(payload), [payload]);
 
-  // Apply a suggested fix to the parsed payload, then re-serialize.
-  // Returns true on success, false if JSON could not be parsed.
-  const applyFix = (issue: ValidationIssue, fix: FixSuggestion): boolean => {
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(payload);
-    } catch (e) {
-      toast.error("Cannot apply fix — JSON is invalid");
-      return false;
-    }
-    const isArray = Array.isArray(parsed);
-    const leads = isArray ? (parsed as unknown[]) : [parsed];
-    if (issue.leadIndex === null || issue.leadIndex < 0 || issue.leadIndex >= leads.length) {
-      toast.error("Cannot apply fix — lead index out of range");
-      return false;
-    }
-    const target = leads[issue.leadIndex];
-    // Special case: replace non-object lead with empty stub
-    if (target === null || typeof target !== "object" || Array.isArray(target)) {
-      leads[issue.leadIndex] = { first_name: "Unknown", last_name: "Lead" };
-    } else {
-      fix.apply(target as Record<string, unknown>);
-    }
-    const next = isArray ? leads : leads[0];
-    setPayload(JSON.stringify(next, null, 2));
-    toast.success(`Applied: ${fix.label}`);
-    return true;
-  };
+  // Preview state — when set, the diff dialog is open showing before/after.
+  type PendingFix =
+    | { kind: "single"; issue: ValidationIssue; fix: FixSuggestion; nextPayload: string; appliedCount: number }
+    | { kind: "all"; nextPayload: string; appliedCount: number; skippedCount: number };
+  const [pendingFix, setPendingFix] = useState<PendingFix | null>(null);
 
-  // Apply every suggested fix in one click.
-  const applyAllFixes = () => {
+  // Pure: compute the resulting JSON string for a single fix without mutating state.
+  // Returns null if payload is unparseable or the fix can't be located.
+  const computeSingleFix = (
+    issue: ValidationIssue,
+    fix: FixSuggestion,
+  ): { nextPayload: string } | null => {
     let parsed: unknown;
     try {
       parsed = JSON.parse(payload);
     } catch {
-      toast.error("Cannot auto-fix — JSON is invalid");
-      return;
+      return null;
+    }
+    const isArray = Array.isArray(parsed);
+    const leads = isArray ? (parsed as unknown[]) : [parsed];
+    if (issue.leadIndex === null || issue.leadIndex < 0 || issue.leadIndex >= leads.length) {
+      return null;
+    }
+    const target = leads[issue.leadIndex];
+    if (target === null || typeof target !== "object" || Array.isArray(target)) {
+      leads[issue.leadIndex] = { first_name: "Unknown", last_name: "Lead" };
+    } else {
+      // Deep-clone the lead so the original `parsed` (and therefore preview) stays intact
+      // even though we already re-stringify below — safer if logic evolves.
+      fix.apply(target as Record<string, unknown>);
+    }
+    const next = isArray ? leads : leads[0];
+    return { nextPayload: JSON.stringify(next, null, 2) };
+  };
+
+  // Pure: compute the resulting JSON for "apply all" without mutating state.
+  const computeAllFixes = (): {
+    nextPayload: string;
+    appliedCount: number;
+    skippedCount: number;
+  } | null => {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(payload);
+    } catch {
+      return null;
     }
     const isArray = Array.isArray(parsed);
     const leads = isArray ? (parsed as unknown[]) : [parsed];
@@ -622,16 +631,77 @@ const AdminWebhookTester = () => {
       }
       applied++;
     }
-    if (applied === 0) {
-      toast.error("No suggested fixes available");
+    if (applied === 0) return null;
+    const next = isArray ? leads : leads[0];
+    return {
+      nextPayload: JSON.stringify(next, null, 2),
+      appliedCount: applied,
+      skippedCount: skipped,
+    };
+  };
+
+  // Open the preview dialog for a single suggested fix.
+  const previewFix = (issue: ValidationIssue, fix: FixSuggestion) => {
+    const computed = computeSingleFix(issue, fix);
+    if (!computed) {
+      toast.error("Cannot preview fix — JSON is invalid or out of range");
       return;
     }
-    const next = isArray ? leads : leads[0];
-    setPayload(JSON.stringify(next, null, 2));
-    toast.success(
-      `Applied ${applied} fix${applied === 1 ? "" : "es"}` +
-        (skipped > 0 ? ` · ${skipped} had no suggestion` : ""),
-    );
+    setPendingFix({
+      kind: "single",
+      issue,
+      fix,
+      nextPayload: computed.nextPayload,
+      appliedCount: 1,
+    });
+  };
+
+  // Open the preview dialog for "apply all suggested fixes".
+  const previewAllFixes = () => {
+    const computed = computeAllFixes();
+    if (!computed) {
+      toast.error("No suggested fixes available or JSON is invalid");
+      return;
+    }
+    setPendingFix({ kind: "all", ...computed });
+  };
+
+  // Confirm the currently-pending fix: commit it to the editor.
+  const confirmPendingFix = () => {
+    if (!pendingFix) return;
+    setPayload(pendingFix.nextPayload);
+    if (pendingFix.kind === "single") {
+      toast.success(`Applied: ${pendingFix.fix.label}`);
+    } else {
+      toast.success(
+        `Applied ${pendingFix.appliedCount} fix${pendingFix.appliedCount === 1 ? "" : "es"}` +
+          (pendingFix.skippedCount > 0
+            ? ` · ${pendingFix.skippedCount} had no suggestion`
+            : ""),
+      );
+    }
+    setPendingFix(null);
+  };
+
+  // Lightweight per-line diff for the side-by-side preview.
+  // Marks a line as "added" if it's only in `next`, "removed" if only in `prev`,
+  // and "same" otherwise. Index-aligned for simple visual scanning — not a true LCS diff,
+  // but sufficient for the small JSON snippets we're showing.
+  type DiffLine = { kind: "same" | "added" | "removed"; text: string };
+  const buildDiff = (prev: string, next: string): { left: DiffLine[]; right: DiffLine[] } => {
+    const prevLines = prev.split("\n");
+    const nextLines = next.split("\n");
+    const prevSet = new Set(prevLines);
+    const nextSet = new Set(nextLines);
+    const left: DiffLine[] = prevLines.map((text) => ({
+      kind: nextSet.has(text) ? "same" : "removed",
+      text,
+    }));
+    const right: DiffLine[] = nextLines.map((text) => ({
+      kind: prevSet.has(text) ? "same" : "added",
+      text,
+    }));
+    return { left, right };
   };
 
   const formatPayload = () => {
