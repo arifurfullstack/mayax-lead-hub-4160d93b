@@ -817,6 +817,60 @@ export type Database = {
           },
         ]
       }
+      rejected_inbound_leads: {
+        Row: {
+          city: string | null
+          created_at: string
+          email: string | null
+          error_message: string
+          error_type: string
+          first_name: string | null
+          id: string
+          last_name: string | null
+          payload: Json
+          phone: string | null
+          province: string | null
+          reference_code: string | null
+          request_id: string | null
+          source_ip: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          city?: string | null
+          created_at?: string
+          email?: string | null
+          error_message: string
+          error_type?: string
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          payload?: Json
+          phone?: string | null
+          province?: string | null
+          reference_code?: string | null
+          request_id?: string | null
+          source_ip?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          city?: string | null
+          created_at?: string
+          email?: string | null
+          error_message?: string
+          error_type?: string
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          payload?: Json
+          phone?: string | null
+          province?: string | null
+          reference_code?: string | null
+          request_id?: string | null
+          source_ip?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       subscription_plans: {
         Row: {
           accent_color: string
