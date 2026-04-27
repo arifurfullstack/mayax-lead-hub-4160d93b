@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, FlaskConical, Copy, AlertTriangle, CheckCircle2, RefreshCw, Wand2, BookOpen, Info } from "lucide-react";
+import { Loader2, FlaskConical, Copy, AlertTriangle, CheckCircle2, RefreshCw, Wand2, BookOpen, Info, ShieldAlert, ShieldCheck } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Collapsible,
@@ -41,6 +42,147 @@ const SCHEMA_FIELDS: FieldDef[] = [
   { name: "notes", type: "string", notes: 'Free text. Auto-flags: "trade", "bankrupt", "appointment". Appended on duplicates.', example: '"Wants to trade in 2018 Civic"' },
   { name: "reference_code", type: "string", notes: "Optional. If omitted, generated as MX-YYYY-XXX. Existing match takes precedence.", example: '"MX-2026-123"' },
 ];
+
+// --- Client-side validation schema (mirrors webhook contract) ---
+// Numbers may arrive as plain numbers or comma-grouped strings ($5,000) — server strips them.
+const numericLike = z
+  .union([z.number(), z.string()])
+  .optional()
+  .nullable()
+  .refine(
+    (v) => {
+      if (v === undefined || v === null || v === "") return true;
+      if (typeof v === "number") return Number.isFinite(v);
+      const cleaned = v.replace(/[$£€¥,\s]/g, "");
+      if (cleaned === "") return true;
+      return !Number.isNaN(Number(cleaned));
+    },
+    { message: "must be a number or numeric string (e.g. 5000 or \"$5,000\")" },
+  );
+
+const isoLike = z
+  .union([z.string(), z.null(), z.undefined()])
+  .optional()
+  .refine(
+    (v) => {
+      if (v === undefined || v === null || v === "") return true;
+      if (typeof v !== "string") return false;
+      return !Number.isNaN(Date.parse(v));
+    },
+    { message: "must be a valid ISO8601 date string" },
+  );
+
+const leadSchema = z
+  .object({
+    first_name: z.string().trim().min(1, { message: "first_name is required" }).max(100),
+    last_name: z.string().trim().min(1, { message: "last_name is required" }).max(100),
+    email: z.string().trim().email({ message: "must be a valid email" }).max(255).optional().or(z.literal("")),
+    phone: z.string().trim().max(40).optional().or(z.literal("")),
+    city: z.string().trim().max(100).optional().or(z.literal("")),
+    province: z.string().trim().max(100).optional().or(z.literal("")),
+    buyer_type: z.string().trim().max(50).optional().or(z.literal("")),
+    income: numericLike,
+    credit_range_min: numericLike,
+    credit_range_max: numericLike,
+    vehicle_preference: z.string().trim().max(200).optional().or(z.literal("")),
+    vehicle_mileage: numericLike,
+    vehicle_price: numericLike,
+    trade_in: z.boolean().optional(),
+    appointment_time: isoLike,
+    notes: z.string().max(5000).optional().or(z.literal("")),
+    reference_code: z.string().trim().max(50).optional().or(z.literal("")),
+  })
+  .passthrough(); // unknown fields allowed (server ignores them)
+
+type ValidationIssue = {
+  leadIndex: number | null; // null = top-level (e.g. payload not object/array)
+  field: string;
+  message: string;
+};
+
+type ValidationResult = {
+  ok: boolean;
+  jsonError: string | null;
+  totalLeads: number;
+  issues: ValidationIssue[];
+  warnings: ValidationIssue[];
+};
+
+function validatePayload(raw: string): ValidationResult {
+  if (!raw.trim()) {
+    return { ok: false, jsonError: "Payload is empty", totalLeads: 0, issues: [], warnings: [] };
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (e) {
+    return {
+      ok: false,
+      jsonError: e instanceof Error ? e.message : "Invalid JSON",
+      totalLeads: 0,
+      issues: [],
+      warnings: [],
+    };
+  }
+  if (parsed === null || typeof parsed !== "object") {
+    return {
+      ok: false,
+      jsonError: null,
+      totalLeads: 0,
+      issues: [{ leadIndex: null, field: "(root)", message: "must be an object or an array of objects" }],
+      warnings: [],
+    };
+  }
+  const leads = Array.isArray(parsed) ? parsed : [parsed];
+  const issues: ValidationIssue[] = [];
+  const warnings: ValidationIssue[] = [];
+
+  leads.forEach((lead, idx) => {
+    if (lead === null || typeof lead !== "object" || Array.isArray(lead)) {
+      issues.push({ leadIndex: idx, field: "(root)", message: "each lead must be a JSON object" });
+      return;
+    }
+    const result = leadSchema.safeParse(lead);
+    if (!result.success) {
+      result.error.issues.forEach((iss) => {
+        issues.push({
+          leadIndex: idx,
+          field: iss.path.join(".") || "(root)",
+          message: iss.message,
+        });
+      });
+    }
+    // Soft warnings — won't block submit, but very likely to cause downstream issues
+    const l = lead as Record<string, unknown>;
+    const hasEmail = typeof l.email === "string" && l.email.trim() !== "";
+    const hasPhone = typeof l.phone === "string" && l.phone.trim() !== "";
+    if (!hasEmail && !hasPhone) {
+      warnings.push({
+        leadIndex: idx,
+        field: "email / phone",
+        message: "no email or phone — dedupe will not work, every send creates a new lead",
+      });
+    }
+    if (hasPhone && typeof l.phone === "string") {
+      const digits = l.phone.replace(/[^0-9]/g, "");
+      if (digits.length < 7) {
+        warnings.push({
+          leadIndex: idx,
+          field: "phone",
+          message: `only ${digits.length} digits — dedupe needs at least 7`,
+        });
+      }
+    }
+  });
+
+  return {
+    ok: issues.length === 0,
+    jsonError: null,
+    totalLeads: leads.length,
+    issues,
+    warnings,
+  };
+}
 
 const FUNCTIONS_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/inbound-webhook`;
 const ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
@@ -125,6 +267,8 @@ const AdminWebhookTester = () => {
   const [latencyMs, setLatencyMs] = useState<number | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
 
+  const validation = useMemo(() => validatePayload(payload), [payload]);
+
   const formatPayload = () => {
     try {
       const parsed = JSON.parse(payload);
@@ -138,21 +282,19 @@ const AdminWebhookTester = () => {
   };
 
   const runDryRun = async () => {
+    if (!validation.ok) {
+      toast.error(
+        validation.jsonError
+          ? `JSON error: ${validation.jsonError}`
+          : `${validation.issues.length} validation issue${validation.issues.length === 1 ? "" : "s"} — fix before sending`,
+      );
+      return;
+    }
     setLoading(true);
     setResponse(null);
     setHttpStatus(null);
     setLatencyMs(null);
     setParseError(null);
-
-    // Light client-side JSON sanity check (server still re-parses)
-    try {
-      JSON.parse(payload);
-    } catch (e) {
-      setParseError(e instanceof Error ? e.message : "Invalid JSON");
-      setLoading(false);
-      toast.error("Payload is not valid JSON");
-      return;
-    }
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
@@ -326,6 +468,77 @@ const AdminWebhookTester = () => {
             {parseError && (
               <p className="text-xs text-red-400">JSON error: {parseError}</p>
             )}
+
+            {/* --- Live validation summary --- */}
+            {(() => {
+              if (validation.jsonError) {
+                return (
+                  <Alert className="border-red-500/40 bg-red-500/10 py-2">
+                    <ShieldAlert className="h-4 w-4 text-red-400" />
+                    <AlertTitle className="text-xs">Invalid JSON</AlertTitle>
+                    <AlertDescription className="text-xs font-mono">
+                      {validation.jsonError}
+                    </AlertDescription>
+                  </Alert>
+                );
+              }
+              if (validation.issues.length > 0) {
+                return (
+                  <Alert className="border-red-500/40 bg-red-500/10 py-2">
+                    <ShieldAlert className="h-4 w-4 text-red-400" />
+                    <AlertTitle className="text-xs">
+                      {validation.issues.length} validation{" "}
+                      {validation.issues.length === 1 ? "error" : "errors"} across{" "}
+                      {validation.totalLeads} lead{validation.totalLeads === 1 ? "" : "s"}
+                    </AlertTitle>
+                    <AlertDescription>
+                      <ul className="text-xs space-y-1 mt-2 max-h-40 overflow-auto">
+                        {validation.issues.slice(0, 20).map((iss, i) => (
+                          <li key={i} className="font-mono">
+                            <span className="text-red-300">
+                              {iss.leadIndex !== null ? `lead[${iss.leadIndex}]` : "root"}
+                              {iss.field !== "(root)" && <>.{iss.field}</>}
+                            </span>{" "}
+                            <span className="text-muted-foreground">— {iss.message}</span>
+                          </li>
+                        ))}
+                        {validation.issues.length > 20 && (
+                          <li className="text-muted-foreground">…and {validation.issues.length - 20} more</li>
+                        )}
+                      </ul>
+                      {validation.warnings.length > 0 && (
+                        <p className="text-[11px] text-amber-300 mt-2">
+                          + {validation.warnings.length} warning{validation.warnings.length === 1 ? "" : "s"} (see below)
+                        </p>
+                      )}
+                    </AlertDescription>
+                  </Alert>
+                );
+              }
+              return (
+                <Alert className="border-emerald-500/40 bg-emerald-500/10 py-2">
+                  <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                  <AlertTitle className="text-xs">
+                    Schema OK — {validation.totalLeads} lead{validation.totalLeads === 1 ? "" : "s"} ready to send
+                  </AlertTitle>
+                  {validation.warnings.length > 0 && (
+                    <AlertDescription>
+                      <ul className="text-xs space-y-1 mt-2 max-h-32 overflow-auto">
+                        {validation.warnings.slice(0, 10).map((w, i) => (
+                          <li key={i} className="font-mono">
+                            <span className="text-amber-300">
+                              lead[{w.leadIndex}].{w.field}
+                            </span>{" "}
+                            <span className="text-muted-foreground">— {w.message}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </AlertDescription>
+                  )}
+                </Alert>
+              );
+            })()}
+
             <div className="space-y-2">
               <label className="text-xs text-muted-foreground">
                 <code>x-webhook-secret</code> (optional — only if configured)
@@ -339,9 +552,9 @@ const AdminWebhookTester = () => {
               />
             </div>
             <div className="flex flex-wrap gap-2 pt-2">
-              <Button onClick={runDryRun} disabled={loading} className="gap-2">
+              <Button onClick={runDryRun} disabled={loading || !validation.ok} className="gap-2">
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FlaskConical className="h-4 w-4" />}
-                Run dry-run
+                {validation.ok ? "Run dry-run" : "Fix errors to run"}
               </Button>
               <Button variant="outline" onClick={formatPayload} disabled={loading} className="gap-2">
                 <Wand2 className="h-4 w-4" /> Format JSON
