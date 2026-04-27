@@ -282,21 +282,19 @@ const AdminWebhookTester = () => {
   };
 
   const runDryRun = async () => {
+    if (!validation.ok) {
+      toast.error(
+        validation.jsonError
+          ? `JSON error: ${validation.jsonError}`
+          : `${validation.issues.length} validation issue${validation.issues.length === 1 ? "" : "s"} — fix before sending`,
+      );
+      return;
+    }
     setLoading(true);
     setResponse(null);
     setHttpStatus(null);
     setLatencyMs(null);
     setParseError(null);
-
-    // Light client-side JSON sanity check (server still re-parses)
-    try {
-      JSON.parse(payload);
-    } catch (e) {
-      setParseError(e instanceof Error ? e.message : "Invalid JSON");
-      setLoading(false);
-      toast.error("Payload is not valid JSON");
-      return;
-    }
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
