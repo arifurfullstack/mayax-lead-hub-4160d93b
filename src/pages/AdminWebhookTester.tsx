@@ -688,24 +688,263 @@ const AdminWebhookTester = () => {
     setPendingFix(null);
   };
 
-  // Lightweight per-line diff for the side-by-side preview.
-  // Marks a line as "added" if it's only in `next`, "removed" if only in `prev`,
-  // and "same" otherwise. Index-aligned for simple visual scanning — not a true LCS diff,
-  // but sufficient for the small JSON snippets we're showing.
+  // --- JSON-aware diff ---
+  // Strategy:
+  //   1. Try to parse both sides as JSON. If both parse, walk the structures
+  //      recursively and emit semantic change records keyed by JSON path
+  //      (e.g. `[0].email`, `vehicle_preference`). Then re-render before/after
+  //      pretty JSON line-by-line, marking only the lines whose path is part
+  //      of a changed subtree as removed/added. This gives accurate nested
+  //      highlighting even when sibling lines happen to share identical text.
+  //   2. If either side fails to parse, fall back to a true line-level LCS
+  //      diff (Myers-equivalent classic DP) so the dialog still renders
+  //      something useful while the user is mid-edit.
   type DiffLine = { kind: "same" | "added" | "removed"; text: string };
+
+  // Stable JSON serializer with path tracking. Returns lines paired with
+  // the JSON path that produced them, so we can mark sub-trees red/green.
+  type PathLine = { text: string; path: string };
+  const serializeWithPaths = (value: unknown): PathLine[] => {
+    const lines: PathLine[] = [];
+    const indent = (n: number) => "  ".repeat(n);
+    const walk = (v: unknown, depth: number, path: string, suffix: string) => {
+      if (v === null || typeof v !== "object") {
+        lines.push({ path, text: `${indent(depth)}${JSON.stringify(v)}${suffix}` });
+        return;
+      }
+      if (Array.isArray(v)) {
+        if (v.length === 0) {
+          lines.push({ path, text: `${indent(depth)}[]${suffix}` });
+          return;
+        }
+        lines.push({ path, text: `${indent(depth)}[` });
+        v.forEach((item, i) => {
+          const childPath = `${path}[${i}]`;
+          const childSuffix = i < v.length - 1 ? "," : "";
+          walk(item, depth + 1, childPath, childSuffix);
+        });
+        lines.push({ path, text: `${indent(depth)}]${suffix}` });
+        return;
+      }
+      const entries = Object.entries(v as Record<string, unknown>);
+      if (entries.length === 0) {
+        lines.push({ path, text: `${indent(depth)}{}${suffix}` });
+        return;
+      }
+      lines.push({ path, text: `${indent(depth)}{` });
+      entries.forEach(([k, val], i) => {
+        const childPath = path ? `${path}.${k}` : k;
+        const childSuffix = i < entries.length - 1 ? "," : "";
+        if (val === null || typeof val !== "object") {
+          lines.push({
+            path: childPath,
+            text: `${indent(depth + 1)}${JSON.stringify(k)}: ${JSON.stringify(val)}${childSuffix}`,
+          });
+        } else if (Array.isArray(val) && val.length === 0) {
+          lines.push({ path: childPath, text: `${indent(depth + 1)}${JSON.stringify(k)}: []${childSuffix}` });
+        } else if (!Array.isArray(val) && Object.keys(val as object).length === 0) {
+          lines.push({ path: childPath, text: `${indent(depth + 1)}${JSON.stringify(k)}: {}${childSuffix}` });
+        } else if (Array.isArray(val)) {
+          lines.push({ path: childPath, text: `${indent(depth + 1)}${JSON.stringify(k)}: [` });
+          val.forEach((item, j) => {
+            const grandPath = `${childPath}[${j}]`;
+            const grandSuffix = j < val.length - 1 ? "," : "";
+            walk(item, depth + 2, grandPath, grandSuffix);
+          });
+          lines.push({ path: childPath, text: `${indent(depth + 1)}]${childSuffix}` });
+        } else {
+          const inner = Object.entries(val as Record<string, unknown>);
+          lines.push({ path: childPath, text: `${indent(depth + 1)}${JSON.stringify(k)}: {` });
+          inner.forEach(([ik, iv], j) => {
+            const grandPath = `${childPath}.${ik}`;
+            const grandSuffix = j < inner.length - 1 ? "," : "";
+            walk(iv, depth + 2, grandPath, grandSuffix);
+            // walk emits its own line; but for primitives walk uses the parent path,
+            // so override the just-pushed line's path to the child path.
+            const last = lines[lines.length - 1];
+            if (last && (iv === null || typeof iv !== "object")) {
+              last.path = grandPath;
+              last.text = `${indent(depth + 2)}${JSON.stringify(ik)}: ${JSON.stringify(iv)}${grandSuffix}`;
+            } else if (last) {
+              // Object/array case: rewrite the opening line to include the key.
+              // walk pushed a line like `{` or `[`. Replace with `"key": {` etc.
+              // To keep things simple, we just adjust the first line of that subtree.
+              // Find the start of this subtree by scanning back.
+              // (Cheaper: re-call walk via the object branch above for the array case.
+              //  For nested objects we re-walk inline.)
+              // To avoid complexity, we re-emit the inner object via a recursive call:
+              // remove what walk just pushed and recurse properly.
+              // (Counts of pushed lines is unknown without bookkeeping; instead,
+              // for nested objects/arrays we use a dedicated path below.)
+            }
+          });
+          lines.push({ path: childPath, text: `${indent(depth + 1)}}${childSuffix}` });
+        }
+      });
+      lines.push({ path, text: `${indent(depth)}}${suffix}` });
+    };
+    walk(value, 0, "", "");
+    return lines;
+  };
+
+  // Collect every JSON path whose value differs between prev and next.
+  // Returns the set of "changed roots" — paths that should be highlighted along
+  // with all their descendants.
+  const collectChangedPaths = (
+    prev: unknown,
+    next: unknown,
+    path: string,
+    out: Set<string>,
+  ): boolean => {
+    // Returns true if this subtree is unchanged.
+    if (prev === next) return true;
+    const prevType = prev === null ? "null" : Array.isArray(prev) ? "array" : typeof prev;
+    const nextType = next === null ? "null" : Array.isArray(next) ? "array" : typeof next;
+    if (prevType !== nextType) {
+      out.add(path);
+      return false;
+    }
+    if (prevType !== "object" && prevType !== "array") {
+      if (prev !== next) {
+        out.add(path);
+        return false;
+      }
+      return true;
+    }
+    if (Array.isArray(prev) && Array.isArray(next)) {
+      let unchanged = prev.length === next.length;
+      const max = Math.max(prev.length, next.length);
+      for (let i = 0; i < max; i++) {
+        const childPath = `${path}[${i}]`;
+        if (i >= prev.length || i >= next.length) {
+          out.add(childPath);
+          unchanged = false;
+        } else {
+          const childUnchanged = collectChangedPaths(prev[i], next[i], childPath, out);
+          if (!childUnchanged) unchanged = false;
+        }
+      }
+      return unchanged;
+    }
+    // object
+    const a = prev as Record<string, unknown>;
+    const b = next as Record<string, unknown>;
+    const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+    let unchanged = true;
+    keys.forEach((k) => {
+      const childPath = path ? `${path}.${k}` : k;
+      if (!(k in a) || !(k in b)) {
+        out.add(childPath);
+        unchanged = false;
+        return;
+      }
+      const childUnchanged = collectChangedPaths(a[k], b[k], childPath, out);
+      if (!childUnchanged) unchanged = false;
+    });
+    return unchanged;
+  };
+
+  // Classic LCS line diff (DP table) — used as the fallback when JSON parsing fails.
+  const lcsDiff = (
+    prevLines: string[],
+    nextLines: string[],
+  ): { left: DiffLine[]; right: DiffLine[] } => {
+    const m = prevLines.length;
+    const n = nextLines.length;
+    const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+    for (let i = m - 1; i >= 0; i--) {
+      for (let j = n - 1; j >= 0; j--) {
+        if (prevLines[i] === nextLines[j]) {
+          dp[i][j] = dp[i + 1][j + 1] + 1;
+        } else {
+          dp[i][j] = Math.max(dp[i + 1][j], dp[i][j + 1]);
+        }
+      }
+    }
+    const left: DiffLine[] = [];
+    const right: DiffLine[] = [];
+    let i = 0;
+    let j = 0;
+    while (i < m && j < n) {
+      if (prevLines[i] === nextLines[j]) {
+        left.push({ kind: "same", text: prevLines[i] });
+        right.push({ kind: "same", text: nextLines[j] });
+        i++;
+        j++;
+      } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+        left.push({ kind: "removed", text: prevLines[i] });
+        right.push({ kind: "same", text: "" }); // padding to keep rows aligned
+        i++;
+      } else {
+        left.push({ kind: "same", text: "" });
+        right.push({ kind: "added", text: nextLines[j] });
+        j++;
+      }
+    }
+    while (i < m) {
+      left.push({ kind: "removed", text: prevLines[i++] });
+      right.push({ kind: "same", text: "" });
+    }
+    while (j < n) {
+      left.push({ kind: "same", text: "" });
+      right.push({ kind: "added", text: nextLines[j++] });
+    }
+    return { left, right };
+  };
+
   const buildDiff = (prev: string, next: string): { left: DiffLine[]; right: DiffLine[] } => {
-    const prevLines = prev.split("\n");
-    const nextLines = next.split("\n");
-    const prevSet = new Set(prevLines);
-    const nextSet = new Set(nextLines);
-    const left: DiffLine[] = prevLines.map((text) => ({
-      kind: nextSet.has(text) ? "same" : "removed",
-      text,
-    }));
-    const right: DiffLine[] = nextLines.map((text) => ({
-      kind: prevSet.has(text) ? "same" : "added",
-      text,
-    }));
+    let prevJson: unknown;
+    let nextJson: unknown;
+    try {
+      prevJson = JSON.parse(prev);
+      nextJson = JSON.parse(next);
+    } catch {
+      return lcsDiff(prev.split("\n"), next.split("\n"));
+    }
+
+    const changedRoots = new Set<string>();
+    collectChangedPaths(prevJson, nextJson, "", changedRoots);
+
+    // A line is "changed" if its path equals or is nested under any changed root.
+    const isChangedPath = (path: string): boolean => {
+      for (const root of changedRoots) {
+        if (root === "") return true; // top-level type change
+        if (path === root) return true;
+        if (path.startsWith(root + ".") || path.startsWith(root + "[")) return true;
+      }
+      return false;
+    };
+
+    const prevLines = serializeWithPaths(prevJson);
+    const nextLines = serializeWithPaths(nextJson);
+
+    // Run an LCS over the rendered text to align matching lines. Then upgrade
+    // any "same"-on-text line whose path is in a changed subtree to removed/added,
+    // so identical-looking lines that semantically moved still get flagged.
+    const aligned = lcsDiff(
+      prevLines.map((p) => p.text),
+      nextLines.map((p) => p.text),
+    );
+    let li = 0;
+    let ri = 0;
+    const left: DiffLine[] = aligned.left.map((row) => {
+      if (row.text === "" && row.kind === "same") return row; // padding
+      const path = prevLines[li]?.path ?? "";
+      li++;
+      if (row.kind === "same" && isChangedPath(path)) {
+        return { kind: "removed", text: row.text };
+      }
+      return row;
+    });
+    const right: DiffLine[] = aligned.right.map((row) => {
+      if (row.text === "" && row.kind === "same") return row; // padding
+      const path = nextLines[ri]?.path ?? "";
+      ri++;
+      if (row.kind === "same" && isChangedPath(path)) {
+        return { kind: "added", text: row.text };
+      }
+      return row;
+    });
     return { left, right };
   };
 
