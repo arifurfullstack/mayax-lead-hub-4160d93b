@@ -961,6 +961,59 @@ const AdminWebhookTester = () => {
               <Button variant="outline" onClick={formatPayload} disabled={loading} className="gap-2">
                 <Wand2 className="h-4 w-4" /> Format JSON
               </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" disabled={loading} className="gap-2">
+                    <FileJson className="h-4 w-4" /> Templates
+                    <ChevronDown className="h-3.5 w-3.5 opacity-70" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-72">
+                  <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                    Single lead
+                  </DropdownMenuLabel>
+                  {PAYLOAD_TEMPLATES.filter((t) => t.group === "single").map((t) => (
+                    <DropdownMenuItem
+                      key={t.id}
+                      onClick={() => {
+                        setPayload(t.build());
+                        setParseError(null);
+                        setResponse(null);
+                        setHttpStatus(null);
+                        toast.success(`Loaded template: ${t.label}`);
+                      }}
+                      className="flex flex-col items-start gap-0.5 py-2"
+                    >
+                      <span className="text-xs font-medium">{t.label}</span>
+                      <span className="text-[11px] text-muted-foreground leading-snug">
+                        {t.description}
+                      </span>
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                    Multi-lead batch
+                  </DropdownMenuLabel>
+                  {PAYLOAD_TEMPLATES.filter((t) => t.group === "batch").map((t) => (
+                    <DropdownMenuItem
+                      key={t.id}
+                      onClick={() => {
+                        setPayload(t.build());
+                        setParseError(null);
+                        setResponse(null);
+                        setHttpStatus(null);
+                        toast.success(`Loaded template: ${t.label}`);
+                      }}
+                      className="flex flex-col items-start gap-0.5 py-2"
+                    >
+                      <span className="text-xs font-medium">{t.label}</span>
+                      <span className="text-[11px] text-muted-foreground leading-snug">
+                        {t.description}
+                      </span>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button
                 variant="outline"
                 onClick={() => {
