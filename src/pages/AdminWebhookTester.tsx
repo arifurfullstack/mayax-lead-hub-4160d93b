@@ -197,6 +197,7 @@ const AdminWebhookTester = () => {
       : null;
 
   return (
+    <TooltipProvider delayDuration={150}>
     <div className="space-y-6 p-6 max-w-7xl mx-auto">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
@@ -217,10 +218,96 @@ const AdminWebhookTester = () => {
         </AlertDescription>
       </Alert>
 
+      <Collapsible defaultOpen className="rounded-lg border border-border/60 bg-card/40">
+        <CollapsibleTrigger className="w-full flex items-center justify-between gap-2 px-4 py-3 text-left hover:bg-card/60 transition-colors">
+          <div className="flex items-center gap-2">
+            <BookOpen className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium">Payload schema reference</span>
+            <Badge variant="outline" className="text-[10px] font-mono">
+              {SCHEMA_FIELDS.filter((f) => f.required).length} required
+            </Badge>
+          </div>
+          <span className="text-xs text-muted-foreground">click to toggle</span>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="px-4 pb-4 pt-1 space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Send a single object or an array of objects. Unknown fields are ignored. Hover any field for details.
+            </p>
+            <div className="overflow-auto rounded border border-border/50">
+              <table className="w-full text-xs">
+                <thead className="bg-muted/40 text-muted-foreground">
+                  <tr>
+                    <th className="text-left font-medium px-3 py-2">Field</th>
+                    <th className="text-left font-medium px-3 py-2">Type</th>
+                    <th className="text-left font-medium px-3 py-2">Required</th>
+                    <th className="text-left font-medium px-3 py-2">Notes</th>
+                    <th className="text-left font-medium px-3 py-2">Example</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {SCHEMA_FIELDS.map((f) => (
+                    <tr key={f.name} className="border-t border-border/40 hover:bg-muted/20">
+                      <td className="px-3 py-2 font-mono whitespace-nowrap">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex items-center gap-1 cursor-help">
+                              {f.name}
+                              <Info className="h-3 w-3 text-muted-foreground" />
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="right" className="max-w-xs">
+                            <p className="text-xs leading-relaxed">{f.notes}</p>
+                            {f.example && (
+                              <p className="text-[11px] font-mono text-muted-foreground mt-1">
+                                e.g. {f.example}
+                              </p>
+                            )}
+                          </TooltipContent>
+                        </Tooltip>
+                      </td>
+                      <td className="px-3 py-2 font-mono text-muted-foreground whitespace-nowrap">{f.type}</td>
+                      <td className="px-3 py-2">
+                        {f.required ? (
+                          <Badge variant="outline" className="bg-red-500/15 text-red-300 border-red-500/40 text-[10px]">
+                            required
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-[11px]">optional</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-muted-foreground">{f.notes}</td>
+                      <td className="px-3 py-2 font-mono text-[11px] text-muted-foreground">{f.example ?? "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              <strong>Dedupe priority:</strong> email (case-insensitive) → phone (last 10 digits). If a match exists and is{" "}
+              <code>available</code>, all fields are refreshed and notes appended. If the match is <code>sold</code>, only notes are appended.
+            </p>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Request payload</CardTitle>
+            <CardTitle className="text-base flex items-center gap-2">
+              Request payload
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent side="right" className="max-w-sm">
+                  <p className="text-xs leading-relaxed">
+                    Required: <code>first_name</code>, <code>last_name</code>. Recommended: <code>email</code> and{" "}
+                    <code>phone</code> for dedupe. See the schema reference above for all fields.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </CardTitle>
             <CardDescription>
               JSON object or array. Same shape Make.com sends in production.
             </CardDescription>
