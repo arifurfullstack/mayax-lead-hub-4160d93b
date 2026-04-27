@@ -652,20 +652,65 @@ const AdminWebhookTester = () => {
                       {validation.totalLeads} lead{validation.totalLeads === 1 ? "" : "s"}
                     </AlertTitle>
                     <AlertDescription>
-                      <ul className="text-xs space-y-1 mt-2 max-h-40 overflow-auto">
-                        {validation.issues.slice(0, 20).map((iss, i) => (
-                          <li key={i} className="font-mono">
-                            <span className="text-red-300">
-                              {iss.leadIndex !== null ? `lead[${iss.leadIndex}]` : "root"}
-                              {iss.field !== "(root)" && <>.{iss.field}</>}
-                            </span>{" "}
-                            <span className="text-muted-foreground">— {iss.message}</span>
-                          </li>
-                        ))}
+                      <ul className="text-xs space-y-1.5 mt-2 max-h-56 overflow-auto">
+                        {validation.issues.slice(0, 20).map((iss, i) => {
+                          const fix = suggestFix(iss);
+                          return (
+                            <li
+                              key={i}
+                              className="flex items-start justify-between gap-2 font-mono"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <span className="text-red-300">
+                                  {iss.leadIndex !== null ? `lead[${iss.leadIndex}]` : "root"}
+                                  {iss.field !== "(root)" && <>.{iss.field}</>}
+                                </span>{" "}
+                                <span className="text-muted-foreground">— {iss.message}</span>
+                              </div>
+                              {fix ? (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-6 px-2 text-[10px] gap-1 shrink-0 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/15 hover:text-emerald-200"
+                                      onClick={() => applyFix(iss, fix)}
+                                    >
+                                      <Wand2 className="h-3 w-3" />
+                                      {fix.label}
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="left" className="max-w-xs">
+                                    <p className="text-xs">{fix.description}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              ) : (
+                                <span className="text-[10px] text-muted-foreground shrink-0 italic">
+                                  no auto-fix
+                                </span>
+                              )}
+                            </li>
+                          );
+                        })}
                         {validation.issues.length > 20 && (
                           <li className="text-muted-foreground">…and {validation.issues.length - 20} more</li>
                         )}
                       </ul>
+                      {validation.issues.some((i) => suggestFix(i)) && (
+                        <div className="mt-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 text-[11px] gap-1 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/15 hover:text-emerald-200"
+                            onClick={applyAllFixes}
+                          >
+                            <Wand2 className="h-3 w-3" />
+                            Apply all suggested fixes
+                          </Button>
+                        </div>
+                      )}
                       {validation.warnings.length > 0 && (
                         <p className="text-[11px] text-amber-300 mt-2">
                           + {validation.warnings.length} warning{validation.warnings.length === 1 ? "" : "s"} (see below)
