@@ -557,6 +557,117 @@ function gradeBadge(grade?: string) {
   );
 }
 
+// --- Client-side mirror of `recoverNamesFromPayload` from the edge function ---
+// Keep in sync with supabase/functions/inbound-webhook/index.ts
+function _titleCase(s: string): string {
+  return s
+    .toLowerCase()
+    .split(/[\s\-']+/)
+    .filter(Boolean)
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+    .join(" ");
+}
+function _looksLikeName(s: string): boolean {
+  return /^[A-Za-zÀ-ÿ'’\-]{2,}$/.test(s);
+}
+type NameRecoveryPreview = {
+  leadIndex: number;
+  originalFirst: string | null;
+  originalLast: string | null;
+  recoveredFirst: string | null;
+  recoveredLast: string | null;
+  source: "name_field" | "email" | "notes" | null;
+  attempted: boolean;
+  resolvedFirst: string | null;
+  resolvedLast: string | null;
+  wouldPass: boolean;
+  suggestedFix: string | null;
+};
+
+function simulateNameRecovery(lead: any, autofillEnabled: boolean): NameRecoveryPreview {
+  const originalFirst =
+    typeof lead?.first_name === "string" && lead.first_name.trim() ? lead.first_name.trim() : null;
+  const originalLast =
+    typeof lead?.last_name === "string" && lead.last_name.trim() ? lead.last_name.trim() : null;
+
+  let first: string | null = originalFirst;
+  let last: string | null = originalLast;
+  let source: NameRecoveryPreview["source"] = null;
+
+  // Mirror server: try recovery if autofill ON OR a name-like field is provided
+  const hasNameField = !!(lead?.name || lead?.full_name || lead?.customer_name);
+  const attempted = autofillEnabled || hasNameField;
+
+  if (attempted) {
+    const combined =
+      (typeof lead?.name === "string" && lead.name.trim()) ||
+      (typeof lead?.full_name === "string" && lead.full_name.trim()) ||
+      (typeof lead?.customer_name === "string" && lead.customer_name.trim()) ||
+      "";
+    if ((!first || !last) && combined) {
+      const parts = combined.split(/\s+/).filter(Boolean);
+      if (parts.length >= 2) {
+        if (!first) first = _titleCase(parts[0]);
+        if (!last) last = _titleCase(parts.slice(1).join(" "));
+        source = "name_field";
+      } else if (parts.length === 1 && !first) {
+        first = _titleCase(parts[0]);
+        source = "name_field";
+      }
+    }
+    const email = typeof lead?.email === "string" ? lead.email.trim() : "";
+    if ((!first || !last) && email.includes("@")) {
+      const local = email.split("@")[0].replace(/\+.*$/, "");
+      const parts = local.split(/[._\-]+/).filter(Boolean);
+      if (parts.length >= 2 && _looksLikeName(parts[0]) && _looksLikeName(parts[1])) {
+        if (!first) first = _titleCase(parts[0]);
+        if (!last) last = _titleCase(parts[1]);
+        source = source ?? "email";
+      }
+    }
+    const notes = typeof lead?.notes === "string" ? lead.notes : "";
+    if ((!first || !last) && notes) {
+      const m = notes.match(
+        /(?:name|customer|client|lead)\s*[:\-]\s*([A-Za-zÀ-ÿ'’\-]+)\s+([A-Za-zÀ-ÿ'’\-]+)/i,
+      );
+      if (m) {
+        if (!first) first = _titleCase(m[1]);
+        if (!last) last = _titleCase(m[2]);
+        source = source ?? "notes";
+      }
+    }
+  }
+
+  const wouldPass = !!(first && last);
+  let suggestedFix: string | null = null;
+  if (!wouldPass) {
+    const missing: string[] = [];
+    if (!first) missing.push("first_name");
+    if (!last) missing.push("last_name");
+    suggestedFix =
+      `Add ${missing.join(" and ")} to the JSON. ` +
+      (autofillEnabled
+        ? `Auto-fill is ON but couldn't recover from name/email/notes — try adding a "name":"John Doe" field, or use an email like "john.doe@example.com".`
+        : `Auto-fill is OFF — turn it on in Webhook Settings to attempt recovery from email/notes/name fields.`);
+  }
+
+  return {
+    leadIndex: 0,
+    originalFirst,
+    originalLast,
+    recoveredFirst:
+      attempted && first && first !== originalFirst ? first : null,
+    recoveredLast:
+      attempted && last && last !== originalLast ? last : null,
+    source: attempted && (first !== originalFirst || last !== originalLast) ? source : null,
+    attempted,
+    resolvedFirst: first,
+    resolvedLast: last,
+    wouldPass,
+    suggestedFix,
+  };
+}
+
 const AdminWebhookTester = () => {
   const [payload, setPayload] = useState(SAMPLE_PAYLOAD);
   const [secret, setSecret] = useState("");
