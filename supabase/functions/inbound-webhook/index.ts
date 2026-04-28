@@ -639,12 +639,33 @@ Deno.serve(async (req) => {
           console.log(
             `[inbound-webhook ${requestId}] ${status} ref=${referenceCode} match_id=${matchedLead.id} sold_status=${matchedLead.sold_status} price=${price} grade=${quality_grade}`,
           );
+          // Retry-merge succeeded — close out any prior pending rejections for this contact
+          if (mergedRejectionIds.length > 0) {
+            try {
+              await admin
+                .from("rejected_inbound_leads")
+                .update({
+                  status: "recovered",
+                  recovered_lead_id: matchedLead.id,
+                  recovered_at: new Date().toISOString(),
+                })
+                .in("id", mergedRejectionIds);
+              console.log(
+                `[inbound-webhook ${requestId}] marked ${mergedRejectionIds.length} prior rejection(s) as recovered → lead ${matchedLead.id}`,
+              );
+            } catch (e) {
+              console.error(`[inbound-webhook ${requestId}] failed to mark rejections recovered`, e);
+            }
+          }
           results.push({
             reference_code: referenceCode,
             status,
             ai_score,
             quality_grade,
             price,
+            ...(mergedRejectionIds.length > 0
+              ? { recovered_rejection_ids: mergedRejectionIds }
+              : {}),
           });
         }
         continue;
@@ -677,7 +698,11 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      const { error } = await admin.from("leads").insert(leadData);
+      const { data: insertedRows, error } = await admin
+        .from("leads")
+        .insert(leadData)
+        .select("id")
+        .maybeSingle();
 
       if (error) {
         console.error(
@@ -688,7 +713,34 @@ Deno.serve(async (req) => {
         console.log(
           `[inbound-webhook ${requestId}] created ref=${referenceCode} email=${inboundEmail || "none"} phone=${inboundPhoneDigits || "none"} price=${price} grade=${quality_grade} ai_score=${ai_score}`,
         );
-        results.push({ reference_code: referenceCode, status: "created", ai_score, quality_grade, price });
+        // Retry-merge succeeded — close out any prior pending rejections for this contact
+        if (mergedRejectionIds.length > 0) {
+          try {
+            await admin
+              .from("rejected_inbound_leads")
+              .update({
+                status: "recovered",
+                recovered_lead_id: insertedRows?.id ?? null,
+                recovered_at: new Date().toISOString(),
+              })
+              .in("id", mergedRejectionIds);
+            console.log(
+              `[inbound-webhook ${requestId}] marked ${mergedRejectionIds.length} prior rejection(s) as recovered → lead ${insertedRows?.id ?? "unknown"}`,
+            );
+          } catch (e) {
+            console.error(`[inbound-webhook ${requestId}] failed to mark rejections recovered`, e);
+          }
+        }
+        results.push({
+          reference_code: referenceCode,
+          status: "created",
+          ai_score,
+          quality_grade,
+          price,
+          ...(mergedRejectionIds.length > 0
+            ? { recovered_rejection_ids: mergedRejectionIds }
+            : {}),
+        });
       }
     }
 
