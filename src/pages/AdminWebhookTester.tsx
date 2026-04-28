@@ -1635,6 +1635,110 @@ const AdminWebhookTester = () => {
         </CardContent>
       </Card>
 
+      {/* ── Lead Lifecycle Inspector ───────────────────────────────────── */}
+      <Card className="border-border/60">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Activity className="h-4 w-4 text-primary" />
+            Lead Lifecycle Inspector
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Enter a <code>reference_code</code> (e.g. <code>MX-2026-456</code>) or lead UUID to see exactly what happened after Make.com posted it: when it was created, who bought it, when it was delivered, and any admin actions.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex gap-2">
+            <Input
+              value={lifecycleInput}
+              onChange={(e) => setLifecycleInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") runLifecycle(); }}
+              placeholder="Lead UUID or reference code (MX-YYYY-XXX)"
+              className="font-mono text-xs"
+            />
+            <Button onClick={runLifecycle} disabled={lifecycleLoading} size="sm">
+              {lifecycleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Activity className="h-4 w-4" />}
+              <span className="ml-2">Trace lead</span>
+            </Button>
+          </div>
+
+          {lifecycleError && (
+            <Alert variant="destructive" className="py-2">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription className="text-xs">{lifecycleError}</AlertDescription>
+            </Alert>
+          )}
+
+          {lifecycle && (
+            <div className="space-y-3">
+              {/* Summary header */}
+              <div className="rounded-md border border-border/60 p-3 bg-muted/20 space-y-1.5">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-sm font-semibold">{lifecycle.lead.reference_code}</span>
+                    <Badge variant="outline" className="text-[10px]">
+                      {lifecycle.lead.first_name} {lifecycle.lead.last_name}
+                    </Badge>
+                    <Badge
+                      variant={lifecycle.lead.sold_status === "available" ? "secondary" : "outline"}
+                      className="text-[10px]"
+                    >
+                      {lifecycle.lead.sold_status}
+                    </Badge>
+                  </div>
+                  {lifecycle.secondsBetweenCreateAndSell !== null && (
+                    <div className="text-[11px] text-muted-foreground flex items-center gap-1">
+                      <Zap className="h-3 w-3 text-amber-400" />
+                      Sold <span className="font-mono font-bold text-foreground">{lifecycle.secondsBetweenCreateAndSell}s</span> after creation
+                    </div>
+                  )}
+                </div>
+                {lifecycle.secondsBetweenCreateAndSell !== null && lifecycle.secondsBetweenCreateAndSell < 60 && (
+                  <Alert className="border-amber-500/40 bg-amber-500/10 py-2 mt-2">
+                    <AlertTriangle className="h-3.5 w-3.5 text-amber-400" />
+                    <AlertDescription className="text-[11px]">
+                      This lead was claimed in under a minute — that's why it never appeared "available" in the marketplace UI for long. Consider enabling a minimum-marketplace-seconds throttle in platform settings if you want every lead to stay browsable longer.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+
+              {/* Timeline */}
+              <div className="rounded-md border border-border/60">
+                <div className="px-3 py-2 border-b border-border/60 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                  Timeline ({lifecycle.events.length} event{lifecycle.events.length === 1 ? "" : "s"})
+                </div>
+                <div className="divide-y divide-border/40">
+                  {lifecycle.events.map((e, idx) => {
+                    const icon =
+                      e.kind === "created" ? <Send className="h-3.5 w-3.5 text-sky-400" /> :
+                      e.kind === "sold" ? <ShoppingBag className="h-3.5 w-3.5 text-emerald-400" /> :
+                      e.kind === "delivered" ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> :
+                      e.kind === "delivery_failed" ? <AlertTriangle className="h-3.5 w-3.5 text-destructive" /> :
+                      <ShieldCheck className="h-3.5 w-3.5 text-muted-foreground" />;
+                    return (
+                      <div key={idx} className="px-3 py-2 flex items-start gap-3">
+                        <div className="mt-0.5 shrink-0">{icon}</div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <div className="text-xs font-medium">{e.title}</div>
+                            <div className="text-[10px] font-mono text-muted-foreground">
+                              {new Date(e.at).toLocaleString()}
+                            </div>
+                          </div>
+                          {e.detail && (
+                            <div className="text-[11px] text-muted-foreground mt-0.5 break-all">{e.detail}</div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <Card className="border-border/60">
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
