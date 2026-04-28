@@ -491,6 +491,16 @@ Deno.serve(async (req) => {
       dryRunQuery === "1" || dryRunQuery === "true" || dryRunQuery === "yes" ||
       dryRunHeader === "1" || dryRunHeader === "true" || dryRunHeader === "yes";
 
+    // --- Strict mode (?strict=1 or x-strict header) ---
+    // When enabled, payloads with field-shape issues (vehicle text in city,
+    // garbage emails, etc.) are rejected outright instead of stored with a
+    // warning. Useful for debugging Make.com mappings end-to-end.
+    const strictQuery = (url.searchParams.get("strict") ?? "").toLowerCase();
+    const strictHeader = (req.headers.get("x-strict") ?? "").toLowerCase();
+    const strictMode =
+      strictQuery === "1" || strictQuery === "true" || strictQuery === "yes" ||
+      strictHeader === "1" || strictHeader === "true" || strictHeader === "yes";
+
     console.log(
       `[inbound-webhook ${requestId}] HIT method=${req.method} ip=${sourceIp} ua="${userAgent}" hasSecret=${hasSecretHeader} dryRun=${dryRun}`,
     );
@@ -505,6 +515,8 @@ Deno.serve(async (req) => {
 
     const autofillNames = (allSettings["inbound_webhook_autofill_names"] ?? "").toLowerCase() === "true";
     const retryRejected = (allSettings["inbound_webhook_retry_rejected"] ?? "").toLowerCase() === "true";
+    // Default ON: empty pings (only `phone` populated) are rejected at the door.
+    const rejectEmptyPayloads = (allSettings["inbound_webhook_reject_empty_payloads"] ?? "true").toLowerCase() !== "false";
 
     // Check webhook secret if configured
     const configuredSecret = allSettings["inbound_webhook_secret"]?.trim();
