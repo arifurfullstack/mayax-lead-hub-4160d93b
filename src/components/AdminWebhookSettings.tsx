@@ -17,6 +17,7 @@ const SETTINGS_KEYS = [
   "inbound_webhook_secret",
   "inbound_webhook_autofill_names",
   "inbound_webhook_retry_rejected",
+  "inbound_webhook_reject_empty_payloads",
 ];
 
 interface Props {
@@ -102,6 +103,21 @@ export default function AdminWebhookSettings({ settingsForm, setSettingsForm, pl
           <Switch
             checked={settingsForm["inbound_webhook_retry_rejected"] === "true"}
             onCheckedChange={(v) => update("inbound_webhook_retry_rejected", v ? "true" : "false")}
+          />
+        </div>
+
+        <div className="flex items-start justify-between gap-4 rounded-lg border border-border/50 bg-muted/20 p-3">
+          <div className="space-y-1">
+            <Label className="text-xs font-medium text-foreground">Reject empty payloads</Label>
+            <p className="text-[11px] text-muted-foreground">
+              Block inbound pings where every meaningful field (name, email, city, income, vehicle…) is empty
+              — even if <code>phone</code> is present. This is the most common Make.com failure mode: the HTTP module
+              fires before the upstream data-prep step has finished filling its variables. Default <strong>ON</strong>.
+            </p>
+          </div>
+          <Switch
+            checked={(settingsForm["inbound_webhook_reject_empty_payloads"] ?? "true") !== "false"}
+            onCheckedChange={(v) => update("inbound_webhook_reject_empty_payloads", v ? "true" : "false")}
           />
         </div>
 
