@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -670,7 +671,12 @@ function simulateNameRecovery(lead: any, autofillEnabled: boolean): NameRecovery
 }
 
 const AdminWebhookTester = () => {
-  const [payload, setPayload] = useState(SAMPLE_PAYLOAD);
+  const location = useLocation();
+  // Allow other admin pages (e.g. Webhook Templates) to seed the editor by
+  // navigating with `state: { payload: "<json>" }`.
+  const initialPayload =
+    (location.state as { payload?: string } | null)?.payload ?? SAMPLE_PAYLOAD;
+  const [payload, setPayload] = useState(initialPayload);
   const [secret, setSecret] = useState("");
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<ApiResponse | null>(null);
