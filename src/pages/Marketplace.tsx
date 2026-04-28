@@ -709,6 +709,7 @@ const Marketplace = () => {
                        promoPrice={activePromo?.flat_price ?? null}
                        promoType={activePromo ? "flat" : null}
                        isAdminView={isAdmin}
+                       readOnly={lead.sold_status === "sold"}
                     />
                   ))}
                 </div>
