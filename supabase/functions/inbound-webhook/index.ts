@@ -545,6 +545,7 @@ const inboundLeadSchema = z.object({
 
   // Misc
   notes: z.string().max(4000).nullish(),
+  trade_in_vehicle: z.string().trim().max(200).nullish(),
   reference_code: z.string().trim().max(60).nullish(),
   appointment_time: z.string().nullish().refine(
     (v) => v == null || v === "" || !Number.isNaN(Date.parse(v)),
