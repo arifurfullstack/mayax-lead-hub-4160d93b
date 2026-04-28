@@ -797,6 +797,136 @@ const AdminWebhookTester = () => {
   const [diagLoading, setDiagLoading] = useState(false);
   const [diag, setDiag] = useState<DiagResult | null>(null);
 
+  // ── Lifecycle Inspector ────────────────────────────────────────────────────
+  // Given a reference_code (or UUID), pull the full timeline of a lead from
+  // `leads`, `purchases`, `delivery_logs`, and `lead_audit_log` so admins can
+  // immediately answer "the lead never showed up — what happened?"
+  type LifecycleEvent = {
+    at: string;
+    kind: "created" | "sold" | "delivered" | "delivery_failed" | "audit";
+    title: string;
+    detail?: string;
+  };
+  type LifecycleResult = {
+    lead: Record<string, any>;
+    events: LifecycleEvent[];
+    secondsBetweenCreateAndSell: number | null;
+  };
+  const [lifecycleInput, setLifecycleInput] = useState("");
+  const [lifecycleLoading, setLifecycleLoading] = useState(false);
+  const [lifecycleError, setLifecycleError] = useState<string | null>(null);
+  const [lifecycle, setLifecycle] = useState<LifecycleResult | null>(null);
+
+  const runLifecycle = async () => {
+    setLifecycleError(null);
+    setLifecycle(null);
+    const q = lifecycleInput.trim();
+    if (!q) {
+      toast.error("Enter a lead id (UUID) or reference_code (e.g. MX-2026-123)");
+      return;
+    }
+    setLifecycleLoading(true);
+    try {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(q);
+      const baseQuery = supabase
+        .from("leads")
+        .select("id, reference_code, first_name, last_name, sold_status, sold_to_dealer_id, sold_at, price, quality_grade, created_at, has_bankruptcy, trade_in_vehicle");
+      const { data: lead, error: leadErr } = isUuid
+        ? await baseQuery.eq("id", q).maybeSingle()
+        : await baseQuery.eq("reference_code", q).maybeSingle();
+
+      if (leadErr) {
+        setLifecycleError(`Lookup failed: ${leadErr.message}`);
+        return;
+      }
+      if (!lead) {
+        setLifecycleError(`No lead found for ${isUuid ? "id" : "reference_code"} "${q}". The webhook may have rejected it — check Rejected Leads.`);
+        return;
+      }
+
+      const events: LifecycleEvent[] = [];
+
+      events.push({
+        at: (lead as any).created_at,
+        kind: "created",
+        title: "Lead created",
+        detail: `via inbound-webhook · price $${Number((lead as any).price ?? 0).toFixed(2)} · grade ${(lead as any).quality_grade ?? "—"}`,
+      });
+
+      // Purchases (with buyer dealership)
+      const { data: purchases } = await supabase
+        .from("purchases")
+        .select("id, purchased_at, price_paid, dealer_id, dealers(dealership_name)")
+        .eq("lead_id", (lead as any).id)
+        .order("purchased_at", { ascending: true });
+
+      const purchaseIds: string[] = [];
+      for (const p of (purchases ?? []) as any[]) {
+        purchaseIds.push(p.id);
+        events.push({
+          at: p.purchased_at,
+          kind: "sold",
+          title: `Sold to ${p.dealers?.dealership_name ?? "(unknown dealer)"}`,
+          detail: `$${Number(p.price_paid ?? 0).toFixed(2)} · purchase ${p.id.slice(0, 8)}…`,
+        });
+      }
+
+      // Delivery logs (per purchase)
+      if (purchaseIds.length) {
+        const { data: deliveries } = await supabase
+          .from("delivery_logs")
+          .select("attempted_at, channel, success, response_code, error_details, endpoint")
+          .in("purchase_id", purchaseIds)
+          .order("attempted_at", { ascending: true });
+        for (const d of (deliveries ?? []) as any[]) {
+          events.push({
+            at: d.attempted_at,
+            kind: d.success ? "delivered" : "delivery_failed",
+            title: d.success ? `Delivered via ${d.channel}` : `Delivery failed (${d.channel})`,
+            detail: [
+              d.endpoint ? `→ ${d.endpoint}` : null,
+              d.response_code ? `HTTP ${d.response_code}` : null,
+              d.error_details ? `error: ${d.error_details}` : null,
+            ].filter(Boolean).join(" · "),
+          });
+        }
+      }
+
+      // Audit log (admin actions: reset, etc.)
+      const { data: audits } = await supabase
+        .from("lead_audit_log")
+        .select("created_at, action, reason, previous_status, new_status")
+        .eq("lead_id", (lead as any).id)
+        .order("created_at", { ascending: true });
+      for (const a of (audits ?? []) as any[]) {
+        events.push({
+          at: a.created_at,
+          kind: "audit",
+          title: `Admin: ${a.action}`,
+          detail: [
+            a.previous_status && a.new_status ? `${a.previous_status} → ${a.new_status}` : null,
+            a.reason ? `reason: ${a.reason}` : null,
+          ].filter(Boolean).join(" · "),
+        });
+      }
+
+      events.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+
+      let secondsBetweenCreateAndSell: number | null = null;
+      if ((lead as any).sold_at && (lead as any).created_at) {
+        secondsBetweenCreateAndSell = Math.round(
+          (new Date((lead as any).sold_at).getTime() - new Date((lead as any).created_at).getTime()) / 1000
+        );
+      }
+
+      setLifecycle({ lead: lead as any, events, secondsBetweenCreateAndSell });
+    } catch (err: any) {
+      setLifecycleError(err?.message ?? "Lifecycle lookup failed");
+    } finally {
+      setLifecycleLoading(false);
+    }
+  };
+
   const runLeadsDiagnostic = async () => {
     setDiagLoading(true);
     try {
