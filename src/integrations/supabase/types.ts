@@ -1118,10 +1118,11 @@ export type Database = {
         }[]
       }
       get_marketplace_leads: {
-        Args: { requesting_dealer_id?: string }
+        Args: { include_sold_hours?: number; requesting_dealer_id?: string }
         Returns: {
           ai_score: number
           appointment_time: string
+          buyer_dealership_name: string
           buyer_type: string
           city: string
           created_at: string
