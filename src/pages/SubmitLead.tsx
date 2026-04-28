@@ -305,6 +305,25 @@ const SubmitLead = () => {
                 <Switch checked={form.trade_in} onCheckedChange={(v) => update("trade_in", v)} />
               </div>
 
+              {form.trade_in && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Trade-In Vehicle Details</Label>
+                  <Input
+                    value={form.trade_in_vehicle}
+                    onChange={(e) => update("trade_in_vehicle", e.target.value)}
+                    placeholder="e.g. 2018 Honda Civic, 80,000 km"
+                    maxLength={200}
+                    className="bg-background/50 border-border focus:border-primary"
+                  />
+                </div>
+              )}
+
+              <div className="flex items-center gap-3 p-3 rounded-lg border border-border/50 bg-muted/20">
+                <DollarSign className="h-4 w-4 text-primary shrink-0" />
+                <span className="text-sm text-foreground flex-1">Have you ever filed for bankruptcy?</span>
+                <Switch checked={form.has_bankruptcy} onCheckedChange={(v) => update("has_bankruptcy", v)} />
+              </div>
+
               <div className="border-t border-border/50 pt-5">
                 <h4 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-3">
                   <DollarSign className="h-4 w-4 text-primary" />
