@@ -565,6 +565,9 @@ const AdminWebhookTester = () => {
   const [httpStatus, setHttpStatus] = useState<number | null>(null);
   const [latencyMs, setLatencyMs] = useState<number | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
+  // Simulate the server-side `inbound_webhook_autofill_names` setting locally
+  // so the user can preview both ON and OFF behaviour without changing platform settings.
+  const [simulateAutofill, setSimulateAutofill] = useState(true);
 
   const validation = useMemo(() => validatePayload(payload), [payload]);
 
