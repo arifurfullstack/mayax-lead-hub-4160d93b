@@ -1295,6 +1295,87 @@ const AdminWebhookTester = () => {
     toast.success("Response copied");
   };
 
+  // --- Live send: actually create/update leads, then read back canonical fields ---
+  type LiveOutcome = {
+    reference_code: string;
+    status: string;
+    error?: string;
+    db?: {
+      id: string;
+      reference_code: string;
+      has_bankruptcy: boolean | null;
+      trade_in_vehicle: string | null;
+      sold_status: string;
+    } | null;
+    dbError?: string;
+  };
+  const [liveLoading, setLiveLoading] = useState(false);
+  const [liveConfirmOpen, setLiveConfirmOpen] = useState(false);
+  const [liveOutcomes, setLiveOutcomes] = useState<LiveOutcome[] | null>(null);
+  const [liveHttpStatus, setLiveHttpStatus] = useState<number | null>(null);
+
+  const sendLive = async () => {
+    if (!validation.ok) {
+      toast.error("Fix validation errors before sending live");
+      return;
+    }
+    setLiveLoading(true);
+    setLiveOutcomes(null);
+    setLiveHttpStatus(null);
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      apikey: ANON_KEY,
+      Authorization: `Bearer ${ANON_KEY}`,
+    };
+    if (secret.trim()) headers["x-webhook-secret"] = secret.trim();
+
+    try {
+      const res = await fetch(FUNCTIONS_BASE, {
+        method: "POST",
+        headers,
+        body: payload,
+      });
+      setLiveHttpStatus(res.status);
+      const json = (await res.json()) as ApiResponse;
+      if (!res.ok || !(json as { success?: boolean }).success) {
+        const errMsg = (json as { error?: string }).error ?? `HTTP ${res.status}`;
+        toast.error(`Live send failed: ${errMsg}`);
+        setLiveOutcomes([]);
+        return;
+      }
+      const results = (json as { results: LeadResult[] }).results;
+
+      // Read back the canonical DB row for each created/updated lead by reference_code.
+      const outcomes: LiveOutcome[] = await Promise.all(
+        results.map(async (r) => {
+          if (r.error || !r.reference_code) {
+            return { reference_code: r.reference_code, status: r.status, error: r.error, db: null };
+          }
+          const { data, error } = await supabase
+            .from("leads")
+            .select("id, reference_code, has_bankruptcy, trade_in_vehicle, sold_status")
+            .eq("reference_code", r.reference_code)
+            .maybeSingle();
+          if (error) {
+            return { reference_code: r.reference_code, status: r.status, db: null, dbError: error.message };
+          }
+          return {
+            reference_code: r.reference_code,
+            status: r.status,
+            db: data as LiveOutcome["db"],
+          };
+        }),
+      );
+      setLiveOutcomes(outcomes);
+      toast.success(`Live send OK — ${results.length} lead${results.length === 1 ? "" : "s"} processed`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Request failed");
+    } finally {
+      setLiveLoading(false);
+    }
+  };
+
   const results: LeadResult[] | null =
     response && (response as { success?: boolean }).success
       ? (response as { results: LeadResult[] }).results
