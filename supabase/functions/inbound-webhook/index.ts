@@ -1062,9 +1062,33 @@ Deno.serve(async (req) => {
 
       // Parse notes for hidden flags
       const notesFlags = parseNotesFlags(lead.notes);
-      const trade_in = lead.trade_in === true || notesFlags.trade_in;
-      const has_bankruptcy = lead.has_bankruptcy === true || notesFlags.has_bankruptcy;
-      const trade_in_vehicle = trade_in ? (lead.trade_in_vehicle ?? null) : (lead.trade_in_vehicle ?? null);
+
+      // --- Dynamic mapping for trade_in / has_bankruptcy / trade_in_vehicle ---
+      // Rule: only include a field if Make.com actually sent a value (or notes
+      // imply it). Absent keys → null, so the DB stores NULL instead of a
+      // misleading `false` / empty string default.
+      const tradeInProvided = "trade_in" in lead && lead.trade_in !== null && lead.trade_in !== undefined;
+      const bankruptcyProvided = "has_bankruptcy" in lead && lead.has_bankruptcy !== null && lead.has_bankruptcy !== undefined;
+      const tradeVehicleProvided =
+        "trade_in_vehicle" in lead &&
+        typeof lead.trade_in_vehicle === "string" &&
+        lead.trade_in_vehicle.trim() !== "";
+
+      // trade_in: explicit boolean wins, else infer from notes, else null
+      const trade_in: boolean | null = tradeInProvided
+        ? lead.trade_in === true
+        : (notesFlags.trade_in ? true : null);
+
+      // has_bankruptcy: explicit boolean wins, else infer from notes, else null
+      const has_bankruptcy: boolean | null = bankruptcyProvided
+        ? lead.has_bankruptcy === true
+        : (notesFlags.has_bankruptcy ? true : null);
+
+      // trade_in_vehicle: only set when payload provides a non-empty string
+      const trade_in_vehicle: string | null = tradeVehicleProvided
+        ? (lead.trade_in_vehicle as string).trim()
+        : null;
+
       const has_appointment = notesFlags.has_appointment;
       const appointment_time = (lead.appointment_time && lead.appointment_time.trim() !== "") ? lead.appointment_time : (has_appointment ? new Date().toISOString() : null);
       const income = parseNumericInput(lead.income);
@@ -1073,22 +1097,22 @@ Deno.serve(async (req) => {
       const vehicle_mileage = parseNumericInput(lead.vehicle_mileage);
       const vehicle_price = parseNumericInput(lead.vehicle_price);
 
-      // AI score (unchanged)
+      // AI score (unchanged) — coerce nulls to false for scoring math
       const { ai_score, quality_grade } = calculateAiScore({
         income,
         vehicle_preference: lead.vehicle_preference ?? null,
         buyer_type: lead.buyer_type ?? "online",
         notes: lead.notes ?? null,
         appointment_time,
-        trade_in,
+        trade_in: trade_in === true,
       });
 
       // Dynamic price
       const price = calculateDynamicPrice({
         income,
         vehicle_preference: lead.vehicle_preference ?? null,
-        trade_in,
-        has_bankruptcy,
+        trade_in: trade_in === true,
+        has_bankruptcy: has_bankruptcy === true,
         appointment_time,
       }, pricing);
 
@@ -1108,15 +1132,18 @@ Deno.serve(async (req) => {
         vehicle_mileage,
         vehicle_price,
         notes: lead.notes ?? null,
-        trade_in,
-        trade_in_vehicle,
-        has_bankruptcy,
         quality_grade,
         ai_score,
         price,
         sold_status: "available",
         appointment_time,
       };
+
+      // Only attach bankruptcy / trade fields when we actually have data —
+      // keeps `null` semantics (vs `false`/`""`) for partial Make.com payloads.
+      if (trade_in !== null) leadData.trade_in = trade_in;
+      if (has_bankruptcy !== null) leadData.has_bankruptcy = has_bankruptcy;
+      if (trade_in_vehicle !== null) leadData.trade_in_vehicle = trade_in_vehicle;
 
       if (matchedLead) {
         const appendedNotes = lead.notes
