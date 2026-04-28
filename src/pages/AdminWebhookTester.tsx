@@ -2048,6 +2048,101 @@ const AdminWebhookTester = () => {
           </CardContent>
         </Card>
 
+        {/* ── Live send results ────────────────────────────────────────── */}
+        {liveOutcomes && (
+          <Card className="border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" />
+                Live send results
+                {liveHttpStatus !== null && (
+                  <Badge variant="outline" className="text-[10px] font-mono">HTTP {liveHttpStatus}</Badge>
+                )}
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Canonical values read back from the <code>leads</code> table after the webhook ran.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {liveOutcomes.length === 0 && (
+                <div className="text-xs text-muted-foreground">No results returned.</div>
+              )}
+              {liveOutcomes.map((o, i) => (
+                <div key={i} className="rounded-md border border-border/60 p-3 space-y-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-mono text-sm">{o.reference_code || "—"}</span>
+                    {statusBadge(o.status)}
+                    {o.db?.sold_status && (
+                      <Badge variant="outline" className="text-[10px]">sold_status: {o.db.sold_status}</Badge>
+                    )}
+                  </div>
+                  {o.error && (
+                    <div className="text-xs text-destructive font-mono">Webhook error: {o.error}</div>
+                  )}
+                  {o.dbError && (
+                    <div className="text-xs text-destructive font-mono">DB read error: {o.dbError}</div>
+                  )}
+                  {o.db && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="rounded border border-border/60 p-2">
+                        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">has_bankruptcy</div>
+                        {o.db.has_bankruptcy === null || o.db.has_bankruptcy === undefined ? (
+                          <Badge variant="outline" className="mt-1 text-[10px]">null</Badge>
+                        ) : (
+                          <Badge variant={o.db.has_bankruptcy ? "destructive" : "secondary"} className="mt-1 text-[10px]">
+                            {String(o.db.has_bankruptcy)}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="rounded border border-border/60 p-2">
+                        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">trade_in_vehicle</div>
+                        <div className="mt-1 text-xs font-mono break-all">
+                          {o.db.trade_in_vehicle == null || o.db.trade_in_vehicle === ""
+                            ? <span className="text-muted-foreground">null</span>
+                            : o.db.trade_in_vehicle}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* ── Live send confirmation dialog ────────────────────────────── */}
+        <Dialog open={liveConfirmOpen} onOpenChange={setLiveConfirmOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-400" />
+                Send live to inbound webhook?
+              </DialogTitle>
+              <DialogDescription>
+                This will <strong>create or update real leads</strong> in the database (no <code>dry_run</code>).
+                Existing leads matched by email/phone will be merged. Continue?
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setLiveConfirmOpen(false)} disabled={liveLoading}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={async () => {
+                  setLiveConfirmOpen(false);
+                  await sendLive();
+                }}
+                disabled={liveLoading}
+                className="gap-2"
+              >
+                {liveLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                Yes, send live
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         <Card>
           <CardHeader className="flex-row items-start justify-between space-y-0">
             <div>
