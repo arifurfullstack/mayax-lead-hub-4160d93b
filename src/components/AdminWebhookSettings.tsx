@@ -16,6 +16,7 @@ const SETTINGS_KEYS = [
   "appointment_presend_enabled",
   "inbound_webhook_secret",
   "inbound_webhook_autofill_names",
+  "inbound_webhook_retry_rejected",
 ];
 
 interface Props {
@@ -86,6 +87,21 @@ export default function AdminWebhookSettings({ settingsForm, setSettingsForm, pl
           <Switch
             checked={settingsForm["inbound_webhook_autofill_names"] === "true"}
             onCheckedChange={(v) => update("inbound_webhook_autofill_names", v ? "true" : "false")}
+          />
+        </div>
+
+        <div className="flex items-start justify-between gap-4 rounded-lg border border-border/50 bg-muted/20 p-3">
+          <div className="space-y-1">
+            <Label className="text-xs font-medium text-foreground">Retry rejected leads on resubmission</Label>
+            <p className="text-[11px] text-muted-foreground">
+              When an inbound lead matches a previously <span className="text-destructive">rejected</span> one
+              (same email or phone), merge the new payload with the old one and re-attempt name recovery.
+              If it now passes, the lead is created and the original rejection is marked <code>recovered</code>.
+            </p>
+          </div>
+          <Switch
+            checked={settingsForm["inbound_webhook_retry_rejected"] === "true"}
+            onCheckedChange={(v) => update("inbound_webhook_retry_rejected", v ? "true" : "false")}
           />
         </div>
 

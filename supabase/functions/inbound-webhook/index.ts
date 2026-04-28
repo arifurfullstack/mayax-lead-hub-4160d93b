@@ -288,6 +288,7 @@ Deno.serve(async (req) => {
     (settingsRows ?? []).forEach((r: any) => { allSettings[r.key] = r.value ?? ""; });
 
     const autofillNames = (allSettings["inbound_webhook_autofill_names"] ?? "").toLowerCase() === "true";
+    const retryRejected = (allSettings["inbound_webhook_retry_rejected"] ?? "").toLowerCase() === "true";
 
     // Check webhook secret if configured
     const configuredSecret = allSettings["inbound_webhook_secret"]?.trim();
@@ -350,6 +351,67 @@ Deno.serve(async (req) => {
     }[] = [];
 
     for (const lead of leadsInput) {
+      // --- Retry merge: pull data from prior pending rejections (same email/phone) ---
+      // When enabled, an inbound payload that re-uses a known email/phone will be merged
+      // with the most recent prior rejection for that contact. This lets a sender fix a
+      // missing first/last name on a follow-up call without losing earlier fields.
+      let mergedRejectionIds: string[] = [];
+      if (retryRejected) {
+        const inboundEmailRaw = typeof lead?.email === "string" ? lead.email.trim().toLowerCase() : "";
+        const inboundPhoneRaw = typeof lead?.phone === "string" ? lead.phone.trim() : "";
+        const inboundPhoneDigitsRaw = normalizePhoneDigits(inboundPhoneRaw);
+        const orFilters: string[] = [];
+        if (inboundEmailRaw) orFilters.push(`normalized_email.eq.${inboundEmailRaw}`);
+        if (inboundPhoneDigitsRaw && inboundPhoneDigitsRaw.length >= 7) {
+          orFilters.push(`normalized_phone.eq.${inboundPhoneDigitsRaw}`);
+        }
+        if (orFilters.length > 0) {
+          const { data: priorRejections } = await admin
+            .from("rejected_inbound_leads")
+            .select("id, payload, retry_count")
+            .eq("status", "pending")
+            .or(orFilters.join(","))
+            .order("created_at", { ascending: false })
+            .limit(5);
+          if (priorRejections && priorRejections.length > 0) {
+            // Merge: current (non-empty) values win over prior; otherwise fill from prior.
+            const merged: Record<string, unknown> = {};
+            // Apply oldest → newest so newer prior values overwrite older
+            const ordered = [...priorRejections].reverse();
+            for (const rej of ordered) {
+              const p = (rej.payload as Record<string, unknown>) ?? {};
+              for (const [k, v] of Object.entries(p)) {
+                if (v !== null && v !== undefined && v !== "") merged[k] = v;
+              }
+            }
+            // Current payload wins for any non-empty value
+            for (const [k, v] of Object.entries(lead)) {
+              if (v !== null && v !== undefined && v !== "") merged[k] = v;
+            }
+            // Mutate the lead object in-place so the rest of the loop sees merged data
+            Object.assign(lead, merged);
+            mergedRejectionIds = priorRejections.map((r) => r.id);
+            console.log(
+              `[inbound-webhook ${requestId}] retry-merge matched ${priorRejections.length} prior rejection(s) email=${inboundEmailRaw || "none"} phone=${inboundPhoneDigitsRaw || "none"}`,
+            );
+            // Bump retry_count on the matched prior rows (best effort, non-blocking)
+            try {
+              for (const rej of priorRejections) {
+                await admin
+                  .from("rejected_inbound_leads")
+                  .update({
+                    retry_count: (rej.retry_count ?? 0) + 1,
+                    last_retry_at: new Date().toISOString(),
+                  })
+                  .eq("id", rej.id);
+              }
+            } catch (e) {
+              console.error(`[inbound-webhook ${requestId}] failed to bump retry_count`, e);
+            }
+          }
+        }
+      }
+
       // Attempt name recovery if enabled (or if a combined name field is present)
       let nameSource: string | null = null;
       if (autofillNames || lead?.name || lead?.full_name || lead?.customer_name) {
@@ -374,6 +436,9 @@ Deno.serve(async (req) => {
           (autofillNames
             ? `Auto-fill is ON but could not recover a name from email/notes/name fields. `
             : `Auto-fill is OFF — enable "Auto-fill missing names" in webhook settings to attempt recovery from email/notes. `) +
+          (retryRejected && mergedRejectionIds.length > 0
+            ? `Retry-merge ran against ${mergedRejectionIds.length} prior rejection(s) for this contact but still couldn't recover a name. `
+            : "") +
           `Suggested fix: ${suggestedFix}`;
         if (!dryRun) {
           try {
@@ -574,12 +639,33 @@ Deno.serve(async (req) => {
           console.log(
             `[inbound-webhook ${requestId}] ${status} ref=${referenceCode} match_id=${matchedLead.id} sold_status=${matchedLead.sold_status} price=${price} grade=${quality_grade}`,
           );
+          // Retry-merge succeeded — close out any prior pending rejections for this contact
+          if (mergedRejectionIds.length > 0) {
+            try {
+              await admin
+                .from("rejected_inbound_leads")
+                .update({
+                  status: "recovered",
+                  recovered_lead_id: matchedLead.id,
+                  recovered_at: new Date().toISOString(),
+                })
+                .in("id", mergedRejectionIds);
+              console.log(
+                `[inbound-webhook ${requestId}] marked ${mergedRejectionIds.length} prior rejection(s) as recovered → lead ${matchedLead.id}`,
+              );
+            } catch (e) {
+              console.error(`[inbound-webhook ${requestId}] failed to mark rejections recovered`, e);
+            }
+          }
           results.push({
             reference_code: referenceCode,
             status,
             ai_score,
             quality_grade,
             price,
+            ...(mergedRejectionIds.length > 0
+              ? { recovered_rejection_ids: mergedRejectionIds }
+              : {}),
           });
         }
         continue;
@@ -612,7 +698,11 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      const { error } = await admin.from("leads").insert(leadData);
+      const { data: insertedRows, error } = await admin
+        .from("leads")
+        .insert(leadData)
+        .select("id")
+        .maybeSingle();
 
       if (error) {
         console.error(
@@ -623,7 +713,34 @@ Deno.serve(async (req) => {
         console.log(
           `[inbound-webhook ${requestId}] created ref=${referenceCode} email=${inboundEmail || "none"} phone=${inboundPhoneDigits || "none"} price=${price} grade=${quality_grade} ai_score=${ai_score}`,
         );
-        results.push({ reference_code: referenceCode, status: "created", ai_score, quality_grade, price });
+        // Retry-merge succeeded — close out any prior pending rejections for this contact
+        if (mergedRejectionIds.length > 0) {
+          try {
+            await admin
+              .from("rejected_inbound_leads")
+              .update({
+                status: "recovered",
+                recovered_lead_id: insertedRows?.id ?? null,
+                recovered_at: new Date().toISOString(),
+              })
+              .in("id", mergedRejectionIds);
+            console.log(
+              `[inbound-webhook ${requestId}] marked ${mergedRejectionIds.length} prior rejection(s) as recovered → lead ${insertedRows?.id ?? "unknown"}`,
+            );
+          } catch (e) {
+            console.error(`[inbound-webhook ${requestId}] failed to mark rejections recovered`, e);
+          }
+        }
+        results.push({
+          reference_code: referenceCode,
+          status: "created",
+          ai_score,
+          quality_grade,
+          price,
+          ...(mergedRejectionIds.length > 0
+            ? { recovered_rejection_ids: mergedRejectionIds }
+            : {}),
+        });
       }
     }
 

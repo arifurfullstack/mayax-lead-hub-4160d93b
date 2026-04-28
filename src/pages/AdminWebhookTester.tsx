@@ -531,6 +531,7 @@ type LeadResult = {
   dry_run?: boolean;
   matched?: { id: string; reference_code: string; sold_status: string } | null;
   computed?: Record<string, unknown>;
+  recovered_rejection_ids?: string[];
 };
 
 type ApiResponse =
