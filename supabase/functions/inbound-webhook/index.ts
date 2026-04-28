@@ -358,11 +358,14 @@ function looksLikeValidEmail(value: unknown): boolean {
 function normalizeInboundLead(lead: any): any {
   if (!lead || typeof lead !== "object") return lead;
 
+  // Map alias keys ("bankruptcy", "trade_in vehicle", etc.) to canonical keys first
+  applyKeyAliases(lead);
+
   // String fields → null when empty-ish
   for (const k of [
     "first_name", "last_name", "email", "phone", "city", "province",
     "buyer_type", "vehicle_preference", "notes", "appointment_time",
-    "reference_code",
+    "reference_code", "trade_in_vehicle",
   ]) {
     if (k in lead) lead[k] = nullIfEmptyish(lead[k]);
   }
@@ -390,13 +393,17 @@ function normalizeInboundLead(lead: any): any {
     }
   }
 
-  // Boolean coercion for trade_in
-  if ("trade_in" in lead) {
-    const v = lead.trade_in;
+  // Boolean coercion for trade_in + has_bankruptcy
+  for (const boolKey of ["trade_in", "has_bankruptcy"]) {
+    if (!(boolKey in lead)) continue;
+    const v = lead[boolKey];
     if (typeof v === "string") {
       const s = v.trim().toLowerCase();
-      if (["true", "yes", "y", "1"].includes(s)) lead.trade_in = true;
-      else if (["false", "no", "n", "0", ""].includes(s)) lead.trade_in = false;
+      if (["true", "yes", "y", "1"].includes(s)) lead[boolKey] = true;
+      else if (["false", "no", "n", "0", ""].includes(s)) lead[boolKey] = false;
+      else if (s === "") lead[boolKey] = null;
+    } else if (typeof v === "number") {
+      lead[boolKey] = v === 1;
     }
   }
 
