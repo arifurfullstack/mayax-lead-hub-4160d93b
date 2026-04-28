@@ -269,7 +269,12 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
 
         {/* Status + Price + Buy row */}
         <div className="flex items-center justify-between">
-          {isLocked ? (
+          {isSold ? (
+            <span className="text-[11px] font-semibold px-2 py-1 rounded flex items-center gap-1 font-mono-timer border border-muted-foreground/40 text-muted-foreground bg-muted/20 uppercase tracking-wider">
+              <ShoppingBag className="h-3 w-3" />
+              Sold {lead.buyer_dealership_name ? `· ${lead.buyer_dealership_name}` : ""} {lead.sold_at ? `· ${timeAgoShort(lead.sold_at)}` : ""}
+            </span>
+          ) : isLocked ? (
             <span className="badge-amber text-[11px] font-medium px-2 py-1 rounded flex items-center gap-1 font-mono-timer">
               <Clock className="h-3 w-3" /> {display}
             </span>
@@ -287,12 +292,14 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
             ) : (
               <span className="text-lg font-bold text-foreground font-mono-timer">${Number(lead.price).toFixed(0)}</span>
             )}
-            <button
-              className="gradient-cta-buy text-foreground px-4 py-1.5 rounded text-[11px] font-semibold tracking-wide hover:opacity-90 transition-opacity"
-              onClick={(e) => { e.stopPropagation(); onBuy(lead); }}
-            >
-              BUY &nbsp;&rsaquo;
-            </button>
+            {!isSold && (
+              <button
+                className="gradient-cta-buy text-foreground px-4 py-1.5 rounded text-[11px] font-semibold tracking-wide hover:opacity-90 transition-opacity"
+                onClick={(e) => { e.stopPropagation(); onBuy(lead); }}
+              >
+                BUY &nbsp;&rsaquo;
+              </button>
+            )}
           </div>
         </div>
       </div>
