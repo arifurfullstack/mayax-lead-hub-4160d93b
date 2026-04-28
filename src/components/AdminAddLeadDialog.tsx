@@ -426,7 +426,28 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
                 <span className="text-xs text-muted-foreground">{form.trade_in ? "Yes" : "No"}</span>
               </div>
             </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Bankruptcy</Label>
+              <div className="flex items-center gap-2 h-9">
+                <Switch checked={form.has_bankruptcy} onCheckedChange={(v) => update("has_bankruptcy", v)} />
+                <span className="text-xs text-muted-foreground">{form.has_bankruptcy ? "Yes" : "No"}</span>
+              </div>
+            </div>
           </div>
+
+          {/* Trade-in vehicle details (only shown when trade-in is on) */}
+          {form.trade_in && (
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Trade-In Vehicle</Label>
+              <Input
+                value={form.trade_in_vehicle}
+                onChange={(e) => update("trade_in_vehicle", e.target.value)}
+                placeholder="e.g. 2018 Honda Civic, 80,000 km"
+                className="bg-background border-border"
+                maxLength={200}
+              />
+            </div>
+          )}
 
           {/* Detected flags from notes */}
           {(notesFlags.trade_in || notesFlags.has_bankruptcy || notesFlags.has_appointment) && (
