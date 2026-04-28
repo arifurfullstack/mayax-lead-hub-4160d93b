@@ -10,7 +10,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
-import { AlertTriangle, RefreshCw, Search, Copy, Trash2, Loader2, RotateCw, CheckCircle2, XCircle } from "lucide-react";
+import { AlertTriangle, RefreshCw, Search, Copy, Trash2, Loader2, RotateCw, CheckCircle2, XCircle, MapPin, Mail, Phone, FileWarning, UserX, Inbox, Filter as FilterIcon } from "lucide-react";
 import { toast } from "sonner";
 
 type RejectedRow = {
@@ -54,6 +54,70 @@ const missingFieldsFromError = (err: string): string[] => {
   return m[1].split(",").map((s) => s.trim()).filter(Boolean);
 };
 
+// ----------------------------------------------------------------------------
+// error_type → human label, icon, and "what to do" tip
+// ----------------------------------------------------------------------------
+type ErrorTypeMeta = { label: string; tip: string; icon: typeof AlertTriangle; tone: string };
+
+const ERROR_TYPE_META: Record<string, ErrorTypeMeta> = {
+  validation: {
+    label: "Validation",
+    tip: "Generic validation failure — open the row to see the full message and payload.",
+    icon: AlertTriangle,
+    tone: "text-destructive",
+  },
+  missing_required_fields: {
+    label: "Missing first/last name",
+    tip: "Make.com is sending an empty first_name or last_name. Either map the correct variable or enable “Auto-fill missing names” in webhook settings.",
+    icon: UserX,
+    tone: "text-destructive",
+  },
+  name_recovery_failed: {
+    label: "Name recovery failed",
+    tip: "Auto-fill is ON but no usable name could be recovered from email/notes/name fields. Check that the customer's email is real and follows a name pattern (e.g. john.doe@…).",
+    icon: UserX,
+    tone: "text-warning",
+  },
+  payload_appears_empty: {
+    label: "Empty payload",
+    tip: "The HTTP request fired before your Make.com data-prep step finished. Add a Filter module that only continues when first_name AND last_name AND (email OR phone) are non-empty.",
+    icon: Inbox,
+    tone: "text-destructive",
+  },
+  city_looks_like_vehicle: {
+    label: "Wrong mapping: city ↔ vehicle",
+    tip: "The “city” field contains vehicle text (e.g. “Mercedes Benz”). In Make.com, swap the city and vehicle_preference variables in the HTTP module.",
+    icon: MapPin,
+    tone: "text-warning",
+  },
+  vehicle_looks_like_city: {
+    label: "Vehicle looks like a city",
+    tip: "vehicle_preference looks like a city name. Verify the Make.com mapping for both fields.",
+    icon: MapPin,
+    tone: "text-warning",
+  },
+  email_invalid: {
+    label: "Invalid email",
+    tip: "Make.com sent a non-email string in the email field (e.g. “None”, “unknown”). Make sure the email variable is mapped correctly and pass an empty string instead of placeholder text when missing.",
+    icon: Mail,
+    tone: "text-destructive",
+  },
+  phone_too_short: {
+    label: "Phone too short",
+    tip: "Phone has fewer than 7 digits. Check the source variable in Make.com — sometimes only the area code or extension makes it through.",
+    icon: Phone,
+    tone: "text-destructive",
+  },
+};
+
+const metaFor = (errorType: string): ErrorTypeMeta =>
+  ERROR_TYPE_META[errorType] ?? {
+    label: errorType || "unknown",
+    tip: "No specific guidance for this error type yet — open the row to inspect the payload.",
+    icon: FileWarning,
+    tone: "text-muted-foreground",
+  };
+
 const StatCard = ({ label, value, accent }: { label: string; value: number; accent?: string }) => (
   <div className="glass-card p-4">
     <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">{label}</p>
@@ -65,6 +129,7 @@ const AdminRejectedLeads = () => {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<RejectedRow | null>(null);
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "recovered" | "discarded">("pending");
+  const [errorTypeFilter, setErrorTypeFilter] = useState<string>("all");
   const [retryingId, setRetryingId] = useState<string | null>(null);
 
   const { data, isLoading, refetch, isFetching } = useQuery({
@@ -84,6 +149,7 @@ const AdminRejectedLeads = () => {
     const q = search.trim().toLowerCase();
     return (data ?? []).filter((r) => {
       if (statusFilter !== "all" && r.status !== statusFilter) return false;
+      if (errorTypeFilter !== "all" && r.error_type !== errorTypeFilter) return false;
       if (!q) return true;
       const haystack = [
         r.first_name, r.last_name, r.email, r.phone, r.reference_code,
@@ -91,7 +157,7 @@ const AdminRejectedLeads = () => {
       ].filter(Boolean).join(" ").toLowerCase();
       return haystack.includes(q);
     });
-  }, [data, search, statusFilter]);
+  }, [data, search, statusFilter, errorTypeFilter]);
 
   const stats = useMemo(() => {
     const rows = data ?? [];
@@ -100,6 +166,26 @@ const AdminRejectedLeads = () => {
     const pending = rows.filter((r) => r.status === "pending").length;
     const recovered = rows.filter((r) => r.status === "recovered").length;
     return { total: rows.length, last24h, pending, recovered };
+  }, [data]);
+
+  // Last-7-day breakdown by error_type (only counts pending+discarded — recovered = resolved)
+  const errorHeatmap = useMemo(() => {
+    const rows = data ?? [];
+    const cutoff = Date.now() - 7 * 24 * 3600_000;
+    const counts: Record<string, number> = {};
+    for (const r of rows) {
+      if (new Date(r.created_at).getTime() < cutoff) continue;
+      if (r.status === "recovered") continue;
+      const k = r.error_type || "unknown";
+      counts[k] = (counts[k] ?? 0) + 1;
+    }
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  }, [data]);
+
+  const allErrorTypes = useMemo(() => {
+    const set = new Set<string>();
+    (data ?? []).forEach((r) => set.add(r.error_type || "unknown"));
+    return Array.from(set).sort();
   }, [data]);
 
   const handleDelete = async (id: string) => {
