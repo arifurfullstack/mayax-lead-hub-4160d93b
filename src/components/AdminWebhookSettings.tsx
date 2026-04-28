@@ -15,6 +15,7 @@ const SETTINGS_KEYS = [
   "appointment_pre_send_minutes",
   "appointment_presend_enabled",
   "inbound_webhook_secret",
+  "inbound_webhook_autofill_names",
 ];
 
 interface Props {
@@ -70,6 +71,21 @@ export default function AdminWebhookSettings({ settingsForm, setSettingsForm, pl
             onChange={(e) => update("inbound_webhook_secret", e.target.value)}
             placeholder="Leave blank to disable secret validation"
             className="bg-card border-border"
+          />
+        </div>
+
+        <div className="flex items-start justify-between gap-4 rounded-lg border border-border/50 bg-muted/20 p-3">
+          <div className="space-y-1">
+            <Label className="text-xs font-medium text-foreground">Auto-fill missing names</Label>
+            <p className="text-[11px] text-muted-foreground">
+              When <span className="text-destructive">first_name</span> or <span className="text-destructive">last_name</span> is missing,
+              try to recover them from <code>email</code> (e.g. <code>john.doe@…</code>) or <code>notes</code>.
+              If recovery fails, the lead is rejected with a clearer suggested fix.
+            </p>
+          </div>
+          <Switch
+            checked={settingsForm["inbound_webhook_autofill_names"] === "true"}
+            onCheckedChange={(v) => update("inbound_webhook_autofill_names", v ? "true" : "false")}
           />
         </div>
 
