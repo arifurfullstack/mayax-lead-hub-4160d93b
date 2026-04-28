@@ -96,6 +96,8 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
     notes: "",
     appointment_time: "",
     trade_in: false,
+    trade_in_vehicle: "",
+    has_bankruptcy: false,
   });
 
   const [selectedDocTypes, setSelectedDocTypes] = useState<string[]>([]);
@@ -133,7 +135,7 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
   // Parse notes for hidden conditional flags
   const notesFlags = useMemo(() => parseNotesFlags(form.notes), [form.notes]);
   const effectiveTradeIn = form.trade_in || notesFlags.trade_in;
-  const effectiveBankruptcy = notesFlags.has_bankruptcy;
+  const effectiveBankruptcy = form.has_bankruptcy || notesFlags.has_bankruptcy;
 
   const computed = useMemo(() => {
     const aiResult = calculateAiScore({
@@ -154,7 +156,7 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
     }, pricing);
 
     return { ...aiResult, price: priceBreakdown.total, breakdown: priceBreakdown };
-  }, [form.income, form.vehicle_preference, form.buyer_type, form.notes, form.appointment_time, form.trade_in, pricing, notesFlags, effectiveTradeIn, effectiveBankruptcy]);
+  }, [form.income, form.vehicle_preference, form.buyer_type, form.notes, form.appointment_time, form.trade_in, form.has_bankruptcy, pricing, notesFlags, effectiveTradeIn, effectiveBankruptcy]);
 
   const generateRefCode = () => {
     const year = new Date().getFullYear();
@@ -217,6 +219,7 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
       notes: form.notes || null,
       appointment_time: form.appointment_time || null,
       trade_in: effectiveTradeIn,
+      trade_in_vehicle: effectiveTradeIn ? (form.trade_in_vehicle || null) : null,
       has_bankruptcy: effectiveBankruptcy,
       documents: selectedDocTypes.length > 0 ? selectedDocTypes : null,
     } as any;
@@ -264,7 +267,7 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
       buyer_type: "online",
       vehicle_preference: "", vehicle_price: "", vehicle_mileage: "", income: "",
       credit_range_min: "", credit_range_max: "", notes: "", appointment_time: "",
-      trade_in: false,
+      trade_in: false, trade_in_vehicle: "", has_bankruptcy: false,
     });
     setSelectedDocTypes([]);
     setStagedFiles([]);
