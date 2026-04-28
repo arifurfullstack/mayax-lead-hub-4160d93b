@@ -704,6 +704,7 @@ Deno.serve(async (req) => {
       quality_grade?: string;
       price?: number;
       error?: string;
+      errors?: SchemaError[];
       dry_run?: boolean;
       matched?: { id: string; reference_code: string; sold_status: string } | null;
       computed?: Record<string, unknown>;
@@ -712,6 +713,53 @@ Deno.serve(async (req) => {
     for (const lead of leadsInput) {
       // --- 0. Normalize payload (empty-literals → null, numeric coercion) ---
       normalizeInboundLead(lead);
+
+      // --- 0_schema. JSON Schema (Zod) validation ---
+      // Aggregates ALL field-level errors at once with a per-field
+      // suggested fix, so Make.com users get a single clear list.
+      const schemaResult = inboundLeadSchema.safeParse(lead);
+      if (!schemaResult.success) {
+        const fieldErrors = buildSchemaErrors(schemaResult.error, lead);
+        const summary = fieldErrors
+          .map((e) => `• ${e.field}: ${e.message} (received: ${JSON.stringify(e.received)}). ${e.suggested_fix}`)
+          .join("\n");
+        const rejectionError =
+          `Schema validation failed (${fieldErrors.length} field error${fieldErrors.length === 1 ? "" : "s"}):\n${summary}\n\n` +
+          `Suggested fix: open your Make.com HTTP module and re-map each field listed above. ` +
+          `See the Make.com Integration Guide in MayaX admin for the full mapping table.`;
+        if (!dryRun) {
+          try {
+            await admin.from("rejected_inbound_leads").insert({
+              request_id: requestId,
+              reference_code: lead?.reference_code ?? null,
+              error_message: rejectionError,
+              error_type: "schema_validation",
+              first_name: lead?.first_name ?? null,
+              last_name: lead?.last_name ?? null,
+              email: typeof lead?.email === "string" ? lead.email : null,
+              phone: typeof lead?.phone === "string" ? lead.phone : null,
+              city: lead?.city ?? null,
+              province: lead?.province ?? null,
+              payload: lead ?? {},
+              source_ip: sourceIp,
+              user_agent: userAgent,
+            });
+          } catch (e) {
+            console.error(`[inbound-webhook ${requestId}] failed to log schema rejection`, e);
+          }
+        }
+        console.warn(
+          `[inbound-webhook ${requestId}] schema rejected: ${fieldErrors.map((e) => e.field).join(",")}`,
+        );
+        results.push({
+          reference_code: lead?.reference_code ?? "unknown",
+          status: "error",
+          error: rejectionError,
+          errors: fieldErrors,
+          ...(dryRun ? { dry_run: true } : {}),
+        });
+        continue;
+      }
 
       // --- 0a. Reject obviously-empty pings ("Make.com fired too early") ---
       if (rejectEmptyPayloads && isPayloadEffectivelyEmpty(lead)) {
