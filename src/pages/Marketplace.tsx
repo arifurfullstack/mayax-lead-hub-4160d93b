@@ -401,11 +401,20 @@ const Marketplace = () => {
   }, [leads]);
 
   const filtered = useMemo(() => {
-    let result = leads.filter((l) => l.sold_status === "available");
-    result = applyFilters(result, filters, maxIncome);
-    result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    return result;
-  }, [leads, filters, maxIncome]);
+    const available = applyFilters(
+      leads.filter((l) => l.sold_status === "available"),
+      filters,
+      maxIncome,
+    ).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    if (includeSoldHours <= 0) return available;
+
+    const sold = leads
+      .filter((l) => l.sold_status === "sold")
+      .sort((a, b) => new Date(b.sold_at ?? 0).getTime() - new Date(a.sold_at ?? 0).getTime());
+
+    return [...available, ...sold];
+  }, [leads, filters, maxIncome, includeSoldHours]);
 
   const activeFilterCount = countActiveFilters(filters);
 
