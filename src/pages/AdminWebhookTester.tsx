@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, FlaskConical, Copy, AlertTriangle, CheckCircle2, RefreshCw, Wand2, BookOpen, Info, ShieldAlert, ShieldCheck, FileJson, ChevronDown, UserCheck, UserX, Sparkles } from "lucide-react";
+import { Loader2, FlaskConical, Copy, AlertTriangle, CheckCircle2, RefreshCw, Wand2, BookOpen, Info, ShieldAlert, ShieldCheck, FileJson, ChevronDown, UserCheck, UserX, Sparkles, Search } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Collapsible,
@@ -32,6 +32,8 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import { supabase } from "@/integrations/supabase/client";
 
 // --- Schema reference (mirrors supabase/functions/inbound-webhook/index.ts) ---
 type FieldDef = {
@@ -736,6 +738,48 @@ const AdminWebhookTester = () => {
   // so the user can preview both ON and OFF behaviour without changing platform settings.
   const [simulateAutofill, setSimulateAutofill] = useState(true);
 
+  // --- Inspect Lead in DB (admin lookup by id or reference_code) ---
+  const [lookupInput, setLookupInput] = useState("");
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupRow, setLookupRow] = useState<Record<string, unknown> | null>(null);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+
+  const isUuid = (s: string) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.trim());
+
+  const inspectLead = async () => {
+    const q = lookupInput.trim();
+    if (!q) {
+      toast.error("Enter a lead id (UUID) or reference_code (e.g. MX-2026-123)");
+      return;
+    }
+    setLookupLoading(true);
+    setLookupError(null);
+    setLookupRow(null);
+    try {
+      const query = supabase.from("leads").select("*").limit(1);
+      const { data, error } = isUuid(q)
+        ? await query.eq("id", q).maybeSingle()
+        : await query.eq("reference_code", q).maybeSingle();
+      if (error) throw error;
+      if (!data) {
+        setLookupError(`No lead found for ${isUuid(q) ? "id" : "reference_code"} "${q}".`);
+        return;
+      }
+      setLookupRow(data as Record<string, unknown>);
+    } catch (err: any) {
+      setLookupError(err?.message ?? "Lookup failed");
+    } finally {
+      setLookupLoading(false);
+    }
+  };
+
+  const copyLookupJson = async () => {
+    if (!lookupRow) return;
+    await navigator.clipboard.writeText(JSON.stringify(lookupRow, null, 2));
+    toast.success("Lead JSON copied");
+  };
+
   const validation = useMemo(() => validatePayload(payload), [payload]);
 
   // Preview state — when set, the diff dialog is open showing before/after.
@@ -1208,6 +1252,91 @@ const AdminWebhookTester = () => {
           Requests go to <code className="text-xs">{FUNCTIONS_BASE}?dry_run=1</code>. Nothing is inserted, updated, or deleted.
         </AlertDescription>
       </Alert>
+
+      {/* ── Inspect Lead in DB ─────────────────────────────────────────── */}
+      <Card className="border-border/60">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Search className="h-4 w-4 text-primary" />
+            Inspect Lead in Database
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Look up a stored lead by <code>id</code> (UUID) or <code>reference_code</code> (e.g. <code>MX-2026-123</code>) to verify what was actually persisted — including <code>has_bankruptcy</code> and <code>trade_in_vehicle</code>.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex gap-2">
+            <Input
+              value={lookupInput}
+              onChange={(e) => setLookupInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") inspectLead(); }}
+              placeholder="Lead UUID or reference code (MX-YYYY-XXX)"
+              className="font-mono text-xs"
+            />
+            <Button onClick={inspectLead} disabled={lookupLoading} size="sm">
+              {lookupLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+              <span className="ml-2">Fetch</span>
+            </Button>
+          </div>
+
+          {lookupError && (
+            <Alert variant="destructive" className="py-2">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription className="text-xs">{lookupError}</AlertDescription>
+            </Alert>
+          )}
+
+          {lookupRow && (
+            <div className="space-y-3">
+              {/* Highlighted columns */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                <div className="rounded-md border border-border/50 bg-muted/30 p-3">
+                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground">reference_code</div>
+                  <div className="text-sm font-mono mt-1 break-all">{String(lookupRow.reference_code ?? "—")}</div>
+                </div>
+                <div className="rounded-md border border-primary/40 bg-primary/5 p-3">
+                  <div className="text-[10px] uppercase tracking-wide text-primary/80">has_bankruptcy</div>
+                  <div className="text-sm font-mono mt-1">
+                    {lookupRow.has_bankruptcy === null || lookupRow.has_bankruptcy === undefined ? (
+                      <span className="text-muted-foreground">null</span>
+                    ) : (
+                      <Badge variant={lookupRow.has_bankruptcy ? "destructive" : "secondary"} className="text-[10px]">
+                        {String(lookupRow.has_bankruptcy)}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                <div className="rounded-md border border-primary/40 bg-primary/5 p-3">
+                  <div className="text-[10px] uppercase tracking-wide text-primary/80">trade_in_vehicle</div>
+                  <div className="text-sm font-mono mt-1 break-words">
+                    {lookupRow.trade_in_vehicle == null || lookupRow.trade_in_vehicle === ""
+                      ? <span className="text-muted-foreground">null</span>
+                      : String(lookupRow.trade_in_vehicle)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Raw JSON */}
+              <Collapsible defaultOpen>
+                <div className="flex items-center justify-between">
+                  <CollapsibleTrigger className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+                    <ChevronDown className="h-3 w-3" />
+                    Raw row JSON
+                  </CollapsibleTrigger>
+                  <Button variant="ghost" size="sm" onClick={copyLookupJson} className="h-7 px-2">
+                    <Copy className="h-3 w-3 mr-1" /> Copy
+                  </Button>
+                </div>
+                <CollapsibleContent>
+                  <pre className="mt-2 max-h-96 overflow-auto rounded border border-border/50 bg-muted/30 p-3 text-[11px] font-mono">
+                    {JSON.stringify(lookupRow, null, 2)}
+                  </pre>
+                </CollapsibleContent>
+              </Collapsible>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Collapsible defaultOpen className="rounded-lg border border-border/60 bg-card/40">
         <CollapsibleTrigger className="w-full flex items-center justify-between gap-2 px-4 py-3 text-left hover:bg-card/60 transition-colors">
