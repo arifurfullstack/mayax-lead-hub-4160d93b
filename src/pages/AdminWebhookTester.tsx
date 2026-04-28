@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, FlaskConical, Copy, AlertTriangle, CheckCircle2, RefreshCw, Wand2, BookOpen, Info, ShieldAlert, ShieldCheck, FileJson, ChevronDown } from "lucide-react";
+import { Loader2, FlaskConical, Copy, AlertTriangle, CheckCircle2, RefreshCw, Wand2, BookOpen, Info, ShieldAlert, ShieldCheck, FileJson, ChevronDown, UserCheck, UserX, Sparkles } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Collapsible,
@@ -557,6 +557,117 @@ function gradeBadge(grade?: string) {
   );
 }
 
+// --- Client-side mirror of `recoverNamesFromPayload` from the edge function ---
+// Keep in sync with supabase/functions/inbound-webhook/index.ts
+function _titleCase(s: string): string {
+  return s
+    .toLowerCase()
+    .split(/[\s\-']+/)
+    .filter(Boolean)
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+    .join(" ");
+}
+function _looksLikeName(s: string): boolean {
+  return /^[A-Za-zÀ-ÿ'’\-]{2,}$/.test(s);
+}
+type NameRecoveryPreview = {
+  leadIndex: number;
+  originalFirst: string | null;
+  originalLast: string | null;
+  recoveredFirst: string | null;
+  recoveredLast: string | null;
+  source: "name_field" | "email" | "notes" | null;
+  attempted: boolean;
+  resolvedFirst: string | null;
+  resolvedLast: string | null;
+  wouldPass: boolean;
+  suggestedFix: string | null;
+};
+
+function simulateNameRecovery(lead: any, autofillEnabled: boolean): NameRecoveryPreview {
+  const originalFirst =
+    typeof lead?.first_name === "string" && lead.first_name.trim() ? lead.first_name.trim() : null;
+  const originalLast =
+    typeof lead?.last_name === "string" && lead.last_name.trim() ? lead.last_name.trim() : null;
+
+  let first: string | null = originalFirst;
+  let last: string | null = originalLast;
+  let source: NameRecoveryPreview["source"] = null;
+
+  // Mirror server: try recovery if autofill ON OR a name-like field is provided
+  const hasNameField = !!(lead?.name || lead?.full_name || lead?.customer_name);
+  const attempted = autofillEnabled || hasNameField;
+
+  if (attempted) {
+    const combined =
+      (typeof lead?.name === "string" && lead.name.trim()) ||
+      (typeof lead?.full_name === "string" && lead.full_name.trim()) ||
+      (typeof lead?.customer_name === "string" && lead.customer_name.trim()) ||
+      "";
+    if ((!first || !last) && combined) {
+      const parts = combined.split(/\s+/).filter(Boolean);
+      if (parts.length >= 2) {
+        if (!first) first = _titleCase(parts[0]);
+        if (!last) last = _titleCase(parts.slice(1).join(" "));
+        source = "name_field";
+      } else if (parts.length === 1 && !first) {
+        first = _titleCase(parts[0]);
+        source = "name_field";
+      }
+    }
+    const email = typeof lead?.email === "string" ? lead.email.trim() : "";
+    if ((!first || !last) && email.includes("@")) {
+      const local = email.split("@")[0].replace(/\+.*$/, "");
+      const parts = local.split(/[._\-]+/).filter(Boolean);
+      if (parts.length >= 2 && _looksLikeName(parts[0]) && _looksLikeName(parts[1])) {
+        if (!first) first = _titleCase(parts[0]);
+        if (!last) last = _titleCase(parts[1]);
+        source = source ?? "email";
+      }
+    }
+    const notes = typeof lead?.notes === "string" ? lead.notes : "";
+    if ((!first || !last) && notes) {
+      const m = notes.match(
+        /(?:name|customer|client|lead)\s*[:\-]\s*([A-Za-zÀ-ÿ'’\-]+)\s+([A-Za-zÀ-ÿ'’\-]+)/i,
+      );
+      if (m) {
+        if (!first) first = _titleCase(m[1]);
+        if (!last) last = _titleCase(m[2]);
+        source = source ?? "notes";
+      }
+    }
+  }
+
+  const wouldPass = !!(first && last);
+  let suggestedFix: string | null = null;
+  if (!wouldPass) {
+    const missing: string[] = [];
+    if (!first) missing.push("first_name");
+    if (!last) missing.push("last_name");
+    suggestedFix =
+      `Add ${missing.join(" and ")} to the JSON. ` +
+      (autofillEnabled
+        ? `Auto-fill is ON but couldn't recover from name/email/notes — try adding a "name":"John Doe" field, or use an email like "john.doe@example.com".`
+        : `Auto-fill is OFF — turn it on in Webhook Settings to attempt recovery from email/notes/name fields.`);
+  }
+
+  return {
+    leadIndex: 0,
+    originalFirst,
+    originalLast,
+    recoveredFirst:
+      attempted && first && first !== originalFirst ? first : null,
+    recoveredLast:
+      attempted && last && last !== originalLast ? last : null,
+    source: attempted && (first !== originalFirst || last !== originalLast) ? source : null,
+    attempted,
+    resolvedFirst: first,
+    resolvedLast: last,
+    wouldPass,
+    suggestedFix,
+  };
+}
+
 const AdminWebhookTester = () => {
   const [payload, setPayload] = useState(SAMPLE_PAYLOAD);
   const [secret, setSecret] = useState("");
@@ -565,6 +676,9 @@ const AdminWebhookTester = () => {
   const [httpStatus, setHttpStatus] = useState<number | null>(null);
   const [latencyMs, setLatencyMs] = useState<number | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
+  // Simulate the server-side `inbound_webhook_autofill_names` setting locally
+  // so the user can preview both ON and OFF behaviour without changing platform settings.
+  const [simulateAutofill, setSimulateAutofill] = useState(true);
 
   const validation = useMemo(() => validatePayload(payload), [payload]);
 
@@ -1279,6 +1393,140 @@ const AdminWebhookTester = () => {
                 className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
               />
             </div>
+            {(() => {
+              // Name-recovery preview — local simulation, no network call.
+              // Mirrors `recoverNamesFromPayload` in the edge function so admins
+              // can see exactly which leads would pass / fail with or without
+              // the `inbound_webhook_autofill_names` setting enabled.
+              let parsed: unknown;
+              try {
+                parsed = JSON.parse(payload);
+              } catch {
+                return null;
+              }
+              if (parsed === null || typeof parsed !== "object") return null;
+              const leads = Array.isArray(parsed) ? (parsed as any[]) : [parsed as any];
+              const previews = leads.map((l, i) => ({
+                ...simulateNameRecovery(l, simulateAutofill),
+                leadIndex: i,
+              }));
+              const passed = previews.filter((p) => p.wouldPass).length;
+              const recoveredCount = previews.filter((p) => p.source).length;
+              return (
+                <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3 flex-wrap">
+                    <div>
+                      <h3 className="text-sm font-semibold flex items-center gap-2">
+                        <Sparkles className="h-4 w-4 text-primary" />
+                        Name recovery preview
+                      </h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Simulates the webhook's first/last-name auto-fill locally — no request sent.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 rounded-md border border-border/60 bg-background/60 px-3 py-1.5">
+                      <Switch
+                        id="sim-autofill"
+                        checked={simulateAutofill}
+                        onCheckedChange={setSimulateAutofill}
+                      />
+                      <Label htmlFor="sim-autofill" className="text-xs cursor-pointer">
+                        Simulate auto-fill {simulateAutofill ? "ON" : "OFF"}
+                      </Label>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <Badge variant="outline" className="bg-emerald-500/15 text-emerald-300 border-emerald-500/40">
+                      {passed}/{previews.length} would pass
+                    </Badge>
+                    {recoveredCount > 0 && (
+                      <Badge variant="outline" className="bg-blue-500/15 text-blue-300 border-blue-500/40">
+                        {recoveredCount} recovered
+                      </Badge>
+                    )}
+                    {passed < previews.length && (
+                      <Badge variant="outline" className="bg-red-500/15 text-red-300 border-red-500/40">
+                        {previews.length - passed} would reject
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    {previews.map((p) => (
+                      <div
+                        key={p.leadIndex}
+                        className={`rounded border px-3 py-2 text-xs ${
+                          p.wouldPass
+                            ? "border-emerald-500/30 bg-emerald-500/5"
+                            : "border-red-500/40 bg-red-500/10"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            {p.wouldPass ? (
+                              <UserCheck className="h-3.5 w-3.5 text-emerald-400" />
+                            ) : (
+                              <UserX className="h-3.5 w-3.5 text-red-400" />
+                            )}
+                            <span className="font-mono text-muted-foreground">
+                              Lead #{p.leadIndex + 1}
+                            </span>
+                            {p.wouldPass ? (
+                              <Badge
+                                variant="outline"
+                                className="bg-emerald-500/15 text-emerald-300 border-emerald-500/40 text-[10px]"
+                              >
+                                Would accept
+                              </Badge>
+                            ) : (
+                              <Badge
+                                variant="outline"
+                                className="bg-red-500/15 text-red-300 border-red-500/40 text-[10px]"
+                              >
+                                Would reject
+                              </Badge>
+                            )}
+                            {p.source && (
+                              <Badge
+                                variant="outline"
+                                className="bg-blue-500/15 text-blue-300 border-blue-500/40 text-[10px]"
+                              >
+                                from {p.source}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        <div className="mt-1.5 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 font-mono text-[11px]">
+                          <div>
+                            <span className="text-muted-foreground">first: </span>
+                            <span className={p.originalFirst ? "" : "text-muted-foreground italic"}>
+                              {p.originalFirst ?? "(empty)"}
+                            </span>
+                            {p.recoveredFirst && (
+                              <span className="text-emerald-300"> → {p.recoveredFirst}</span>
+                            )}
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">last: </span>
+                            <span className={p.originalLast ? "" : "text-muted-foreground italic"}>
+                              {p.originalLast ?? "(empty)"}
+                            </span>
+                            {p.recoveredLast && (
+                              <span className="text-emerald-300"> → {p.recoveredLast}</span>
+                            )}
+                          </div>
+                        </div>
+                        {p.suggestedFix && (
+                          <div className="mt-1.5 text-[11px] text-red-200/90 leading-relaxed">
+                            <strong className="text-red-300">Suggested fix: </strong>
+                            {p.suggestedFix}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
             <div className="flex flex-wrap gap-2 pt-2">
               <Button onClick={runDryRun} disabled={loading || !validation.ok} className="gap-2">
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FlaskConical className="h-4 w-4" />}
