@@ -153,6 +153,88 @@ function normalizePhoneDigits(raw: string | null | undefined): string {
   const digits = (raw ?? "").replace(/[^0-9]/g, "");
   return digits.length > 10 ? digits.slice(-10) : digits;
 }
+
+// --- Name recovery helpers ---
+function titleCase(s: string): string {
+  return s
+    .toLowerCase()
+    .split(/[\s\-']+/)
+    .filter(Boolean)
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+    .join(" ");
+}
+
+function looksLikeName(s: string): boolean {
+  return /^[A-Za-zÀ-ÿ'’\-]{2,}$/.test(s);
+}
+
+function recoverNamesFromPayload(lead: any): {
+  first_name: string | null;
+  last_name: string | null;
+  source: string | null;
+} {
+  let first: string | null = (typeof lead.first_name === "string" && lead.first_name.trim()) || null;
+  let last: string | null = (typeof lead.last_name === "string" && lead.last_name.trim()) || null;
+  let source: string | null = null;
+
+  // 1) Try a combined "name" / "full_name" / "customer_name" field
+  const combined =
+    (typeof lead.name === "string" && lead.name.trim()) ||
+    (typeof lead.full_name === "string" && lead.full_name.trim()) ||
+    (typeof lead.customer_name === "string" && lead.customer_name.trim()) ||
+    "";
+  if ((!first || !last) && combined) {
+    const parts = combined.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) {
+      if (!first) first = titleCase(parts[0]);
+      if (!last) last = titleCase(parts.slice(1).join(" "));
+      source = "name_field";
+    } else if (parts.length === 1 && !first) {
+      first = titleCase(parts[0]);
+      source = "name_field";
+    }
+  }
+
+  // 2) Try email local part: john.doe@..., john_doe@..., jdoe@...
+  const email = typeof lead.email === "string" ? lead.email.trim() : "";
+  if ((!first || !last) && email.includes("@")) {
+    const local = email.split("@")[0].replace(/\+.*$/, "");
+    const parts = local.split(/[._\-]+/).filter(Boolean);
+    if (parts.length >= 2 && looksLikeName(parts[0]) && looksLikeName(parts[1])) {
+      if (!first) first = titleCase(parts[0]);
+      if (!last) last = titleCase(parts[1]);
+      source = source ?? "email";
+    }
+  }
+
+  // 3) Try notes: "Name: John Doe" / "Customer: John Doe"
+  const notes = typeof lead.notes === "string" ? lead.notes : "";
+  if ((!first || !last) && notes) {
+    const m = notes.match(/(?:name|customer|client|lead)\s*[:\-]\s*([A-Za-zÀ-ÿ'’\-]+)\s+([A-Za-zÀ-ÿ'’\-]+)/i);
+    if (m) {
+      if (!first) first = titleCase(m[1]);
+      if (!last) last = titleCase(m[2]);
+      source = source ?? "notes";
+    }
+  }
+
+  return { first_name: first, last_name: last, source };
+}
+
+function buildSuggestedFix(lead: any): string {
+  const hints: string[] = [];
+  const email = typeof lead?.email === "string" ? lead.email.trim() : "";
+  const phone = typeof lead?.phone === "string" ? lead.phone.trim() : "";
+  if (email) hints.push(`email "${email}"`);
+  if (phone) hints.push(`phone "${phone}"`);
+  const ctx = hints.length ? ` (received ${hints.join(", ")})` : "";
+  return (
+    `Add "first_name" and "last_name" as non-empty strings to the JSON body${ctx}. ` +
+    `Example: {"first_name":"John","last_name":"Doe"}. ` +
+    `Tip: if your source only has a single "name" field, send it as "name":"John Doe" and enable ` +
+    `"Auto-fill missing names" in MayaX webhook settings.`
+  );
+}
 // --- End pricing logic ---
 
 Deno.serve(async (req) => {
@@ -204,6 +286,8 @@ Deno.serve(async (req) => {
 
     const allSettings: Record<string, string> = {};
     (settingsRows ?? []).forEach((r: any) => { allSettings[r.key] = r.value ?? ""; });
+
+    const autofillNames = (allSettings["inbound_webhook_autofill_names"] ?? "").toLowerCase() === "true";
 
     // Check webhook secret if configured
     const configuredSecret = allSettings["inbound_webhook_secret"]?.trim();
@@ -266,8 +350,31 @@ Deno.serve(async (req) => {
     }[] = [];
 
     for (const lead of leadsInput) {
+      // Attempt name recovery if enabled (or if a combined name field is present)
+      let nameSource: string | null = null;
+      if (autofillNames || lead?.name || lead?.full_name || lead?.customer_name) {
+        const recovered = recoverNamesFromPayload(lead);
+        if (!lead.first_name && recovered.first_name) {
+          lead.first_name = recovered.first_name;
+          nameSource = recovered.source;
+        }
+        if (!lead.last_name && recovered.last_name) {
+          lead.last_name = recovered.last_name;
+          nameSource = nameSource ?? recovered.source;
+        }
+      }
+
       if (!lead.first_name || !lead.last_name) {
-        const rejectionError = "Missing required fields: first_name, last_name";
+        const missing: string[] = [];
+        if (!lead.first_name) missing.push("first_name");
+        if (!lead.last_name) missing.push("last_name");
+        const suggestedFix = buildSuggestedFix(lead);
+        const rejectionError =
+          `Missing required field${missing.length > 1 ? "s" : ""}: ${missing.join(", ")}. ` +
+          (autofillNames
+            ? `Auto-fill is ON but could not recover a name from email/notes/name fields. `
+            : `Auto-fill is OFF — enable "Auto-fill missing names" in webhook settings to attempt recovery from email/notes. `) +
+          `Suggested fix: ${suggestedFix}`;
         if (!dryRun) {
           try {
             await admin.from("rejected_inbound_leads").insert({
@@ -296,6 +403,12 @@ Deno.serve(async (req) => {
           ...(dryRun ? { dry_run: true } : {}),
         });
         continue;
+      }
+
+      if (nameSource) {
+        console.log(
+          `[inbound-webhook ${requestId}] auto-filled name from ${nameSource} first_name="${lead.first_name}" last_name="${lead.last_name}"`,
+        );
       }
 
       const inboundEmail = typeof lead.email === "string" ? lead.email.trim() : "";
