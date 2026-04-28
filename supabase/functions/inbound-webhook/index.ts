@@ -606,6 +606,7 @@ const FIELD_HINTS: Record<string, string> = {
   trade_in: 'Send true or false (boolean). Example: "trade_in": true',
   has_bankruptcy: 'Send true or false (boolean). Example: "has_bankruptcy": false',
   notes: 'Send a string up to 4000 chars, or omit the key.',
+  trade_in_vehicle: 'Describe the trade-in vehicle. Example: "trade_in_vehicle": "2018 Honda Civic, 80,000 km"',
   reference_code: 'Send a short string (≤60 chars) or omit the key.',
   appointment_time: 'Send ISO 8601. Example: "appointment_time": "2026-05-01T14:30:00Z"',
 };
