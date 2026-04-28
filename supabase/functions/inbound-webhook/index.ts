@@ -1063,7 +1063,8 @@ Deno.serve(async (req) => {
       // Parse notes for hidden flags
       const notesFlags = parseNotesFlags(lead.notes);
       const trade_in = lead.trade_in === true || notesFlags.trade_in;
-      const has_bankruptcy = notesFlags.has_bankruptcy;
+      const has_bankruptcy = lead.has_bankruptcy === true || notesFlags.has_bankruptcy;
+      const trade_in_vehicle = trade_in ? (lead.trade_in_vehicle ?? null) : (lead.trade_in_vehicle ?? null);
       const has_appointment = notesFlags.has_appointment;
       const appointment_time = (lead.appointment_time && lead.appointment_time.trim() !== "") ? lead.appointment_time : (has_appointment ? new Date().toISOString() : null);
       const income = parseNumericInput(lead.income);
@@ -1108,6 +1109,7 @@ Deno.serve(async (req) => {
         vehicle_price,
         notes: lead.notes ?? null,
         trade_in,
+        trade_in_vehicle,
         has_bankruptcy,
         quality_grade,
         ai_score,
