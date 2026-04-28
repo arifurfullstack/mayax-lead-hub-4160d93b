@@ -894,6 +894,9 @@ const AdminDashboard = () => {
                 <div><span className="text-muted-foreground text-xs">Vehicle Price</span><p className="text-foreground">{selectedLead.vehicle_price != null ? `$${Number(selectedLead.vehicle_price).toLocaleString()}` : "—"}</p></div>
                 <div><span className="text-muted-foreground text-xs">Vehicle Mileage</span><p className="text-foreground">{selectedLead.vehicle_mileage != null ? `${Number(selectedLead.vehicle_mileage).toLocaleString()} km` : "—"}</p></div>
                 <div><span className="text-muted-foreground text-xs">Trade-In</span><p className="text-foreground">{selectedLead.trade_in ? "Yes" : "No"}</p></div>
+                {selectedLead.trade_in && (selectedLead as any).trade_in_vehicle && (
+                  <div><span className="text-muted-foreground text-xs">Trade-In Vehicle</span><p className="text-foreground">{(selectedLead as any).trade_in_vehicle}</p></div>
+                )}
                 <div><span className="text-muted-foreground text-xs">Bankruptcy</span><p className="text-foreground">{selectedLead.has_bankruptcy ? "Yes" : "No"}</p></div>
                 <div><span className="text-muted-foreground text-xs">Appointment</span><p className="text-foreground">{selectedLead.appointment_time ? new Date(selectedLead.appointment_time).toLocaleString() : "—"}</p></div>
                 <div className="col-span-2"><span className="text-muted-foreground text-xs">Created</span><p className="text-foreground">{new Date(selectedLead.created_at).toLocaleString()}</p></div>
