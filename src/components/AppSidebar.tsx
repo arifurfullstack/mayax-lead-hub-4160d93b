@@ -15,6 +15,7 @@ import {
   FlaskConical,
   AlertTriangle,
   BookOpen,
+  Workflow,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, Link } from "react-router-dom";
@@ -202,6 +203,23 @@ export function AppSidebar({ walletBalance = 0, onLogout }: AppSidebarProps) {
                     >
                       <AlertTriangle className="h-4 w-4 shrink-0" />
                       {!collapsed && <span>Rejected Leads</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isActive("/admin/makecom-guide")}
+                    tooltip="Make.com Guide"
+                  >
+                    <NavLink
+                      to="/admin/makecom-guide"
+                      end
+                      className="flex items-center gap-3 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors"
+                      activeClassName="bg-sidebar-accent text-gold font-medium"
+                    >
+                      <Workflow className="h-4 w-4 shrink-0" />
+                      {!collapsed && <span>Make.com Guide</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
