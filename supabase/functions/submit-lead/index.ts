@@ -214,6 +214,8 @@ Deno.serve(async (req) => {
     const creditMin = body.credit_range_min ? Math.min(900, Math.max(300, Number(body.credit_range_min))) : null;
     const creditMax = body.credit_range_max ? Math.min(900, Math.max(300, Number(body.credit_range_max))) : null;
     const tradeIn = !!body.trade_in;
+    const tradeInVehicle = tradeIn ? (typeof body.trade_in_vehicle === "string" ? body.trade_in_vehicle.trim().slice(0, 200) : "") : "";
+    const hasBankruptcy = body.has_bankruptcy === true || /bankrupt/i.test(typeof body.notes === "string" ? body.notes : "");
     const notes = (body.notes ?? "").trim().slice(0, 2000);
     const appointmentTime = body.appointment_time || null;
     const documents = Array.isArray(body.documents) ? body.documents.slice(0, 10) : null;
@@ -225,7 +227,7 @@ Deno.serve(async (req) => {
         vehicle_preference: vehiclePref,
         buyer_type: buyerType,
         trade_in: tradeIn,
-        has_bankruptcy: /bankrupt/i.test(notes),
+        has_bankruptcy: hasBankruptcy,
         appointment_time: appointmentTime,
         email,
         phone,
@@ -340,6 +342,8 @@ Deno.serve(async (req) => {
           credit_range_min: creditMin ?? matchedLead.credit_range_min,
           credit_range_max: creditMax ?? matchedLead.credit_range_max,
           trade_in: tradeIn,
+          trade_in_vehicle: tradeIn ? (tradeInVehicle || null) : null,
+          has_bankruptcy: hasBankruptcy,
           appointment_time: appointmentTime,
           ai_score,
           quality_grade,
@@ -403,6 +407,8 @@ Deno.serve(async (req) => {
       credit_range_min: creditMin,
       credit_range_max: creditMax,
       trade_in: tradeIn,
+      trade_in_vehicle: tradeIn ? (tradeInVehicle || null) : null,
+      has_bankruptcy: hasBankruptcy,
       notes: notes || null,
       appointment_time: appointmentTime,
       documents,
