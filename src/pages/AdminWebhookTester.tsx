@@ -738,6 +738,48 @@ const AdminWebhookTester = () => {
   // so the user can preview both ON and OFF behaviour without changing platform settings.
   const [simulateAutofill, setSimulateAutofill] = useState(true);
 
+  // --- Inspect Lead in DB (admin lookup by id or reference_code) ---
+  const [lookupInput, setLookupInput] = useState("");
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupRow, setLookupRow] = useState<Record<string, unknown> | null>(null);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+
+  const isUuid = (s: string) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.trim());
+
+  const inspectLead = async () => {
+    const q = lookupInput.trim();
+    if (!q) {
+      toast.error("Enter a lead id (UUID) or reference_code (e.g. MX-2026-123)");
+      return;
+    }
+    setLookupLoading(true);
+    setLookupError(null);
+    setLookupRow(null);
+    try {
+      const query = supabase.from("leads").select("*").limit(1);
+      const { data, error } = isUuid(q)
+        ? await query.eq("id", q).maybeSingle()
+        : await query.eq("reference_code", q).maybeSingle();
+      if (error) throw error;
+      if (!data) {
+        setLookupError(`No lead found for ${isUuid(q) ? "id" : "reference_code"} "${q}".`);
+        return;
+      }
+      setLookupRow(data as Record<string, unknown>);
+    } catch (err: any) {
+      setLookupError(err?.message ?? "Lookup failed");
+    } finally {
+      setLookupLoading(false);
+    }
+  };
+
+  const copyLookupJson = async () => {
+    if (!lookupRow) return;
+    await navigator.clipboard.writeText(JSON.stringify(lookupRow, null, 2));
+    toast.success("Lead JSON copied");
+  };
+
   const validation = useMemo(() => validatePayload(payload), [payload]);
 
   // Preview state — when set, the diff dialog is open showing before/after.
