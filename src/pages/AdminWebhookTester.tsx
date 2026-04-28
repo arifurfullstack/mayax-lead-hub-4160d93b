@@ -1253,6 +1253,91 @@ const AdminWebhookTester = () => {
         </AlertDescription>
       </Alert>
 
+      {/* ── Inspect Lead in DB ─────────────────────────────────────────── */}
+      <Card className="border-border/60">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Search className="h-4 w-4 text-primary" />
+            Inspect Lead in Database
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Look up a stored lead by <code>id</code> (UUID) or <code>reference_code</code> (e.g. <code>MX-2026-123</code>) to verify what was actually persisted — including <code>has_bankruptcy</code> and <code>trade_in_vehicle</code>.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex gap-2">
+            <Input
+              value={lookupInput}
+              onChange={(e) => setLookupInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") inspectLead(); }}
+              placeholder="Lead UUID or reference code (MX-YYYY-XXX)"
+              className="font-mono text-xs"
+            />
+            <Button onClick={inspectLead} disabled={lookupLoading} size="sm">
+              {lookupLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+              <span className="ml-2">Fetch</span>
+            </Button>
+          </div>
+
+          {lookupError && (
+            <Alert variant="destructive" className="py-2">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription className="text-xs">{lookupError}</AlertDescription>
+            </Alert>
+          )}
+
+          {lookupRow && (
+            <div className="space-y-3">
+              {/* Highlighted columns */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                <div className="rounded-md border border-border/50 bg-muted/30 p-3">
+                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground">reference_code</div>
+                  <div className="text-sm font-mono mt-1 break-all">{String(lookupRow.reference_code ?? "—")}</div>
+                </div>
+                <div className="rounded-md border border-primary/40 bg-primary/5 p-3">
+                  <div className="text-[10px] uppercase tracking-wide text-primary/80">has_bankruptcy</div>
+                  <div className="text-sm font-mono mt-1">
+                    {lookupRow.has_bankruptcy === null || lookupRow.has_bankruptcy === undefined ? (
+                      <span className="text-muted-foreground">null</span>
+                    ) : (
+                      <Badge variant={lookupRow.has_bankruptcy ? "destructive" : "secondary"} className="text-[10px]">
+                        {String(lookupRow.has_bankruptcy)}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                <div className="rounded-md border border-primary/40 bg-primary/5 p-3">
+                  <div className="text-[10px] uppercase tracking-wide text-primary/80">trade_in_vehicle</div>
+                  <div className="text-sm font-mono mt-1 break-words">
+                    {lookupRow.trade_in_vehicle == null || lookupRow.trade_in_vehicle === ""
+                      ? <span className="text-muted-foreground">null</span>
+                      : String(lookupRow.trade_in_vehicle)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Raw JSON */}
+              <Collapsible defaultOpen>
+                <div className="flex items-center justify-between">
+                  <CollapsibleTrigger className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+                    <ChevronDown className="h-3 w-3" />
+                    Raw row JSON
+                  </CollapsibleTrigger>
+                  <Button variant="ghost" size="sm" onClick={copyLookupJson} className="h-7 px-2">
+                    <Copy className="h-3 w-3 mr-1" /> Copy
+                  </Button>
+                </div>
+                <CollapsibleContent>
+                  <pre className="mt-2 max-h-96 overflow-auto rounded border border-border/50 bg-muted/30 p-3 text-[11px] font-mono">
+                    {JSON.stringify(lookupRow, null, 2)}
+                  </pre>
+                </CollapsibleContent>
+              </Collapsible>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <Collapsible defaultOpen className="rounded-lg border border-border/60 bg-card/40">
         <CollapsibleTrigger className="w-full flex items-center justify-between gap-2 px-4 py-3 text-left hover:bg-card/60 transition-colors">
           <div className="flex items-center gap-2">
