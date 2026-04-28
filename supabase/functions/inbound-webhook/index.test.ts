@@ -43,10 +43,11 @@ async function dryRun(body: unknown): Promise<DryRunResult[]> {
 
 function baseLead(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
-    first_name: "Test",
-    last_name: "Lead",
+    first_name: "Alice",
+    last_name: "Johnson",
     phone: nextPhone(),
     city: "Toronto",
+    email: `alice${Date.now()}${Math.floor(Math.random() * 1000)}@example.com`,
     ...overrides,
   };
 }
