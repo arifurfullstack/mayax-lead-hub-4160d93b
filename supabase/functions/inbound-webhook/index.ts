@@ -709,6 +709,8 @@ Deno.serve(async (req) => {
             }
             // Mutate the lead object in-place so the rest of the loop sees merged data
             Object.assign(lead, merged);
+            // Re-normalize after merge, since prior payloads may carry raw "None"/"0" values.
+            normalizeInboundLead(lead);
             mergedRejectionIds = priorRejections.map((r) => r.id);
             console.log(
               `[inbound-webhook ${requestId}] retry-merge matched ${priorRejections.length} prior rejection(s) email=${inboundEmailRaw || "none"} phone=${inboundPhoneDigitsRaw || "none"}`,
@@ -765,7 +767,7 @@ Deno.serve(async (req) => {
               request_id: requestId,
               reference_code: lead?.reference_code ?? null,
               error_message: rejectionError,
-              error_type: "validation",
+              error_type: autofillNames ? "name_recovery_failed" : "missing_required_fields",
               first_name: lead?.first_name ?? null,
               last_name: lead?.last_name ?? null,
               email: typeof lead?.email === "string" ? lead.email : null,
