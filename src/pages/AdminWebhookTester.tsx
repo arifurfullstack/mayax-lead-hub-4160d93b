@@ -426,6 +426,51 @@ const PAYLOAD_TEMPLATES: PayloadTemplate[] = [
       }),
   },
   {
+    id: "single-aliases",
+    label: "Single — Make.com aliases (bankruptcy, trade_in vehicle)",
+    description:
+      'Sends the wrong-but-common keys "bankruptcy" and "trade_in vehicle" (with a space). Verifies they auto-map to has_bankruptcy and trade_in_vehicle in the computed output.',
+    group: "single",
+    build: () =>
+      stringify({
+        first_name: "Mia",
+        last_name: "Alvarez",
+        email: "mia.alvarez@example.com",
+        phone: "416 555 0144",
+        city: "Mississauga",
+        province: "Ontario",
+        income: 4200,
+        vehicle_preference: "2022 Honda CR-V",
+        trade_in: "yes",
+        // Intentional alias keys — server should remap them
+        "trade_in vehicle": "2018 Toyota Corolla, 95,000 km",
+        bankruptcy: "no",
+        notes: "Make.com mapping with legacy key names.",
+      } as Record<string, unknown>),
+  },
+  {
+    id: "single-canonical-fields",
+    label: "Single — canonical trade_in_vehicle + has_bankruptcy",
+    description:
+      "Uses the canonical keys directly. Confirms both fields appear populated in the computed result.",
+    group: "single",
+    build: () =>
+      stringify({
+        first_name: "Daniel",
+        last_name: "Park",
+        email: "daniel.park@example.com",
+        phone: "647 555 0123",
+        city: "Toronto",
+        province: "Ontario",
+        income: 6800,
+        vehicle_preference: "2024 Tesla Model Y",
+        trade_in: true,
+        trade_in_vehicle: "2019 Mazda CX-5, 60,000 km",
+        has_bankruptcy: false,
+        notes: "Pre-approved at credit union.",
+      }),
+  },
+  {
     id: "batch-mixed",
     label: "Batch — mixed quality",
     description: "3 leads spanning A+ to D grades. Good for grading sanity check.",
