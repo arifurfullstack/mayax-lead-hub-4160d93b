@@ -1057,6 +1057,18 @@ const AdminDashboard = () => {
                   <Label className="text-xs text-muted-foreground">Bankruptcy</Label>
                 </div>
               </div>
+              {editForm.trade_in && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Trade-In Vehicle</Label>
+                  <input
+                    value={editForm.trade_in_vehicle}
+                    onChange={(e) => setEditForm((f) => ({ ...f, trade_in_vehicle: e.target.value }))}
+                    placeholder="e.g. 2018 Honda Civic, 80,000 km"
+                    maxLength={200}
+                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+                  />
+                </div>
+              )}
 
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Notes</Label>
