@@ -60,6 +60,10 @@ const Marketplace = () => {
   // outage would otherwise be lost.
   const wasDisconnectedRef = useRef(false);
   const [insertingTestLead, setInsertingTestLead] = useState(false);
+  // When > 0, also fetch leads sold within the last N hours and render them
+  // as read-only cards so the marketplace doesn't look "empty" when buyers
+  // claim every new lead instantly.
+  const [includeSoldHours, setIncludeSoldHours] = useState(0);
 
   useEffect(() => {
     fetchLeads();
@@ -231,11 +235,18 @@ const Marketplace = () => {
 
     const { data } = await supabase.rpc("get_marketplace_leads", {
       requesting_dealer_id: dealer?.id,
+      include_sold_hours: includeSoldHours,
     });
 
     setLeads(data || []);
     setLoading(false);
   };
+
+  // Re-fetch whenever the "show sold" window changes
+  useEffect(() => {
+    fetchLeads();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [includeSoldHours]);
 
   const applyPromoCode = async () => {
     if (!promoCode.trim() || !dealerId) return;
