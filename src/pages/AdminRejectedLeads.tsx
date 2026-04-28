@@ -355,6 +355,34 @@ const AdminRejectedLeads = () => {
                   </div>
                 )}
               </div>
+              {selected.status !== "pending" && (
+                <div
+                  className={`rounded-md border p-3 text-sm ${
+                    selected.status === "recovered"
+                      ? "border-success/40 bg-success/10 text-success"
+                      : "border-border/60 bg-muted/30 text-muted-foreground"
+                  }`}
+                >
+                  {selected.status === "recovered" ? (
+                    <>
+                      ✅ Auto-recovered{selected.recovered_at && ` at ${formatDateTime(selected.recovered_at)}`}
+                      {selected.recovered_lead_id && (
+                        <span className="block text-xs font-mono mt-1 opacity-80">
+                          → lead {selected.recovered_lead_id}
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <>🚫 Discarded — retry-merge will skip this record.</>
+                  )}
+                </div>
+              )}
+              {selected.retry_count > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Retry attempts: <strong>{selected.retry_count}</strong>
+                  {selected.last_retry_at && ` · last ${formatDateTime(selected.last_retry_at)}`}
+                </p>
+              )}
 
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div><p className="text-xs text-muted-foreground">First name</p><p>{selected.first_name || "—"}</p></div>
@@ -387,6 +415,26 @@ const AdminRejectedLeads = () => {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setSelected(null)}>Close</Button>
+            {selected && selected.status === "pending" && (
+              <>
+                <Button
+                  variant="outline"
+                  className="gap-2"
+                  disabled={retryingId === selected.id}
+                  onClick={() => handleRetry(selected)}
+                >
+                  {retryingId === selected.id ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RotateCw className="h-4 w-4" />
+                  )}
+                  Retry now
+                </Button>
+                <Button variant="outline" className="gap-2" onClick={() => handleDiscard(selected.id)}>
+                  <XCircle className="h-4 w-4" /> Discard
+                </Button>
+              </>
+            )}
             {selected && (
               <Button variant="destructive" className="gap-2" onClick={() => handleDelete(selected.id)}>
                 <Trash2 className="h-4 w-4" /> Delete record
