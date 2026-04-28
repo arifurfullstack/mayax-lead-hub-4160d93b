@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { z } from "https://esm.sh/zod@3.23.8";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -451,6 +452,136 @@ function isPayloadEffectivelyEmpty(lead: any): boolean {
   ];
   return meaningful.every((k) => lead[k] === null || lead[k] === undefined || lead[k] === "");
 }
+
+// =============================================================
+// JSON Schema validation (Zod)
+// Runs AFTER normalizeInboundLead so empty-literals are already
+// nulled out. Validates field SHAPES (types, lengths, formats)
+// and returns ALL errors at once with a per-field suggested fix —
+// designed to give Make.com users a single clear list of what to
+// remap rather than fixing one error at a time.
+// =============================================================
+
+const ISO_PROVINCE_RE = /^[A-Za-z]{2}$/;
+
+const inboundLeadSchema = z.object({
+  // Identity — at least one of first/last is required (checked via superRefine)
+  first_name: z.string().trim().min(1).max(80).nullish(),
+  last_name: z.string().trim().min(1).max(80).nullish(),
+
+  // Contact — at least one of email/phone is required (superRefine)
+  email: z.string().trim().email("must be a valid email address").max(254).nullish(),
+  phone: z
+    .union([z.string(), z.number()])
+    .transform((v) => (typeof v === "number" ? String(v) : v))
+    .pipe(z.string().trim().max(40))
+    .nullish(),
+
+  // Location
+  city: z.string().trim().min(1).max(80).nullish(),
+  province: z
+    .string()
+    .trim()
+    .max(40)
+    .nullish()
+    .refine(
+      (v) => v == null || v.length === 0 || ISO_PROVINCE_RE.test(v) || v.length >= 3,
+      { message: "must be a 2-letter code (e.g. ON, QC) or full province name" },
+    ),
+
+  // Buyer / vehicle
+  buyer_type: z.enum(["online", "walk_in", "phone", "referral"]).nullish().catch(null),
+  vehicle_preference: z.string().trim().max(120).nullish(),
+  vehicle_mileage: z.number().int().nonnegative().max(2_000_000).nullish(),
+  vehicle_price: z.number().nonnegative().max(10_000_000).nullish(),
+
+  // Financial — credit score range 300–900 (CA bureaus)
+  income: z.number().nonnegative().max(100_000_000).nullish(),
+  credit_range_min: z.number().int().min(300).max(900).nullish(),
+  credit_range_max: z.number().int().min(300).max(900).nullish(),
+
+  // Booleans
+  trade_in: z.boolean().nullish(),
+  has_bankruptcy: z.boolean().nullish(),
+
+  // Misc
+  notes: z.string().max(4000).nullish(),
+  reference_code: z.string().trim().max(60).nullish(),
+  appointment_time: z.string().nullish().refine(
+    (v) => v == null || v === "" || !Number.isNaN(Date.parse(v)),
+    { message: "must be a valid ISO 8601 date/time (e.g. 2026-05-01T14:30:00Z)" },
+  ),
+}).passthrough().superRefine((data, ctx) => {
+  // At least one name
+  if (!data.first_name && !data.last_name) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["first_name"],
+      message: "first_name or last_name is required (both were empty/null)",
+    });
+  }
+  // At least one contact channel
+  if (!data.email && !data.phone) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["email"],
+      message: "email or phone is required (both were empty/null)",
+    });
+  }
+  // Credit range coherence
+  if (
+    typeof data.credit_range_min === "number" &&
+    typeof data.credit_range_max === "number" &&
+    data.credit_range_min > data.credit_range_max
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["credit_range_min"],
+      message: "credit_range_min cannot be greater than credit_range_max",
+    });
+  }
+});
+
+type SchemaError = {
+  field: string;
+  message: string;
+  received: unknown;
+  suggested_fix: string;
+};
+
+const FIELD_HINTS: Record<string, string> = {
+  first_name: 'Map the customer\'s given name. Example: "first_name": "Alice"',
+  last_name: 'Map the customer\'s family name. Example: "last_name": "Johnson"',
+  email: 'Send a real email address or omit the key entirely. Example: "email": "alice@example.com"',
+  phone: 'Send digits only or E.164. Example: "phone": "4165551234"',
+  city: 'Send the customer city, not vehicle/brand text. Example: "city": "Toronto"',
+  province: 'Use a 2-letter Canadian code. Example: "province": "ON"',
+  buyer_type: 'Use one of: online, walk_in, phone, referral. Or omit the key.',
+  vehicle_preference: 'Send the vehicle the customer wants. Example: "vehicle_preference": "Honda Civic"',
+  vehicle_mileage: 'Send a positive integer (km). Example: "vehicle_mileage": 45000',
+  vehicle_price: 'Send a number. Example: "vehicle_price": 28500',
+  income: 'Send a number (annual or monthly $). Example: "income": 65000',
+  credit_range_min: 'Send an integer between 300 and 900. Example: "credit_range_min": 650',
+  credit_range_max: 'Send an integer between 300 and 900. Example: "credit_range_max": 720',
+  trade_in: 'Send true or false (boolean). Example: "trade_in": true',
+  has_bankruptcy: 'Send true or false (boolean). Example: "has_bankruptcy": false',
+  notes: 'Send a string up to 4000 chars, or omit the key.',
+  reference_code: 'Send a short string (≤60 chars) or omit the key.',
+  appointment_time: 'Send ISO 8601. Example: "appointment_time": "2026-05-01T14:30:00Z"',
+};
+
+function buildSchemaErrors(parseError: z.ZodError, lead: any): SchemaError[] {
+  return parseError.issues.map((issue) => {
+    const field = (issue.path[0] as string) ?? "(root)";
+    return {
+      field,
+      message: issue.message,
+      received: lead?.[field] ?? null,
+      suggested_fix: FIELD_HINTS[field] ??
+        `Verify your Make.com mapping for "${field}".`,
+    };
+  });
+}
 // --- End pricing logic ---
 
 Deno.serve(async (req) => {
@@ -573,6 +704,7 @@ Deno.serve(async (req) => {
       quality_grade?: string;
       price?: number;
       error?: string;
+      errors?: SchemaError[];
       dry_run?: boolean;
       matched?: { id: string; reference_code: string; sold_status: string } | null;
       computed?: Record<string, unknown>;
@@ -581,6 +713,53 @@ Deno.serve(async (req) => {
     for (const lead of leadsInput) {
       // --- 0. Normalize payload (empty-literals → null, numeric coercion) ---
       normalizeInboundLead(lead);
+
+      // --- 0_schema. JSON Schema (Zod) validation ---
+      // Aggregates ALL field-level errors at once with a per-field
+      // suggested fix, so Make.com users get a single clear list.
+      const schemaResult = inboundLeadSchema.safeParse(lead);
+      if (!schemaResult.success) {
+        const fieldErrors = buildSchemaErrors(schemaResult.error, lead);
+        const summary = fieldErrors
+          .map((e) => `• ${e.field}: ${e.message} (received: ${JSON.stringify(e.received)}). ${e.suggested_fix}`)
+          .join("\n");
+        const rejectionError =
+          `Schema validation failed (${fieldErrors.length} field error${fieldErrors.length === 1 ? "" : "s"}):\n${summary}\n\n` +
+          `Suggested fix: open your Make.com HTTP module and re-map each field listed above. ` +
+          `See the Make.com Integration Guide in MayaX admin for the full mapping table.`;
+        if (!dryRun) {
+          try {
+            await admin.from("rejected_inbound_leads").insert({
+              request_id: requestId,
+              reference_code: lead?.reference_code ?? null,
+              error_message: rejectionError,
+              error_type: "schema_validation",
+              first_name: lead?.first_name ?? null,
+              last_name: lead?.last_name ?? null,
+              email: typeof lead?.email === "string" ? lead.email : null,
+              phone: typeof lead?.phone === "string" ? lead.phone : null,
+              city: lead?.city ?? null,
+              province: lead?.province ?? null,
+              payload: lead ?? {},
+              source_ip: sourceIp,
+              user_agent: userAgent,
+            });
+          } catch (e) {
+            console.error(`[inbound-webhook ${requestId}] failed to log schema rejection`, e);
+          }
+        }
+        console.warn(
+          `[inbound-webhook ${requestId}] schema rejected: ${fieldErrors.map((e) => e.field).join(",")}`,
+        );
+        results.push({
+          reference_code: lead?.reference_code ?? "unknown",
+          status: "error",
+          error: rejectionError,
+          errors: fieldErrors,
+          ...(dryRun ? { dry_run: true } : {}),
+        });
+        continue;
+      }
 
       // --- 0a. Reject obviously-empty pings ("Make.com fired too early") ---
       if (rejectEmptyPayloads && isPayloadEffectivelyEmpty(lead)) {
