@@ -1968,6 +1968,15 @@ const AdminWebhookTester = () => {
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FlaskConical className="h-4 w-4" />}
                 {validation.ok ? "Run dry-run" : "Fix errors to run"}
               </Button>
+              <Button
+                onClick={() => setLiveConfirmOpen(true)}
+                disabled={liveLoading || loading || !validation.ok}
+                variant="destructive"
+                className="gap-2"
+              >
+                {liveLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                Send live (create / update)
+              </Button>
               <Button variant="outline" onClick={formatPayload} disabled={loading} className="gap-2">
                 <Wand2 className="h-4 w-4" /> Format JSON
               </Button>
