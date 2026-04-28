@@ -399,9 +399,9 @@ function normalizeInboundLead(lead: any): any {
     const v = lead[boolKey];
     if (typeof v === "string") {
       const s = v.trim().toLowerCase();
-      if (["true", "yes", "y", "1"].includes(s)) lead[boolKey] = true;
-      else if (["false", "no", "n", "0", ""].includes(s)) lead[boolKey] = false;
-      else if (s === "") lead[boolKey] = null;
+      if (s === "") lead[boolKey] = null; // empty string → absent (null), not false
+      else if (["true", "yes", "y", "1"].includes(s)) lead[boolKey] = true;
+      else if (["false", "no", "n", "0"].includes(s)) lead[boolKey] = false;
     } else if (typeof v === "number") {
       lead[boolKey] = v === 1;
     }
