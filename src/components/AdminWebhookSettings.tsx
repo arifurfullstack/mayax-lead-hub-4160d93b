@@ -143,6 +143,8 @@ export default function AdminWebhookSettings({ settingsForm, setSettingsForm, pl
   "vehicle_preference": "SUV",
   "buyer_type": "online",
   "trade_in": true,
+  "trade_in_vehicle": "2018 Honda Civic, 80,000 km",
+  "has_bankruptcy": false,
   "notes": "Looking for financing",
   "appointment_time": "2025-01-15T14:00:00Z"
 }`}
