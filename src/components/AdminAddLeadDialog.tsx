@@ -96,6 +96,8 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
     notes: "",
     appointment_time: "",
     trade_in: false,
+    trade_in_vehicle: "",
+    has_bankruptcy: false,
   });
 
   const [selectedDocTypes, setSelectedDocTypes] = useState<string[]>([]);
@@ -133,7 +135,7 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
   // Parse notes for hidden conditional flags
   const notesFlags = useMemo(() => parseNotesFlags(form.notes), [form.notes]);
   const effectiveTradeIn = form.trade_in || notesFlags.trade_in;
-  const effectiveBankruptcy = notesFlags.has_bankruptcy;
+  const effectiveBankruptcy = form.has_bankruptcy || notesFlags.has_bankruptcy;
 
   const computed = useMemo(() => {
     const aiResult = calculateAiScore({
@@ -154,7 +156,7 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
     }, pricing);
 
     return { ...aiResult, price: priceBreakdown.total, breakdown: priceBreakdown };
-  }, [form.income, form.vehicle_preference, form.buyer_type, form.notes, form.appointment_time, form.trade_in, pricing, notesFlags, effectiveTradeIn, effectiveBankruptcy]);
+  }, [form.income, form.vehicle_preference, form.buyer_type, form.notes, form.appointment_time, form.trade_in, form.has_bankruptcy, pricing, notesFlags, effectiveTradeIn, effectiveBankruptcy]);
 
   const generateRefCode = () => {
     const year = new Date().getFullYear();
@@ -217,6 +219,7 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
       notes: form.notes || null,
       appointment_time: form.appointment_time || null,
       trade_in: effectiveTradeIn,
+      trade_in_vehicle: effectiveTradeIn ? (form.trade_in_vehicle || null) : null,
       has_bankruptcy: effectiveBankruptcy,
       documents: selectedDocTypes.length > 0 ? selectedDocTypes : null,
     } as any;
@@ -264,7 +267,7 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
       buyer_type: "online",
       vehicle_preference: "", vehicle_price: "", vehicle_mileage: "", income: "",
       credit_range_min: "", credit_range_max: "", notes: "", appointment_time: "",
-      trade_in: false,
+      trade_in: false, trade_in_vehicle: "", has_bankruptcy: false,
     });
     setSelectedDocTypes([]);
     setStagedFiles([]);
@@ -423,7 +426,28 @@ export default function AdminAddLeadDialog({ onLeadAdded }: Props) {
                 <span className="text-xs text-muted-foreground">{form.trade_in ? "Yes" : "No"}</span>
               </div>
             </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Bankruptcy</Label>
+              <div className="flex items-center gap-2 h-9">
+                <Switch checked={form.has_bankruptcy} onCheckedChange={(v) => update("has_bankruptcy", v)} />
+                <span className="text-xs text-muted-foreground">{form.has_bankruptcy ? "Yes" : "No"}</span>
+              </div>
+            </div>
           </div>
+
+          {/* Trade-in vehicle details (only shown when trade-in is on) */}
+          {form.trade_in && (
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Trade-In Vehicle</Label>
+              <Input
+                value={form.trade_in_vehicle}
+                onChange={(e) => update("trade_in_vehicle", e.target.value)}
+                placeholder="e.g. 2018 Honda Civic, 80,000 km"
+                className="bg-background border-border"
+                maxLength={200}
+              />
+            </div>
+          )}
 
           {/* Detected flags from notes */}
           {(notesFlags.trade_in || notesFlags.has_bankruptcy || notesFlags.has_appointment) && (

@@ -42,6 +42,8 @@ interface LeadDetail {
   notes: string | null;
   appointment_time: string | null;
   trade_in: boolean | null;
+  trade_in_vehicle: string | null;
+  has_bankruptcy: boolean | null;
 }
 
 interface OrderForModal {
@@ -149,6 +151,10 @@ const OrderDetailModal = ({ order, open, onOpenChange }: Props) => {
     row("Budget:", lead.vehicle_price ? `$${Number(lead.vehicle_price).toLocaleString()}` : "—", lm, y); y += 6;
     row("Max Mileage:", lead.vehicle_mileage ? `${lead.vehicle_mileage.toLocaleString()} km` : "—", lm, y); y += 6;
     row("Trade-In:", lead.trade_in ? "Yes" : "No", lm, y); y += 6;
+    if (lead.trade_in && lead.trade_in_vehicle) {
+      row("Trade-In Vehicle:", lead.trade_in_vehicle, lm, y); y += 6;
+    }
+    row("Bankruptcy:", lead.has_bankruptcy ? "Yes" : "No", lm, y); y += 6;
     const leftEnd2 = y;
 
     // Purchase
@@ -270,6 +276,12 @@ const OrderDetailModal = ({ order, open, onOpenChange }: Props) => {
             <Row icon={Car} label="Max Mileage" value={lead.vehicle_mileage ? `${lead.vehicle_mileage.toLocaleString()} km` : "—"} iconColor="text-secondary" />
             {lead.trade_in && (
               <Row icon={ArrowRightLeft} label="Trade-In" value="Yes" iconColor="text-secondary" />
+            )}
+            {lead.trade_in && lead.trade_in_vehicle && (
+              <Row icon={Car} label="Trade-In Vehicle" value={lead.trade_in_vehicle} iconColor="text-secondary" />
+            )}
+            {lead.has_bankruptcy && (
+              <Row icon={DollarSign} label="Bankruptcy" value="Yes (disclosed)" iconColor="text-amber-400" />
             )}
             {lead.documents && lead.documents.length > 0 && (
               <div className="space-y-1">

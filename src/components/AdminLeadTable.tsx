@@ -83,6 +83,7 @@ export interface AdminLead {
   appointment_time: string | null;
   trade_in: boolean | null;
   has_bankruptcy: boolean | null;
+  trade_in_vehicle?: string | null;
 }
 
 const gradeColors: Record<string, string> = {

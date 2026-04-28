@@ -64,6 +64,8 @@ const SubmitLead = () => {
     notes: "",
     appointment_time: "",
     trade_in: false,
+    trade_in_vehicle: "",
+    has_bankruptcy: false,
   });
 
   const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
@@ -157,6 +159,8 @@ const SubmitLead = () => {
       credit_range_min: form.credit_range_min ? Number(form.credit_range_min) : null,
       credit_range_max: form.credit_range_max ? Number(form.credit_range_max) : null,
       trade_in: form.trade_in,
+      trade_in_vehicle: form.trade_in ? form.trade_in_vehicle.trim() : null,
+      has_bankruptcy: form.has_bankruptcy,
       notes: form.notes.trim(),
       appointment_time: form.appointment_time || null,
       documents: selectedDocs.length > 0 ? selectedDocs : null,
@@ -208,7 +212,7 @@ const SubmitLead = () => {
           <p className="text-muted-foreground text-sm">
             Thank you for your submission. Our team will review your information and match you with the right dealer.
           </p>
-          <Button onClick={() => { setSubmitted(false); setStep(0); setForm({ first_name: "", last_name: "", email: "", phone: "", city: "", province: "", buyer_type: "online", vehicle_preference: "", vehicle_price: "", vehicle_mileage: "", income: "", credit_range_min: "", credit_range_max: "", notes: "", appointment_time: "", trade_in: false }); setSelectedDocs([]); setCategoryFiles({}); }} className="gradient-blue-cyan text-foreground">
+          <Button onClick={() => { setSubmitted(false); setStep(0); setForm({ first_name: "", last_name: "", email: "", phone: "", city: "", province: "", buyer_type: "online", vehicle_preference: "", vehicle_price: "", vehicle_mileage: "", income: "", credit_range_min: "", credit_range_max: "", notes: "", appointment_time: "", trade_in: false, trade_in_vehicle: "", has_bankruptcy: false }); setSelectedDocs([]); setCategoryFiles({}); }} className="gradient-blue-cyan text-foreground">
             Submit Another Lead
           </Button>
         </div>
@@ -299,6 +303,25 @@ const SubmitLead = () => {
                 <ArrowRightLeft className="h-4 w-4 text-primary shrink-0" />
                 <span className="text-sm text-foreground flex-1">Do you have a trade-in vehicle?</span>
                 <Switch checked={form.trade_in} onCheckedChange={(v) => update("trade_in", v)} />
+              </div>
+
+              {form.trade_in && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Trade-In Vehicle Details</Label>
+                  <Input
+                    value={form.trade_in_vehicle}
+                    onChange={(e) => update("trade_in_vehicle", e.target.value)}
+                    placeholder="e.g. 2018 Honda Civic, 80,000 km"
+                    maxLength={200}
+                    className="bg-background/50 border-border focus:border-primary"
+                  />
+                </div>
+              )}
+
+              <div className="flex items-center gap-3 p-3 rounded-lg border border-border/50 bg-muted/20">
+                <DollarSign className="h-4 w-4 text-primary shrink-0" />
+                <span className="text-sm text-foreground flex-1">Have you ever filed for bankruptcy?</span>
+                <Switch checked={form.has_bankruptcy} onCheckedChange={(v) => update("has_bankruptcy", v)} />
               </div>
 
               <div className="border-t border-border/50 pt-5">

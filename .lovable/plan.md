@@ -1,107 +1,160 @@
-## What's actually happening
+# Add `has_bankruptcy` + `trade_in_vehicle` as first-class fields
 
-I pulled the last 10 rejected payloads and the last 6 accepted leads. The webhook itself is working — the problem is **Make.com is mapping the wrong source variables to the wrong JSON keys**, and the webhook is too permissive about accepting those bad values.
+## Why this matters
 
-Examples from production data right now:
+Right now both fields are half-implemented:
 
-| created_at | What Make.com sent | Why it's wrong |
-|---|---|---|
-| 04:33 | `city: "ex and refinance"`, `vehicle_preference: "I need to confirm who am speaking to"` | Notes/transcript fragments mapped into city + vehicle slots |
-| 01:44 | `city: "I Would Say Brampton"` | Conversational answer, not a city |
-| 00:00 | `city: "newer model"`, `income: 2025` | Vehicle year landed in income |
-| Rejected | `city: "Mercedes Benz"`, `vehicle_preference: "Mercedes-benz"` | Vehicle text mapped to BOTH city and vehicle |
-| Rejected | `first_name: "Planning"`, `income: "$2000"` | A status word ended up in first_name |
-| Rejected | `email: "None"` (literal string) | Make sent the word "None" instead of empty |
-| Rejected (5×) | only `phone` populated, every other field empty/`0` | Make.com module fired before the AI/transcript step finished filling slots |
+- **`has_bankruptcy`** exists as a DB column AND in the webhook schema, but the UI **never lets anyone set it directly** — it's inferred only by regex-matching the word "bankrupt" in the `notes` field. Forms have no toggle for it.
+- **`trade_in_vehicle`** (the description: "2018 Honda Civic, 80k km") doesn't exist at all in the database or webhook. It's only referenced inside the lead-purchased email template, which silently renders blank, and `purchase-lead` reads `lead.trade_in_vehicle` from a column that doesn't exist.
 
-So the symptom the client describes — "half the data comes in, half doesn't" — is exactly this: Make.com is firing the HTTP module before all the variables are populated, AND in some cases pasting the wrong source variable into the wrong JSON key.
+So the client's request — "send `bankruptcy` and `trade_in vehicle` from Make.com" — currently fails for both: bankruptcy is silently ignored unless the word appears in notes, and trade-in vehicle text has nowhere to live.
 
-## Root causes (two layers)
+This plan makes both fields **real, dynamic, and editable everywhere**.
 
-1. **Make.com scenario layer** — wrong / out-of-order variable mapping in the HTTP module. The client built one mapping that works for the "happy path" but breaks when the upstream module (transcript, ChatGPT block, Typeform, etc.) returns variables in a different order or leaves fields empty.
-2. **Webhook layer** — currently accepts any string for any field. `"Mercedes Benz"` in `city`, `"None"` in `email`, `2025` in `income` are all stored as-is. There's no sanity check that says "this looks like a city, not a vehicle."
+---
 
-We need to fix both.
+## What you'll get
+
+1. A proper **Bankruptcy Yes/No toggle** in: Submit Lead form, Admin Add Lead dialog, Lead Card, Order Detail modal, purchase email.
+2. A new **Trade-In Vehicle text field** (e.g. "2018 Honda Civic, 80k km") that appears whenever `trade_in = true`, in the same five places.
+3. **Webhook accepts both fields** from Make.com with clean validation, and Make.com guide is updated with the correct keys + examples.
+4. **Pricing/scoring** automatically apply the bankruptcy bonus when the toggle is on (currently only triggered by notes regex).
+5. **Backfill**: existing leads where notes contain "bankrupt" get `has_bankruptcy = true` set as a one-time data fix.
+
+---
 
 ## Plan
 
-### 1. Server-side input normalization (inbound-webhook edge function)
+### 1. Database — add the missing column
 
-Add a `normalizeInboundLead()` step that runs before validation:
+Migration:
 
-- **Empty-ish coercion**: convert literal `"None"`, `"none"`, `"N/A"`, `"null"`, `"undefined"`, `""`, `"0"` (in non-numeric fields), and whitespace-only values → `null`.
-- **Numeric fields** (`income`, `credit_range_min/max`, `vehicle_mileage`, `vehicle_price`):
-  - `0` → `null` (zero is almost never a real value here).
-  - Strings like `"Not working"`, `"$2000"`, `"2,500/mo"` → run through existing `parseNumericInput`; if NaN, store `null` AND log a warning.
-- **Date fields** (`appointment_time`): empty string → `null`; invalid date → `null` + warning.
-- **Boolean fields** (`trade_in`): accept `"true"/"false"/"yes"/"no"/1/0` strings.
-- **First/last name**: if either contains digits, ` @`, or is a known status word (`"Planning"`, `"Pending"`, `"Unknown"`, `"None"`), treat as missing and trigger the existing `recoverNamesFromPayload` path.
+```sql
+ALTER TABLE public.leads
+  ADD COLUMN IF NOT EXISTS trade_in_vehicle text;
 
-### 2. Server-side field-shape sanity checks (new)
+ALTER TABLE public.rejected_inbound_leads
+  ADD COLUMN IF NOT EXISTS trade_in_vehicle text;
+```
 
-Add lightweight heuristics that flag (don't reject) suspicious mappings, then route to the rejected-leads table with a clearer error so the client can see *exactly* which mapping is broken:
+Update the `get_marketplace_leads` RPC to return `trade_in_vehicle` (gated like `notes` — only visible to admin or the buyer).
 
-- **city looks like a vehicle**: matches `/honda|toyota|ford|bmw|mercedes|tesla|audi|.../i` or contains a 4-digit year → reject with `error_type: "city_looks_like_vehicle"` and `suggested_fix: "Check Make.com mapping — 'city' is receiving vehicle text. Map the location/city variable instead."`
-- **vehicle_preference looks like a city**: matches a Canadian city list and is < 25 chars → warn (don't reject, just store + flag).
-- **email is not a valid email**: reject with `error_type: "email_invalid"` and the actual bad value in the suggested fix.
-- **phone has fewer than 7 digits after stripping**: reject with `error_type: "phone_too_short"`.
-- **All-fields-empty-except-phone**: reject with `error_type: "payload_appears_empty"` and a suggested fix telling them to check the Make.com module that builds the JSON body — this is the "fired too early" case.
+Update `dedupe_lead_before_insert` trigger to merge `trade_in_vehicle` with `coalesce(NEW.trade_in_vehicle, trade_in_vehicle)`.
 
-All flagged rejections go into `rejected_inbound_leads` with the full payload so the admin Rejected Leads screen already shows them.
+**Backfill** (one-shot, via insert tool):
+```sql
+UPDATE public.leads
+SET has_bankruptcy = true
+WHERE has_bankruptcy IS DISTINCT FROM true
+  AND notes ILIKE '%bankrupt%';
+```
 
-### 3. New `error_type` column usage + admin UI surfacing
+### 2. Webhook — accept both fields cleanly
 
-`rejected_inbound_leads.error_type` already exists. Populate it with the new structured codes above (`city_looks_like_vehicle`, `email_invalid`, `phone_too_short`, `payload_appears_empty`, `missing_required_fields`, `name_recovery_failed`).
+`supabase/functions/inbound-webhook/index.ts`:
 
-In `src/pages/AdminRejectedLeads.tsx`:
-- Add an **error_type filter dropdown** alongside the existing status filter chips.
-- Add a per-row **"Suggested fix"** expandable section that shows the human-readable remediation for that error_type.
-- Add a small **"Field heatmap"** at the top of the page: count of rejections by error_type over the last 7 days, so the client can immediately see "12 rejections this week, 9 of them are payload_appears_empty → fix your Make.com trigger order."
+- Add `trade_in_vehicle: z.string().trim().max(200).nullish()` to `inboundLeadSchema`.
+- Add an alias normalizer so Make.com users who send `"trade_in vehicle"` (with a space — common Make.com mistake) or `"tradein_vehicle"` get auto-mapped to `trade_in_vehicle` before schema validation. Same for `"bankruptcy"` → `has_bankruptcy` (with boolean coercion of `"yes"/"no"/"true"/"false"`).
+- Add entries to `FIELD_HINTS` for both fields with example values.
+- Pass both into the `leads` insert payload.
 
-### 4. Make.com integration guide page (admin-only docs)
+### 3. Forms — add UI controls
 
-Create `src/pages/AdminMakeComGuide.tsx` (route `/admin/makecom-guide`, sidebar link under Admin) with:
+**`src/pages/SubmitLead.tsx`** (dealer-facing submit form):
+- Add a `has_bankruptcy: false` field to form state and a Yes/No `<Switch>` next to the existing Trade-In switch.
+- Add a `trade_in_vehicle: ""` text input that **only renders when `form.trade_in === true`**, with placeholder `"e.g. 2018 Honda Civic, 80,000 km"`.
+- Send both in the submit payload.
 
-- **Scenario screenshot walkthrough** (text-based; no images needed): step-by-step description of the correct HTTP module configuration in Make.com.
-- **Required modules in order**: Trigger → Data prep (text parsing / ChatGPT) → **Filter (only continue if first_name AND last_name are non-empty)** → HTTP POST. The missing filter is what's letting half-baked payloads through.
-- **Exact mapping table**: each MayaX JSON field on the left, what the Make.com source variable should be on the right, and a "common mistake" column (e.g. "Don't map the transcript variable to `city` — map it to `notes`").
-- **Body type setting**: must be `Raw → JSON (application/json)`, not `Form-data`. Form-data sends everything as strings and is a common source of `"None"` literals.
-- **Test payload** (the same one already shown in the settings card) with a "Copy" button.
-- A **"Test your scenario"** section that links to the existing Webhook Tester so they can paste their Make.com output and see exactly which fields would fail.
+**`src/components/AdminAddLeadDialog.tsx`**:
+- Same two controls, same conditional rendering for `trade_in_vehicle`.
+- Replace the `effectiveBankruptcy = notesFlags.has_bankruptcy` line with `form.has_bankruptcy || notesFlags.has_bankruptcy` so the toggle wins but notes still infers.
+- Include both in the live price preview and the insert payload.
 
-### 5. Add a `?strict=true` mode to the webhook
+**`supabase/functions/submit-lead/index.ts`** (if it does its own validation): add both fields to the accepted schema and insert.
 
-Optional query flag the client can set in their Make.com HTTP module URL: `…/inbound-webhook?strict=true`.
+### 4. Display — show both fields everywhere a lead is shown
 
-When strict is on:
-- All the heuristic warnings in step 2 become hard rejections (instead of warn-and-store).
-- Numeric coercion failures reject instead of nulling.
-- The response includes `field_diagnostics: { city: "looks_like_vehicle", income: "could_not_parse_'Not working'" }` so Make.com's error handler can show it.
+**`src/components/LeadCard.tsx`**:
+- Add a "Bankruptcy" badge next to the existing Trade-In badge when `lead.has_bankruptcy` is true (admin/buyer only — it's gated server-side).
+- When `lead.trade_in === true` AND `lead.trade_in_vehicle` is set, show the vehicle text under the Trade-In badge in a small muted line: `"Trade-in: 2018 Honda Civic"`.
 
-This lets the client turn on strict mode while debugging the scenario, then leave it off (or keep it on) in production.
+**`src/components/OrderDetailModal.tsx`**:
+- Already shows Trade-In Yes/No — add a row immediately below for Trade-In Vehicle when present.
+- Add a Bankruptcy row.
+- Add both to the PDF export rows (`row("Trade-In Vehicle:", ...)`, `row("Bankruptcy:", ...)`).
 
-### 6. Add a settings toggle: "Reject empty-payload pings"
+**`src/components/AdminLeadTable.tsx`**:
+- Add `trade_in_vehicle: string | null` to the typed Lead interface so it flows through.
+- Optional column toggle for it (default hidden to keep table compact).
 
-In `AdminWebhookSettings.tsx`, add a switch `inbound_webhook_reject_empty_payloads` (default ON). When on, payloads where everything except `phone` is empty are rejected immediately with a clear error. This kills the "Make.com fired too early" garbage at the door.
+### 5. Marketplace + types
+
+- Regenerate `src/integrations/supabase/types.ts` (automatic after migration).
+- Update any `Lead` interfaces that explicitly list columns: `LeadCard`, `OrderDetailModal`, `AdminLeadTable`, marketplace queries.
+
+### 6. Email template — wire up the existing reference
+
+`supabase/functions/_shared/transactional-email-templates/lead-purchased.tsx` already expects `trade_in_vehicle` and `has_bankruptcy`. Just make sure `purchase-lead/index.ts` actually passes them from the now-real DB columns (the field reference exists but reads `undefined` today).
+
+### 7. Make.com guide — document the new keys
+
+`src/pages/AdminMakeComGuide.tsx`:
+
+- Add `has_bankruptcy` and `trade_in_vehicle` to the mapping table with examples.
+- Add a "Common mistake" callout: `"bankruptcy"` (no `has_` prefix) and `"trade_in vehicle"` (with a space) are auto-aliased but the canonical keys are `has_bankruptcy` and `trade_in_vehicle`.
+- Update the recommended copy-paste JSON example to include both.
+
+### 8. Pricing/scoring — already handled, just verify
+
+`calculateLeadPrice` already adds `lead_price_bankruptcy` when `has_bankruptcy` is true. With the toggle now setting it directly (instead of relying on notes regex), the bankruptcy price kicks in correctly. No code change needed beyond the form wiring in step 3.
+
+---
 
 ## Technical details
 
-**Files to edit:**
-- `supabase/functions/inbound-webhook/index.ts` — add `normalizeInboundLead()`, field-shape heuristics, `strict` mode, empty-payload guard, populate `error_type` consistently.
-- `src/pages/AdminRejectedLeads.tsx` — error_type filter, suggested-fix UI, 7-day heatmap.
-- `src/components/AdminWebhookSettings.tsx` — add `reject_empty_payloads` toggle.
-- `src/components/AppSidebar.tsx` + `src/App.tsx` — register the new Make.com guide route.
+**Files to edit**
+- `supabase/functions/inbound-webhook/index.ts` — schema + alias normalizer + FIELD_HINTS + insert payload
+- `supabase/functions/submit-lead/index.ts` — accept both fields
+- `supabase/functions/purchase-lead/index.ts` — pass `trade_in_vehicle` from real column (already references it)
+- `src/pages/SubmitLead.tsx` — bankruptcy switch + conditional trade-in vehicle input
+- `src/components/AdminAddLeadDialog.tsx` — same two controls + price-preview wiring
+- `src/components/LeadCard.tsx` — bankruptcy badge + trade-in vehicle line
+- `src/components/OrderDetailModal.tsx` — display rows + PDF rows
+- `src/components/AdminLeadTable.tsx` — type + optional column
+- `src/pages/AdminMakeComGuide.tsx` — mapping table + JSON example
+- `src/lib/leadScoring.ts` — extend `LeadInput` type with `trade_in_vehicle`
 
-**Files to create:**
-- `src/pages/AdminMakeComGuide.tsx` — the integration walkthrough.
+**Migrations**
+1. Add `trade_in_vehicle` column to `leads` and `rejected_inbound_leads`
+2. Update `get_marketplace_leads` RPC to return the column (gated)
+3. Update `dedupe_lead_before_insert` trigger to merge the new column
 
-**No DB migration required** — `error_type` column already exists; we're just populating it consistently and reading it in the UI.
+**Data update (insert tool, not migration)**
+- Backfill `has_bankruptcy = true` where `notes ILIKE '%bankrupt%'`
 
-**No new secrets required.**
+**No new secrets, no new RLS policies needed** — both fields inherit existing lead-level RLS.
 
-## What this delivers to your client
+---
 
-1. **Today**, when they look at Rejected Leads, they'll see for each broken push: "city is receiving vehicle text — fix Make.com mapping" instead of just "Missing required fields."
-2. They get a **step-by-step Make.com guide** matching their exact scenario.
-3. The webhook stops accepting obviously broken data (`"None"` emails, empty payloads, vehicle text in city), so the marketplace stops getting polluted.
-4. They can flip `?strict=true` on while testing to see every problem at once.
+## Make.com payload after this change
+
+```json
+{
+  "first_name": "Alice",
+  "last_name": "Johnson",
+  "phone": "4165551234",
+  "email": "alice@example.com",
+  "city": "Toronto",
+  "province": "ON",
+  "income": 5500,
+  "credit_range_min": 650,
+  "credit_range_max": 700,
+  "vehicle_preference": "Honda Civic",
+  "trade_in": true,
+  "trade_in_vehicle": "2018 Toyota Corolla, 80,000 km",
+  "has_bankruptcy": false,
+  "notes": "Wants financing"
+}
+```
+
+Both `"bankruptcy"` and `"trade_in vehicle"` (with space) will still be accepted as aliases and silently mapped to the canonical keys, so the client's existing Make.com scenario won't break.

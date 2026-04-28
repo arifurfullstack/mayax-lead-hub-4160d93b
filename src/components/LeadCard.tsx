@@ -171,7 +171,24 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
       {lead.trade_in && (
         <div className="flex items-center gap-1.5 mb-0.5 text-muted-foreground">
           <Tooltip><TooltipTrigger asChild><Car className="h-3.5 w-3.5 cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Trade-In Vehicle</TooltipContent></Tooltip>
-          <Tooltip><TooltipTrigger asChild><span className="text-sm text-emerald-400 font-medium cursor-help">Trade-In</span></TooltipTrigger><TooltipContent side="top" className="text-xs">Customer has a trade-in vehicle</TooltipContent></Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="text-sm text-emerald-400 font-medium cursor-help truncate">
+                {lead.trade_in_vehicle ? `Trade-In: ${lead.trade_in_vehicle}` : "Trade-In"}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">
+              {lead.trade_in_vehicle ?? "Customer has a trade-in vehicle"}
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      )}
+
+      {/* Bankruptcy */}
+      {lead.has_bankruptcy && (
+        <div className="flex items-center gap-1.5 mb-0.5 text-muted-foreground">
+          <Tooltip><TooltipTrigger asChild><Shield className="h-3.5 w-3.5 cursor-help text-amber-400" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Bankruptcy disclosed</TooltipContent></Tooltip>
+          <Tooltip><TooltipTrigger asChild><span className="text-sm text-amber-400 font-medium cursor-help">Bankruptcy</span></TooltipTrigger><TooltipContent side="top" className="text-xs">Customer disclosed prior bankruptcy</TooltipContent></Tooltip>
         </div>
       )}
 

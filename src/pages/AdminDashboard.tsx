@@ -294,6 +294,7 @@ const AdminDashboard = () => {
     buyer_type: "online", vehicle_preference: "", vehicle_price: "",
     vehicle_mileage: "", income: "", credit_range_min: "", credit_range_max: "",
     notes: "", appointment_time: "", trade_in: false, has_bankruptcy: false,
+    trade_in_vehicle: "",
   });
 
   const saveLeadEdits = async () => {
@@ -321,6 +322,7 @@ const AdminDashboard = () => {
       appointment_time: editForm.appointment_time || null,
       trade_in: editForm.trade_in,
       has_bankruptcy: editForm.has_bankruptcy,
+      trade_in_vehicle: editForm.trade_in ? (editForm.trade_in_vehicle || null) : null,
     };
     const { error } = await supabase.from("leads").update(updates).eq("id", selectedLead.id);
     setSavingLead(false);
@@ -860,6 +862,7 @@ const AdminDashboard = () => {
                     appointment_time: selectedLead.appointment_time ? selectedLead.appointment_time.slice(0, 16) : "",
                     trade_in: selectedLead.trade_in ?? false,
                     has_bankruptcy: selectedLead.has_bankruptcy ?? false,
+                    trade_in_vehicle: (selectedLead as any).trade_in_vehicle ?? "",
                   });
                   setEditingLead(true);
                 }}>
@@ -891,6 +894,9 @@ const AdminDashboard = () => {
                 <div><span className="text-muted-foreground text-xs">Vehicle Price</span><p className="text-foreground">{selectedLead.vehicle_price != null ? `$${Number(selectedLead.vehicle_price).toLocaleString()}` : "—"}</p></div>
                 <div><span className="text-muted-foreground text-xs">Vehicle Mileage</span><p className="text-foreground">{selectedLead.vehicle_mileage != null ? `${Number(selectedLead.vehicle_mileage).toLocaleString()} km` : "—"}</p></div>
                 <div><span className="text-muted-foreground text-xs">Trade-In</span><p className="text-foreground">{selectedLead.trade_in ? "Yes" : "No"}</p></div>
+                {selectedLead.trade_in && (selectedLead as any).trade_in_vehicle && (
+                  <div><span className="text-muted-foreground text-xs">Trade-In Vehicle</span><p className="text-foreground">{(selectedLead as any).trade_in_vehicle}</p></div>
+                )}
                 <div><span className="text-muted-foreground text-xs">Bankruptcy</span><p className="text-foreground">{selectedLead.has_bankruptcy ? "Yes" : "No"}</p></div>
                 <div><span className="text-muted-foreground text-xs">Appointment</span><p className="text-foreground">{selectedLead.appointment_time ? new Date(selectedLead.appointment_time).toLocaleString() : "—"}</p></div>
                 <div className="col-span-2"><span className="text-muted-foreground text-xs">Created</span><p className="text-foreground">{new Date(selectedLead.created_at).toLocaleString()}</p></div>
@@ -1051,6 +1057,18 @@ const AdminDashboard = () => {
                   <Label className="text-xs text-muted-foreground">Bankruptcy</Label>
                 </div>
               </div>
+              {editForm.trade_in && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Trade-In Vehicle</Label>
+                  <input
+                    value={editForm.trade_in_vehicle}
+                    onChange={(e) => setEditForm((f) => ({ ...f, trade_in_vehicle: e.target.value }))}
+                    placeholder="e.g. 2018 Honda Civic, 80,000 km"
+                    maxLength={200}
+                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+                  />
+                </div>
+              )}
 
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Notes</Label>

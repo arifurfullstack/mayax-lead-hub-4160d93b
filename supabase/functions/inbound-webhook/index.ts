@@ -99,6 +99,38 @@ function parseInboundPayload(raw: string): unknown {
   }
 }
 
+/**
+ * Map common Make.com mis-named keys to canonical webhook keys BEFORE
+ * normalization/validation runs. Lets clients keep working scenarios while
+ * we accept the canonical names everywhere else.
+ *
+ * Examples handled:
+ *   "trade_in vehicle" (key with a space) → "trade_in_vehicle"
+ *   "tradein_vehicle"                     → "trade_in_vehicle"
+ *   "bankruptcy"                          → "has_bankruptcy"
+ */
+const KEY_ALIASES: Record<string, string> = {
+  "trade_in vehicle": "trade_in_vehicle",
+  "tradein_vehicle": "trade_in_vehicle",
+  "trade in vehicle": "trade_in_vehicle",
+  "tradeinvehicle": "trade_in_vehicle",
+  "bankruptcy": "has_bankruptcy",
+  "has bankruptcy": "has_bankruptcy",
+};
+
+function applyKeyAliases(lead: any): any {
+  if (!lead || typeof lead !== "object") return lead;
+  for (const [aliasKey, canonicalKey] of Object.entries(KEY_ALIASES)) {
+    if (aliasKey in lead && !(canonicalKey in lead)) {
+      lead[canonicalKey] = lead[aliasKey];
+    }
+    if (aliasKey in lead && aliasKey !== canonicalKey) {
+      delete lead[aliasKey];
+    }
+  }
+  return lead;
+}
+
 const DEFAULT_PRICING: PricingSettings = {
   lead_price_base: 15,
   lead_price_income_tier1: 5,
@@ -326,11 +358,14 @@ function looksLikeValidEmail(value: unknown): boolean {
 function normalizeInboundLead(lead: any): any {
   if (!lead || typeof lead !== "object") return lead;
 
+  // Map alias keys ("bankruptcy", "trade_in vehicle", etc.) to canonical keys first
+  applyKeyAliases(lead);
+
   // String fields → null when empty-ish
   for (const k of [
     "first_name", "last_name", "email", "phone", "city", "province",
     "buyer_type", "vehicle_preference", "notes", "appointment_time",
-    "reference_code",
+    "reference_code", "trade_in_vehicle",
   ]) {
     if (k in lead) lead[k] = nullIfEmptyish(lead[k]);
   }
@@ -358,13 +393,17 @@ function normalizeInboundLead(lead: any): any {
     }
   }
 
-  // Boolean coercion for trade_in
-  if ("trade_in" in lead) {
-    const v = lead.trade_in;
+  // Boolean coercion for trade_in + has_bankruptcy
+  for (const boolKey of ["trade_in", "has_bankruptcy"]) {
+    if (!(boolKey in lead)) continue;
+    const v = lead[boolKey];
     if (typeof v === "string") {
       const s = v.trim().toLowerCase();
-      if (["true", "yes", "y", "1"].includes(s)) lead.trade_in = true;
-      else if (["false", "no", "n", "0", ""].includes(s)) lead.trade_in = false;
+      if (["true", "yes", "y", "1"].includes(s)) lead[boolKey] = true;
+      else if (["false", "no", "n", "0", ""].includes(s)) lead[boolKey] = false;
+      else if (s === "") lead[boolKey] = null;
+    } else if (typeof v === "number") {
+      lead[boolKey] = v === 1;
     }
   }
 
@@ -506,6 +545,7 @@ const inboundLeadSchema = z.object({
 
   // Misc
   notes: z.string().max(4000).nullish(),
+  trade_in_vehicle: z.string().trim().max(200).nullish(),
   reference_code: z.string().trim().max(60).nullish(),
   appointment_time: z.string().nullish().refine(
     (v) => v == null || v === "" || !Number.isNaN(Date.parse(v)),
@@ -566,6 +606,7 @@ const FIELD_HINTS: Record<string, string> = {
   trade_in: 'Send true or false (boolean). Example: "trade_in": true',
   has_bankruptcy: 'Send true or false (boolean). Example: "has_bankruptcy": false',
   notes: 'Send a string up to 4000 chars, or omit the key.',
+  trade_in_vehicle: 'Describe the trade-in vehicle. Example: "trade_in_vehicle": "2018 Honda Civic, 80,000 km"',
   reference_code: 'Send a short string (≤60 chars) or omit the key.',
   appointment_time: 'Send ISO 8601. Example: "appointment_time": "2026-05-01T14:30:00Z"',
 };
@@ -1022,7 +1063,8 @@ Deno.serve(async (req) => {
       // Parse notes for hidden flags
       const notesFlags = parseNotesFlags(lead.notes);
       const trade_in = lead.trade_in === true || notesFlags.trade_in;
-      const has_bankruptcy = notesFlags.has_bankruptcy;
+      const has_bankruptcy = lead.has_bankruptcy === true || notesFlags.has_bankruptcy;
+      const trade_in_vehicle = trade_in ? (lead.trade_in_vehicle ?? null) : (lead.trade_in_vehicle ?? null);
       const has_appointment = notesFlags.has_appointment;
       const appointment_time = (lead.appointment_time && lead.appointment_time.trim() !== "") ? lead.appointment_time : (has_appointment ? new Date().toISOString() : null);
       const income = parseNumericInput(lead.income);
@@ -1067,6 +1109,7 @@ Deno.serve(async (req) => {
         vehicle_price,
         notes: lead.notes ?? null,
         trade_in,
+        trade_in_vehicle,
         has_bankruptcy,
         quality_grade,
         ai_score,
