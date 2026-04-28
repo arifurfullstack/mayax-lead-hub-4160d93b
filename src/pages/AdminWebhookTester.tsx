@@ -780,6 +780,75 @@ const AdminWebhookTester = () => {
     toast.success("Lead JSON copied");
   };
 
+  // --- RLS / permission diagnostic for the leads table ---
+  type DiagResult = {
+    authenticated: boolean;
+    userId: string | null;
+    email: string | null;
+    isAdmin: boolean | null;
+    rolesError: string | null;
+    canSelect: boolean;
+    rowCount: number | null;
+    selectError: { message: string; code?: string; details?: string; hint?: string } | null;
+    headCount: number | null;
+    headError: { message: string; code?: string; details?: string; hint?: string } | null;
+    checkedAt: string;
+  };
+  const [diagLoading, setDiagLoading] = useState(false);
+  const [diag, setDiag] = useState<DiagResult | null>(null);
+
+  const runLeadsDiagnostic = async () => {
+    setDiagLoading(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const session = sessionData.session;
+      const userId = session?.user.id ?? null;
+      const email = session?.user.email ?? null;
+
+      let isAdmin: boolean | null = null;
+      let rolesError: string | null = null;
+      if (userId) {
+        const { data: roles, error: rErr } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", userId);
+        if (rErr) rolesError = rErr.message;
+        else isAdmin = !!roles?.some((r: any) => r.role === "admin");
+      }
+
+      const { data: rows, error: selErr } = await supabase
+        .from("leads")
+        .select("id, reference_code, has_bankruptcy, trade_in_vehicle")
+        .limit(1);
+
+      const { count: headCount, error: headErr } = await supabase
+        .from("leads")
+        .select("*", { count: "exact", head: true });
+
+      setDiag({
+        authenticated: !!session,
+        userId,
+        email,
+        isAdmin,
+        rolesError,
+        canSelect: !selErr,
+        rowCount: rows?.length ?? 0,
+        selectError: selErr
+          ? { message: selErr.message, code: (selErr as any).code, details: (selErr as any).details, hint: (selErr as any).hint }
+          : null,
+        headCount: headCount ?? null,
+        headError: headErr
+          ? { message: headErr.message, code: (headErr as any).code, details: (headErr as any).details, hint: (headErr as any).hint }
+          : null,
+        checkedAt: new Date().toISOString(),
+      });
+    } catch (err: any) {
+      toast.error(err?.message ?? "Diagnostic failed");
+    } finally {
+      setDiagLoading(false);
+    }
+  };
+
   const validation = useMemo(() => validatePayload(payload), [payload]);
 
   // Preview state — when set, the diff dialog is open showing before/after.
@@ -1254,6 +1323,107 @@ const AdminWebhookTester = () => {
       </Alert>
 
       {/* ── Inspect Lead in DB ─────────────────────────────────────────── */}
+      {/* ── RLS Permission Diagnostic ───────────────────────────────────── */}
+      <Card className="border-border/60">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-primary" />
+            Leads Table — Permission Diagnostic
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Verifies whether the current admin session can read the <code>leads</code> table via Row-Level Security. Shows the exact Supabase error if the SELECT fails.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Button onClick={runLeadsDiagnostic} disabled={diagLoading} size="sm">
+            {diagLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+            <span className="ml-2">Run diagnostic</span>
+          </Button>
+
+          {diag && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                <div className="rounded-md border border-border/60 p-2">
+                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Authenticated</div>
+                  <Badge variant={diag.authenticated ? "secondary" : "destructive"} className="mt-1 text-[10px]">
+                    {diag.authenticated ? "yes" : "no"}
+                  </Badge>
+                </div>
+                <div className="rounded-md border border-border/60 p-2">
+                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Admin role</div>
+                  <Badge
+                    variant={diag.isAdmin ? "secondary" : diag.isAdmin === false ? "destructive" : "outline"}
+                    className="mt-1 text-[10px]"
+                  >
+                    {diag.isAdmin === null ? "unknown" : diag.isAdmin ? "yes" : "no"}
+                  </Badge>
+                </div>
+                <div className="rounded-md border border-border/60 p-2">
+                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground">SELECT leads</div>
+                  <Badge variant={diag.canSelect ? "secondary" : "destructive"} className="mt-1 text-[10px]">
+                    {diag.canSelect ? "allowed" : "blocked"}
+                  </Badge>
+                </div>
+                <div className="rounded-md border border-border/60 p-2">
+                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Visible row count</div>
+                  <div className="mt-1 font-mono text-sm">
+                    {diag.headCount ?? (diag.canSelect ? diag.rowCount ?? 0 : "—")}
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-md border border-border/60 p-2 text-xs space-y-1">
+                <div><span className="text-muted-foreground">User ID:</span> <span className="font-mono">{diag.userId ?? "—"}</span></div>
+                <div><span className="text-muted-foreground">Email:</span> <span className="font-mono">{diag.email ?? "—"}</span></div>
+                <div><span className="text-muted-foreground">Checked at:</span> <span className="font-mono">{diag.checkedAt}</span></div>
+              </div>
+
+              {diag.rolesError && (
+                <Alert variant="destructive">
+                  <ShieldAlert className="h-4 w-4" />
+                  <AlertTitle>Cannot read user_roles</AlertTitle>
+                  <AlertDescription className="font-mono text-xs whitespace-pre-wrap">{diag.rolesError}</AlertDescription>
+                </Alert>
+              )}
+
+              {diag.selectError && (
+                <Alert variant="destructive">
+                  <ShieldAlert className="h-4 w-4" />
+                  <AlertTitle>SELECT on leads failed</AlertTitle>
+                  <AlertDescription>
+                    <pre className="mt-1 whitespace-pre-wrap break-all font-mono text-xs">
+{JSON.stringify(diag.selectError, null, 2)}
+                    </pre>
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {diag.headError && (
+                <Alert variant="destructive">
+                  <ShieldAlert className="h-4 w-4" />
+                  <AlertTitle>COUNT on leads failed</AlertTitle>
+                  <AlertDescription>
+                    <pre className="mt-1 whitespace-pre-wrap break-all font-mono text-xs">
+{JSON.stringify(diag.headError, null, 2)}
+                    </pre>
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {diag.canSelect && !diag.selectError && (
+                <Alert>
+                  <CheckCircle2 className="h-4 w-4" />
+                  <AlertTitle>RLS check passed</AlertTitle>
+                  <AlertDescription className="text-xs">
+                    Your session can read from <code>leads</code>. {diag.headCount !== null ? `${diag.headCount} row(s) visible.` : ""}
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <Card className="border-border/60">
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
