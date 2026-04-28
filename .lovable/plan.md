@@ -1,160 +1,104 @@
-# Add `has_bankruptcy` + `trade_in_vehicle` as first-class fields
 
-## Why this matters
+# Why Make.com leads aren't showing in the marketplace
 
-Right now both fields are half-implemented:
+## TL;DR — The leads ARE being inserted. They're just being bought instantly.
 
-- **`has_bankruptcy`** exists as a DB column AND in the webhook schema, but the UI **never lets anyone set it directly** — it's inferred only by regex-matching the word "bankrupt" in the `notes` field. Forms have no toggle for it.
-- **`trade_in_vehicle`** (the description: "2018 Honda Civic, 80k km") doesn't exist at all in the database or webhook. It's only referenced inside the lead-purchased email template, which silently renders blank, and `purchase-lead` reads `lead.trade_in_vehicle` from a column that doesn't exist.
+I queried the database directly and the picture is clear:
 
-So the client's request — "send `bankruptcy` and `trade_in vehicle` from Make.com" — currently fails for both: bankruptcy is silently ignored unless the word appears in notes, and trade-in vehicle text has nowhere to live.
+- **Leads table totals:** 234 total leads, **0 available**, 234 sold.
+- **Most recent 15 leads** (including ones from today, ref `MX-2026-456`, `MX-2026-418`, `MX-2026-272`, etc.) all have `sold_status = 'sold'`.
+- **Purchases table:** two dealers — `DriveX Canada` and `Ajax Nissan` — bought 9 leads in a single minute window at `14:00:34 UTC` today, and 11 leads in one hour yesterday.
+- **Autopay is OFF** for both dealers (`autopay_enabled = false`), so this is **manual rapid-fire buying**, not autopay.
+- **Make.com webhook itself is healthy** — there are some rejected payloads in `rejected_inbound_leads`, but they're caused by *missing `last_name`* / city-as-vehicle issues, not by your current JSON format. The leads you sent today went through, got a `reference_code`, then got bought.
 
-This plan makes both fields **real, dynamic, and editable everywhere**.
+So the question "why is the lead not added in marketplace" is actually **"why is it gone from marketplace seconds after being added?"** — answer: a dealer purchased it.
 
----
-
-## What you'll get
-
-1. A proper **Bankruptcy Yes/No toggle** in: Submit Lead form, Admin Add Lead dialog, Lead Card, Order Detail modal, purchase email.
-2. A new **Trade-In Vehicle text field** (e.g. "2018 Honda Civic, 80k km") that appears whenever `trade_in = true`, in the same five places.
-3. **Webhook accepts both fields** from Make.com with clean validation, and Make.com guide is updated with the correct keys + examples.
-4. **Pricing/scoring** automatically apply the bankruptcy bonus when the toggle is on (currently only triggered by notes regex).
-5. **Backfill**: existing leads where notes contain "bankrupt" get `has_bankruptcy = true` set as a one-time data fix.
+The marketplace is doing exactly what it's coded to do: `get_marketplace_leads` returns only `WHERE sold_status = 'available'`. Once sold, it disappears.
 
 ---
 
-## Plan
+## What the plan will do
 
-### 1. Database — add the missing column
+Two parts: (A) confirm/diagnose this for any future "missing lead" report, and (B) optionally make sold leads still browsable so admins don't think they "vanished".
 
-Migration:
+### Part A — Add a "Lead Lifecycle Inspector" to the Webhook Tester
 
-```sql
-ALTER TABLE public.leads
-  ADD COLUMN IF NOT EXISTS trade_in_vehicle text;
+Right now, when you send a Make.com payload, you have no quick way to see what happened to it after insert. We'll add a card that, given a `reference_code` (or auto-picked from the most recent inbound), shows a **timeline**:
 
-ALTER TABLE public.rejected_inbound_leads
-  ADD COLUMN IF NOT EXISTS trade_in_vehicle text;
+```text
+14:53:00  CREATED    via inbound-webhook (Make.com)   sold_status=available
+14:53:04  SOLD       to DriveX Canada                  $35.00   wallet -$35
+14:53:04  DELIVERED  email + webhook → 200 OK
 ```
 
-Update the `get_marketplace_leads` RPC to return `trade_in_vehicle` (gated like `notes` — only visible to admin or the buyer).
+It pulls from `leads`, `purchases`, `delivery_logs`, and `lead_audit_log` and renders a single row per event. This way next time you (or your client) say "the lead didn't appear", one click tells you it appeared *and* who bought it within X seconds.
 
-Update `dedupe_lead_before_insert` trigger to merge `trade_in_vehicle` with `coalesce(NEW.trade_in_vehicle, trade_in_vehicle)`.
+### Part B — Make the marketplace show "Recently sold" leads (read-only)
 
-**Backfill** (one-shot, via insert tool):
-```sql
-UPDATE public.leads
-SET has_bankruptcy = true
-WHERE has_bankruptcy IS DISTINCT FROM true
-  AND notes ILIKE '%bankrupt%';
-```
+Today the marketplace UI is built around a single `get_marketplace_leads` RPC that only returns available leads. We'll:
 
-### 2. Webhook — accept both fields cleanly
+1. Add a new toggle in `Marketplace.tsx` header: **"Show recently sold (24h)"** (admin-visible by default, dealer-optional).
+2. Extend `get_marketplace_leads` to take an optional `_include_sold_hours int default 0` parameter. When > 0, also return leads `WHERE sold_status='sold' AND sold_at > now() - interval '_include_sold_hours hours'`, with PII still gated to admin/buyer only and a `sold_at` timestamp + buyer dealership name shown.
+3. In `LeadCard`, when `sold_status='sold'`, render the card grayed-out with a "SOLD to {dealership}" badge instead of the Buy button.
 
-`supabase/functions/inbound-webhook/index.ts`:
+This solves the perception problem: instead of an empty marketplace, you see "12 leads sold in the last 24h, 0 currently available" and immediately know the funnel is working — you just need more inbound or fewer buyers.
 
-- Add `trade_in_vehicle: z.string().trim().max(200).nullish()` to `inboundLeadSchema`.
-- Add an alias normalizer so Make.com users who send `"trade_in vehicle"` (with a space — common Make.com mistake) or `"tradein_vehicle"` get auto-mapped to `trade_in_vehicle` before schema validation. Same for `"bankruptcy"` → `has_bankruptcy` (with boolean coercion of `"yes"/"no"/"true"/"false"`).
-- Add entries to `FIELD_HINTS` for both fields with example values.
-- Pass both into the `leads` insert payload.
+### Part C — Optional throttle so leads stay buyable for at least N seconds
 
-### 3. Forms — add UI controls
-
-**`src/pages/SubmitLead.tsx`** (dealer-facing submit form):
-- Add a `has_bankruptcy: false` field to form state and a Yes/No `<Switch>` next to the existing Trade-In switch.
-- Add a `trade_in_vehicle: ""` text input that **only renders when `form.trade_in === true`**, with placeholder `"e.g. 2018 Honda Civic, 80,000 km"`.
-- Send both in the submit payload.
-
-**`src/components/AdminAddLeadDialog.tsx`**:
-- Same two controls, same conditional rendering for `trade_in_vehicle`.
-- Replace the `effectiveBankruptcy = notesFlags.has_bankruptcy` line with `form.has_bankruptcy || notesFlags.has_bankruptcy` so the toggle wins but notes still infers.
-- Include both in the live price preview and the insert payload.
-
-**`supabase/functions/submit-lead/index.ts`** (if it does its own validation): add both fields to the accepted schema and insert.
-
-### 4. Display — show both fields everywhere a lead is shown
-
-**`src/components/LeadCard.tsx`**:
-- Add a "Bankruptcy" badge next to the existing Trade-In badge when `lead.has_bankruptcy` is true (admin/buyer only — it's gated server-side).
-- When `lead.trade_in === true` AND `lead.trade_in_vehicle` is set, show the vehicle text under the Trade-In badge in a small muted line: `"Trade-in: 2018 Honda Civic"`.
-
-**`src/components/OrderDetailModal.tsx`**:
-- Already shows Trade-In Yes/No — add a row immediately below for Trade-In Vehicle when present.
-- Add a Bankruptcy row.
-- Add both to the PDF export rows (`row("Trade-In Vehicle:", ...)`, `row("Bankruptcy:", ...)`).
-
-**`src/components/AdminLeadTable.tsx`**:
-- Add `trade_in_vehicle: string | null` to the typed Lead interface so it flows through.
-- Optional column toggle for it (default hidden to keep table compact).
-
-### 5. Marketplace + types
-
-- Regenerate `src/integrations/supabase/types.ts` (automatic after migration).
-- Update any `Lead` interfaces that explicitly list columns: `LeadCard`, `OrderDetailModal`, `AdminLeadTable`, marketplace queries.
-
-### 6. Email template — wire up the existing reference
-
-`supabase/functions/_shared/transactional-email-templates/lead-purchased.tsx` already expects `trade_in_vehicle` and `has_bankruptcy`. Just make sure `purchase-lead/index.ts` actually passes them from the now-real DB columns (the field reference exists but reads `undefined` today).
-
-### 7. Make.com guide — document the new keys
-
-`src/pages/AdminMakeComGuide.tsx`:
-
-- Add `has_bankruptcy` and `trade_in_vehicle` to the mapping table with examples.
-- Add a "Common mistake" callout: `"bankruptcy"` (no `has_` prefix) and `"trade_in vehicle"` (with a space) are auto-aliased but the canonical keys are `has_bankruptcy` and `trade_in_vehicle`.
-- Update the recommended copy-paste JSON example to include both.
-
-### 8. Pricing/scoring — already handled, just verify
-
-`calculateLeadPrice` already adds `lead_price_bankruptcy` when `has_bankruptcy` is true. With the toggle now setting it directly (instead of relying on notes regex), the bankruptcy price kicks in correctly. No code change needed beyond the form wiring in step 3.
+Tier delays already exist (`vip=0h, elite=6h, pro=12h, basic=24h`) but VIP/Elite dealers see leads instantly. If two VIP dealers race, one wins in <5s. Add an admin setting `lead_minimum_marketplace_seconds` (default 0, off). When > 0, `purchase-lead` rejects buys where `now() - lead.created_at < lead_minimum_marketplace_seconds`. Lets you guarantee every lead is browsable for, say, 60 seconds before it can be claimed.
 
 ---
 
 ## Technical details
 
-**Files to edit**
-- `supabase/functions/inbound-webhook/index.ts` — schema + alias normalizer + FIELD_HINTS + insert payload
-- `supabase/functions/submit-lead/index.ts` — accept both fields
-- `supabase/functions/purchase-lead/index.ts` — pass `trade_in_vehicle` from real column (already references it)
-- `src/pages/SubmitLead.tsx` — bankruptcy switch + conditional trade-in vehicle input
-- `src/components/AdminAddLeadDialog.tsx` — same two controls + price-preview wiring
-- `src/components/LeadCard.tsx` — bankruptcy badge + trade-in vehicle line
-- `src/components/OrderDetailModal.tsx` — display rows + PDF rows
-- `src/components/AdminLeadTable.tsx` — type + optional column
-- `src/pages/AdminMakeComGuide.tsx` — mapping table + JSON example
-- `src/lib/leadScoring.ts` — extend `LeadInput` type with `trade_in_vehicle`
+**Database (migration)**
+- Drop & recreate `public.get_marketplace_leads(requesting_dealer_id uuid, include_sold_hours int default 0)`.
+  - Same column list as today, **plus** `sold_at` (already returned), `buyer_dealership_name text` (joined from `dealers` when sold).
+  - When `include_sold_hours > 0`: union of `available` + `sold AND sold_at > now() - make_interval(hours => include_sold_hours)`.
+  - PII gating unchanged.
+- Add `platform_settings` row `lead_minimum_marketplace_seconds` (text, default `'0'`).
+- Update `purchase-lead` edge function to read this setting and reject early with a clear error: `"Lead must remain in marketplace for X more seconds before purchase."`
 
-**Migrations**
-1. Add `trade_in_vehicle` column to `leads` and `rejected_inbound_leads`
-2. Update `get_marketplace_leads` RPC to return the column (gated)
-3. Update `dedupe_lead_before_insert` trigger to merge the new column
+**Frontend**
+- `src/pages/Marketplace.tsx`
+  - Add `includeSoldHours` state (default 0; admins default to 24).
+  - Pass it to the RPC call.
+  - Add toggle in header next to filters.
+  - Render sold leads through `LeadCard` with new prop `readOnly={true}` and a `soldTo` label.
+- `src/components/LeadCard.tsx`
+  - When `lead.sold_status === 'sold'`: add muted overlay, replace Buy button with `<Badge variant="outline">Sold to {soldTo} · {timeAgo(sold_at)}</Badge>`.
+- `src/pages/AdminWebhookTester.tsx`
+  - New "Lead Lifecycle" card under the existing Lead Inspector. Inputs: `reference_code` (auto-fills with last inserted from this session). On lookup, query in parallel:
+    - `leads` row (created_at, sold_status, sold_at, sold_to_dealer_id, price, quality_grade)
+    - `purchases` join `dealers` (purchased_at, dealership_name, price_paid)
+    - `delivery_logs` (channel, success, response_code, attempted_at)
+    - `lead_audit_log` (action, actor, reason)
+  - Merge into a sorted timeline and render with colored event icons.
 
-**Data update (insert tool, not migration)**
-- Backfill `has_bankruptcy = true` where `notes ILIKE '%bankrupt%'`
-
-**No new secrets, no new RLS policies needed** — both fields inherit existing lead-level RLS.
+**No changes needed to the inbound webhook** — it's working correctly. The Make.com JSON format you're using is fine.
 
 ---
 
-## Make.com payload after this change
+## Files to edit
 
-```json
-{
-  "first_name": "Alice",
-  "last_name": "Johnson",
-  "phone": "4165551234",
-  "email": "alice@example.com",
-  "city": "Toronto",
-  "province": "ON",
-  "income": 5500,
-  "credit_range_min": 650,
-  "credit_range_max": 700,
-  "vehicle_preference": "Honda Civic",
-  "trade_in": true,
-  "trade_in_vehicle": "2018 Toyota Corolla, 80,000 km",
-  "has_bankruptcy": false,
-  "notes": "Wants financing"
-}
-```
+- `supabase/migrations/<new>.sql` — extend `get_marketplace_leads`, add `platform_settings` key.
+- `supabase/functions/purchase-lead/index.ts` — enforce `lead_minimum_marketplace_seconds`.
+- `src/pages/Marketplace.tsx` — sold toggle, pass param to RPC, render sold cards.
+- `src/components/LeadCard.tsx` — read-only sold mode with buyer badge.
+- `src/pages/AdminWebhookTester.tsx` — new Lead Lifecycle card.
 
-Both `"bankruptcy"` and `"trade_in vehicle"` (with space) will still be accepted as aliases and silently mapped to the canonical keys, so the client's existing Make.com scenario won't break.
+---
+
+## Out of scope (explicitly)
+
+- Changing the Make.com payload schema — it works.
+- Reverting any of the 234 already-sold leads back to `available`. (You already have `admin_reset_leads_to_available` for that if you ever want to.)
+- Removing the rejected leads in `rejected_inbound_leads` — those are real validation failures (missing `last_name`, vehicle text mapped to `city`) and are handled by the existing Rejected Leads page.
+
+---
+
+## Question before I build
+
+The diagnosis (Part A — Lifecycle Inspector) is clearly useful and low-risk. Parts B and C change buyer behavior. Do you want all three, or only A + B (no purchase throttle)?
+
+Reply **"go"** to build all three, **"A and B only"** to skip the throttle, or **"just A"** if you only want the diagnostic for now.
