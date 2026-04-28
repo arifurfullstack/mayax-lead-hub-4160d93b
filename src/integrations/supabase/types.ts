@@ -478,6 +478,7 @@ export type Database = {
           sold_status: string
           sold_to_dealer_id: string | null
           trade_in: boolean | null
+          trade_in_vehicle: string | null
           vehicle_mileage: number | null
           vehicle_preference: string | null
           vehicle_price: number | null
@@ -508,6 +509,7 @@ export type Database = {
           sold_status?: string
           sold_to_dealer_id?: string | null
           trade_in?: boolean | null
+          trade_in_vehicle?: string | null
           vehicle_mileage?: number | null
           vehicle_preference?: string | null
           vehicle_price?: number | null
@@ -538,6 +540,7 @@ export type Database = {
           sold_status?: string
           sold_to_dealer_id?: string | null
           trade_in?: boolean | null
+          trade_in_vehicle?: string | null
           vehicle_mileage?: number | null
           vehicle_preference?: string | null
           vehicle_price?: number | null
@@ -840,6 +843,7 @@ export type Database = {
           retry_count: number
           source_ip: string | null
           status: string
+          trade_in_vehicle: string | null
           user_agent: string | null
         }
         Insert: {
@@ -864,6 +868,7 @@ export type Database = {
           retry_count?: number
           source_ip?: string | null
           status?: string
+          trade_in_vehicle?: string | null
           user_agent?: string | null
         }
         Update: {
@@ -888,6 +893,7 @@ export type Database = {
           retry_count?: number
           source_ip?: string | null
           status?: string
+          trade_in_vehicle?: string | null
           user_agent?: string | null
         }
         Relationships: []
@@ -1138,6 +1144,7 @@ export type Database = {
           sold_status: string
           sold_to_dealer_id: string
           trade_in: boolean
+          trade_in_vehicle: string
           vehicle_mileage: number
           vehicle_preference: string
           vehicle_price: number
