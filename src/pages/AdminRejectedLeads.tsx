@@ -498,8 +498,17 @@ const AdminRejectedLeads = () => {
           {selected && (
             <div className="space-y-4">
               <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3">
-                <p className="text-xs uppercase tracking-wide text-destructive mb-1">Validation error</p>
-                <p className="text-sm text-foreground font-medium">{selected.error_message}</p>
+                <div className="flex items-center gap-2 mb-1">
+                  {(() => {
+                    const Icon = metaFor(selected.error_type).icon;
+                    return <Icon className={`h-3.5 w-3.5 ${metaFor(selected.error_type).tone}`} />;
+                  })()}
+                  <p className="text-xs uppercase tracking-wide text-destructive">
+                    {metaFor(selected.error_type).label}
+                    <span className="ml-2 font-mono lowercase opacity-60">{selected.error_type}</span>
+                  </p>
+                </div>
+                <p className="text-sm text-foreground font-medium whitespace-pre-line">{selected.error_message}</p>
                 {missingFieldsFromError(selected.error_message).length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-2">
                     {missingFieldsFromError(selected.error_message).map((f) => (
@@ -507,6 +516,12 @@ const AdminRejectedLeads = () => {
                     ))}
                   </div>
                 )}
+              </div>
+
+              {/* Suggested fix tied to the structured error_type */}
+              <div className="rounded-md border border-primary/40 bg-primary/5 p-3">
+                <p className="text-xs uppercase tracking-wide text-primary mb-1">Suggested fix</p>
+                <p className="text-sm text-foreground/90">{metaFor(selected.error_type).tip}</p>
               </div>
               {selected.status !== "pending" && (
                 <div
