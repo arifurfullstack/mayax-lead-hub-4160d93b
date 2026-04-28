@@ -32,6 +32,8 @@ const MAPPINGS: Mapping[] = [
   { jsonKey: "vehicle_mileage", source: "Number (km).", mistake: "Sending '45,000 km' as a string — the comma is OK, but strip the unit." },
   { jsonKey: "vehicle_price", source: "Number — asking price.", mistake: "Sending the monthly payment instead of total price." },
   { jsonKey: "trade_in", source: "Boolean — true / false.", mistake: "Sending 'yes'/'no' as strings (now auto-coerced) or leaving blank when there IS a trade." },
+  { jsonKey: "trade_in_vehicle", source: "Description of the trade-in vehicle (e.g. '2018 Honda Civic, 80,000 km'). Only sent when trade_in is true.", mistake: "Using a key with a space ('trade_in vehicle') — auto-aliased but the canonical key is trade_in_vehicle." },
+  { jsonKey: "has_bankruptcy", source: "Boolean — true / false.", mistake: "Using the key 'bankruptcy' (auto-aliased) or sending 'yes'/'no' as strings (also coerced)." },
   { jsonKey: "appointment_time", source: "ISO 8601 timestamp with timezone (2026-05-15T14:00:00-04:00).", mistake: "Sending an empty string '' or a free-text date like 'Saturday morning'." },
   { jsonKey: "notes", source: "Free text — transcript fragments, comments, etc.", mistake: "Putting transcript text into city/vehicle slots instead of here." },
   { jsonKey: "reference_code", source: "Optional — your CRM's lead ID. Auto-generated as MX-YYYY-XXX if omitted.", mistake: "Reusing the same code for different leads (causes false dedupe matches)." },
