@@ -99,6 +99,38 @@ function parseInboundPayload(raw: string): unknown {
   }
 }
 
+/**
+ * Map common Make.com mis-named keys to canonical webhook keys BEFORE
+ * normalization/validation runs. Lets clients keep working scenarios while
+ * we accept the canonical names everywhere else.
+ *
+ * Examples handled:
+ *   "trade_in vehicle" (key with a space) → "trade_in_vehicle"
+ *   "tradein_vehicle"                     → "trade_in_vehicle"
+ *   "bankruptcy"                          → "has_bankruptcy"
+ */
+const KEY_ALIASES: Record<string, string> = {
+  "trade_in vehicle": "trade_in_vehicle",
+  "tradein_vehicle": "trade_in_vehicle",
+  "trade in vehicle": "trade_in_vehicle",
+  "tradeinvehicle": "trade_in_vehicle",
+  "bankruptcy": "has_bankruptcy",
+  "has bankruptcy": "has_bankruptcy",
+};
+
+function applyKeyAliases(lead: any): any {
+  if (!lead || typeof lead !== "object") return lead;
+  for (const [aliasKey, canonicalKey] of Object.entries(KEY_ALIASES)) {
+    if (aliasKey in lead && !(canonicalKey in lead)) {
+      lead[canonicalKey] = lead[aliasKey];
+    }
+    if (aliasKey in lead && aliasKey !== canonicalKey) {
+      delete lead[aliasKey];
+    }
+  }
+  return lead;
+}
+
 const DEFAULT_PRICING: PricingSettings = {
   lead_price_base: 15,
   lead_price_income_tier1: 5,
