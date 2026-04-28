@@ -234,6 +234,19 @@ Deno.serve(async (req) => {
     const delayHours = activeSub?.delay_hours ?? fallbackDelays[dealer.subscription_tier] ?? 24;
     const leadsLimit = activeSub?.leads_per_month ?? null;
 
+    // Optional admin throttle: every lead must remain in the marketplace for at
+    // least N seconds before any dealer (admins included) can buy it. 0 disables.
+    let minMarketplaceSeconds = 0;
+    {
+      const { data: throttleSetting } = await admin
+        .from("platform_settings")
+        .select("value")
+        .eq("key", "lead_minimum_marketplace_seconds")
+        .maybeSingle();
+      const parsed = Number(throttleSetting?.value);
+      if (Number.isFinite(parsed) && parsed > 0) minMarketplaceSeconds = parsed;
+    }
+
     const now = new Date();
     const periodStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
 
@@ -281,6 +294,16 @@ Deno.serve(async (req) => {
         const leadAge = (Date.now() - new Date(lead.created_at).getTime()) / (1000 * 60 * 60);
         if (leadAge < delayHours) {
           results.push({ lead_id: leadId, success: false, error: `Lead locked for ${Math.ceil(delayHours - leadAge)}h (upgrade tier for earlier access)` });
+          continue;
+        }
+      }
+
+      // Minimum marketplace dwell time (applies to everyone, including admins)
+      if (minMarketplaceSeconds > 0) {
+        const ageSec = (Date.now() - new Date(lead.created_at).getTime()) / 1000;
+        if (ageSec < minMarketplaceSeconds) {
+          const wait = Math.ceil(minMarketplaceSeconds - ageSec);
+          results.push({ lead_id: leadId, success: false, error: `Lead must remain in marketplace for ${wait} more second(s) before purchase` });
           continue;
         }
       }
