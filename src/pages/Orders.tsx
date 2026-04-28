@@ -53,6 +53,8 @@ interface LeadDetail {
   notes: string | null;
   appointment_time: string | null;
   trade_in: boolean | null;
+  trade_in_vehicle: string | null;
+  has_bankruptcy: boolean | null;
 }
 
 interface OrderRow {
