@@ -780,6 +780,75 @@ const AdminWebhookTester = () => {
     toast.success("Lead JSON copied");
   };
 
+  // --- RLS / permission diagnostic for the leads table ---
+  type DiagResult = {
+    authenticated: boolean;
+    userId: string | null;
+    email: string | null;
+    isAdmin: boolean | null;
+    rolesError: string | null;
+    canSelect: boolean;
+    rowCount: number | null;
+    selectError: { message: string; code?: string; details?: string; hint?: string } | null;
+    headCount: number | null;
+    headError: { message: string; code?: string; details?: string; hint?: string } | null;
+    checkedAt: string;
+  };
+  const [diagLoading, setDiagLoading] = useState(false);
+  const [diag, setDiag] = useState<DiagResult | null>(null);
+
+  const runLeadsDiagnostic = async () => {
+    setDiagLoading(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const session = sessionData.session;
+      const userId = session?.user.id ?? null;
+      const email = session?.user.email ?? null;
+
+      let isAdmin: boolean | null = null;
+      let rolesError: string | null = null;
+      if (userId) {
+        const { data: roles, error: rErr } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", userId);
+        if (rErr) rolesError = rErr.message;
+        else isAdmin = !!roles?.some((r: any) => r.role === "admin");
+      }
+
+      const { data: rows, error: selErr } = await supabase
+        .from("leads")
+        .select("id, reference_code, has_bankruptcy, trade_in_vehicle")
+        .limit(1);
+
+      const { count: headCount, error: headErr } = await supabase
+        .from("leads")
+        .select("*", { count: "exact", head: true });
+
+      setDiag({
+        authenticated: !!session,
+        userId,
+        email,
+        isAdmin,
+        rolesError,
+        canSelect: !selErr,
+        rowCount: rows?.length ?? 0,
+        selectError: selErr
+          ? { message: selErr.message, code: (selErr as any).code, details: (selErr as any).details, hint: (selErr as any).hint }
+          : null,
+        headCount: headCount ?? null,
+        headError: headErr
+          ? { message: headErr.message, code: (headErr as any).code, details: (headErr as any).details, hint: (headErr as any).hint }
+          : null,
+        checkedAt: new Date().toISOString(),
+      });
+    } catch (err: any) {
+      toast.error(err?.message ?? "Diagnostic failed");
+    } finally {
+      setDiagLoading(false);
+    }
+  };
+
   const validation = useMemo(() => validatePayload(payload), [payload]);
 
   // Preview state — when set, the diff dialog is open showing before/after.
