@@ -294,6 +294,7 @@ const AdminDashboard = () => {
     buyer_type: "online", vehicle_preference: "", vehicle_price: "",
     vehicle_mileage: "", income: "", credit_range_min: "", credit_range_max: "",
     notes: "", appointment_time: "", trade_in: false, has_bankruptcy: false,
+    trade_in_vehicle: "",
   });
 
   const saveLeadEdits = async () => {
@@ -321,6 +322,7 @@ const AdminDashboard = () => {
       appointment_time: editForm.appointment_time || null,
       trade_in: editForm.trade_in,
       has_bankruptcy: editForm.has_bankruptcy,
+      trade_in_vehicle: editForm.trade_in ? (editForm.trade_in_vehicle || null) : null,
     };
     const { error } = await supabase.from("leads").update(updates).eq("id", selectedLead.id);
     setSavingLead(false);
@@ -860,6 +862,7 @@ const AdminDashboard = () => {
                     appointment_time: selectedLead.appointment_time ? selectedLead.appointment_time.slice(0, 16) : "",
                     trade_in: selectedLead.trade_in ?? false,
                     has_bankruptcy: selectedLead.has_bankruptcy ?? false,
+                    trade_in_vehicle: (selectedLead as any).trade_in_vehicle ?? "",
                   });
                   setEditingLead(true);
                 }}>
