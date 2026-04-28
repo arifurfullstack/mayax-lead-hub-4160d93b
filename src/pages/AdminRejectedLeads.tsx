@@ -10,7 +10,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
-import { AlertTriangle, RefreshCw, Search, Copy, Trash2, Loader2, RotateCw, CheckCircle2, XCircle } from "lucide-react";
+import { AlertTriangle, RefreshCw, Search, Copy, Trash2, Loader2, RotateCw, CheckCircle2, XCircle, MapPin, Mail, Phone, FileWarning, UserX, Inbox, Filter as FilterIcon } from "lucide-react";
 import { toast } from "sonner";
 
 type RejectedRow = {
@@ -54,6 +54,70 @@ const missingFieldsFromError = (err: string): string[] => {
   return m[1].split(",").map((s) => s.trim()).filter(Boolean);
 };
 
+// ----------------------------------------------------------------------------
+// error_type → human label, icon, and "what to do" tip
+// ----------------------------------------------------------------------------
+type ErrorTypeMeta = { label: string; tip: string; icon: typeof AlertTriangle; tone: string };
+
+const ERROR_TYPE_META: Record<string, ErrorTypeMeta> = {
+  validation: {
+    label: "Validation",
+    tip: "Generic validation failure — open the row to see the full message and payload.",
+    icon: AlertTriangle,
+    tone: "text-destructive",
+  },
+  missing_required_fields: {
+    label: "Missing first/last name",
+    tip: "Make.com is sending an empty first_name or last_name. Either map the correct variable or enable “Auto-fill missing names” in webhook settings.",
+    icon: UserX,
+    tone: "text-destructive",
+  },
+  name_recovery_failed: {
+    label: "Name recovery failed",
+    tip: "Auto-fill is ON but no usable name could be recovered from email/notes/name fields. Check that the customer's email is real and follows a name pattern (e.g. john.doe@…).",
+    icon: UserX,
+    tone: "text-warning",
+  },
+  payload_appears_empty: {
+    label: "Empty payload",
+    tip: "The HTTP request fired before your Make.com data-prep step finished. Add a Filter module that only continues when first_name AND last_name AND (email OR phone) are non-empty.",
+    icon: Inbox,
+    tone: "text-destructive",
+  },
+  city_looks_like_vehicle: {
+    label: "Wrong mapping: city ↔ vehicle",
+    tip: "The “city” field contains vehicle text (e.g. “Mercedes Benz”). In Make.com, swap the city and vehicle_preference variables in the HTTP module.",
+    icon: MapPin,
+    tone: "text-warning",
+  },
+  vehicle_looks_like_city: {
+    label: "Vehicle looks like a city",
+    tip: "vehicle_preference looks like a city name. Verify the Make.com mapping for both fields.",
+    icon: MapPin,
+    tone: "text-warning",
+  },
+  email_invalid: {
+    label: "Invalid email",
+    tip: "Make.com sent a non-email string in the email field (e.g. “None”, “unknown”). Make sure the email variable is mapped correctly and pass an empty string instead of placeholder text when missing.",
+    icon: Mail,
+    tone: "text-destructive",
+  },
+  phone_too_short: {
+    label: "Phone too short",
+    tip: "Phone has fewer than 7 digits. Check the source variable in Make.com — sometimes only the area code or extension makes it through.",
+    icon: Phone,
+    tone: "text-destructive",
+  },
+};
+
+const metaFor = (errorType: string): ErrorTypeMeta =>
+  ERROR_TYPE_META[errorType] ?? {
+    label: errorType || "unknown",
+    tip: "No specific guidance for this error type yet — open the row to inspect the payload.",
+    icon: FileWarning,
+    tone: "text-muted-foreground",
+  };
+
 const StatCard = ({ label, value, accent }: { label: string; value: number; accent?: string }) => (
   <div className="glass-card p-4">
     <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">{label}</p>
@@ -65,6 +129,7 @@ const AdminRejectedLeads = () => {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<RejectedRow | null>(null);
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "recovered" | "discarded">("pending");
+  const [errorTypeFilter, setErrorTypeFilter] = useState<string>("all");
   const [retryingId, setRetryingId] = useState<string | null>(null);
 
   const { data, isLoading, refetch, isFetching } = useQuery({
@@ -84,6 +149,7 @@ const AdminRejectedLeads = () => {
     const q = search.trim().toLowerCase();
     return (data ?? []).filter((r) => {
       if (statusFilter !== "all" && r.status !== statusFilter) return false;
+      if (errorTypeFilter !== "all" && r.error_type !== errorTypeFilter) return false;
       if (!q) return true;
       const haystack = [
         r.first_name, r.last_name, r.email, r.phone, r.reference_code,
@@ -91,7 +157,7 @@ const AdminRejectedLeads = () => {
       ].filter(Boolean).join(" ").toLowerCase();
       return haystack.includes(q);
     });
-  }, [data, search, statusFilter]);
+  }, [data, search, statusFilter, errorTypeFilter]);
 
   const stats = useMemo(() => {
     const rows = data ?? [];
@@ -100,6 +166,26 @@ const AdminRejectedLeads = () => {
     const pending = rows.filter((r) => r.status === "pending").length;
     const recovered = rows.filter((r) => r.status === "recovered").length;
     return { total: rows.length, last24h, pending, recovered };
+  }, [data]);
+
+  // Last-7-day breakdown by error_type (only counts pending+discarded — recovered = resolved)
+  const errorHeatmap = useMemo(() => {
+    const rows = data ?? [];
+    const cutoff = Date.now() - 7 * 24 * 3600_000;
+    const counts: Record<string, number> = {};
+    for (const r of rows) {
+      if (new Date(r.created_at).getTime() < cutoff) continue;
+      if (r.status === "recovered") continue;
+      const k = r.error_type || "unknown";
+      counts[k] = (counts[k] ?? 0) + 1;
+    }
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  }, [data]);
+
+  const allErrorTypes = useMemo(() => {
+    const set = new Set<string>();
+    (data ?? []).forEach((r) => set.add(r.error_type || "unknown"));
+    return Array.from(set).sort();
   }, [data]);
 
   const handleDelete = async (id: string) => {
@@ -196,6 +282,44 @@ const AdminRejectedLeads = () => {
         <StatCard label="Auto-recovered" value={stats.recovered} accent="text-success" />
       </div>
 
+      {/* Last-7-day error-type heatmap */}
+      {errorHeatmap.length > 0 && (
+        <div className="glass-card p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-foreground">Last 7 days · rejections by reason</h2>
+            <span className="text-[11px] text-muted-foreground">click a card to filter</span>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+            {errorHeatmap.map(([type, count]) => {
+              const meta = metaFor(type);
+              const Icon = meta.icon;
+              const isActive = errorTypeFilter === type;
+              return (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setErrorTypeFilter(isActive ? "all" : type)}
+                  className={`text-left rounded-lg border p-3 transition-colors ${
+                    isActive
+                      ? "border-primary bg-primary/10"
+                      : "border-border/50 bg-muted/20 hover:bg-muted/40"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Icon className={`h-3.5 w-3.5 ${meta.tone}`} />
+                    <span className="text-xs font-medium truncate">{meta.label}</span>
+                  </div>
+                  <div className="flex items-baseline justify-between">
+                    <span className={`text-xl font-bold ${meta.tone}`}>{count}</span>
+                    <span className="text-[10px] text-muted-foreground font-mono">{type}</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="glass-card p-4">
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
           <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -206,6 +330,19 @@ const AdminRejectedLeads = () => {
               onChange={(e) => setSearch(e.target.value)}
               className="max-w-md"
             />
+          </div>
+          <div className="flex items-center gap-2">
+            <FilterIcon className="h-3.5 w-3.5 text-muted-foreground" />
+            <select
+              value={errorTypeFilter}
+              onChange={(e) => setErrorTypeFilter(e.target.value)}
+              className="text-xs bg-card border border-border rounded px-2 py-1.5 text-foreground"
+            >
+              <option value="all">All error types</option>
+              {allErrorTypes.map((t) => (
+                <option key={t} value={t}>{metaFor(t).label} ({t})</option>
+              ))}
+            </select>
           </div>
           <div className="flex items-center gap-1 rounded-md border border-border/60 bg-muted/20 p-1">
             {(["pending", "recovered", "discarded", "all"] as const).map((s) => (
@@ -282,9 +419,25 @@ const AdminRejectedLeads = () => {
                         </div>
                       </TableCell>
                       <TableCell className="text-sm">
-                        <Badge variant="destructive" className="font-normal">
-                          {row.error_message}
-                        </Badge>
+                        {(() => {
+                          const meta = metaFor(row.error_type);
+                          const Icon = meta.icon;
+                          const firstLine = row.error_message.split("\n")[0];
+                          return (
+                            <div className="flex flex-col gap-1 max-w-[28rem]">
+                              <Badge
+                                variant="outline"
+                                className={`gap-1.5 font-normal w-fit ${meta.tone} border-current/40`}
+                              >
+                                <Icon className="h-3 w-3" />
+                                {meta.label}
+                              </Badge>
+                              <span className="text-[11px] text-muted-foreground line-clamp-2">
+                                {firstLine}
+                              </span>
+                            </div>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                         {row.retry_count > 0 ? (
@@ -345,8 +498,17 @@ const AdminRejectedLeads = () => {
           {selected && (
             <div className="space-y-4">
               <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3">
-                <p className="text-xs uppercase tracking-wide text-destructive mb-1">Validation error</p>
-                <p className="text-sm text-foreground font-medium">{selected.error_message}</p>
+                <div className="flex items-center gap-2 mb-1">
+                  {(() => {
+                    const Icon = metaFor(selected.error_type).icon;
+                    return <Icon className={`h-3.5 w-3.5 ${metaFor(selected.error_type).tone}`} />;
+                  })()}
+                  <p className="text-xs uppercase tracking-wide text-destructive">
+                    {metaFor(selected.error_type).label}
+                    <span className="ml-2 font-mono lowercase opacity-60">{selected.error_type}</span>
+                  </p>
+                </div>
+                <p className="text-sm text-foreground font-medium whitespace-pre-line">{selected.error_message}</p>
                 {missingFieldsFromError(selected.error_message).length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-2">
                     {missingFieldsFromError(selected.error_message).map((f) => (
@@ -354,6 +516,12 @@ const AdminRejectedLeads = () => {
                     ))}
                   </div>
                 )}
+              </div>
+
+              {/* Suggested fix tied to the structured error_type */}
+              <div className="rounded-md border border-primary/40 bg-primary/5 p-3">
+                <p className="text-xs uppercase tracking-wide text-primary mb-1">Suggested fix</p>
+                <p className="text-sm text-foreground/90">{metaFor(selected.error_type).tip}</p>
               </div>
               {selected.status !== "pending" && (
                 <div

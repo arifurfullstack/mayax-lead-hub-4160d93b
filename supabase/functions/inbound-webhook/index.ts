@@ -235,6 +235,222 @@ function buildSuggestedFix(lead: any): string {
     `"Auto-fill missing names" in MayaX webhook settings.`
   );
 }
+
+// ============================================================================
+// Inbound payload normalization & field-shape heuristics
+// ----------------------------------------------------------------------------
+// These run BEFORE validation so that common Make.com / no-code automation
+// quirks (literal "None" strings, "0" placeholders, vehicle text mapped into
+// the `city` slot, etc.) get cleaned up or surfaced with a clear error.
+// ============================================================================
+
+const EMPTY_LITERALS = new Set([
+  "", "none", "n/a", "na", "null", "undefined", "nil", "-", "—", "false", "no",
+  "not provided", "not specified", "not available", "not working", "unknown",
+]);
+
+const STATUS_WORDS_IN_NAME = new Set([
+  "planning", "pending", "unknown", "none", "n/a", "test", "lead", "customer",
+  "client", "buyer", "applicant", "anonymous", "tbd", "todo",
+]);
+
+const VEHICLE_BRAND_REGEX =
+  /\b(honda|toyota|ford|bmw|mercedes(-?benz)?|tesla|audi|lexus|hyundai|kia|nissan|mazda|subaru|volkswagen|vw|chevrolet|chevy|gmc|ram|jeep|dodge|chrysler|porsche|volvo|acura|infiniti|cadillac|buick|lincoln|mitsubishi|jaguar|land\s?rover|range\s?rover|mini|fiat|alfa\s?romeo|genesis|polestar|rivian|lucid)\b/i;
+
+const GENERIC_VEHICLE_REGEX = /\b(suv|sedan|truck|coupe|hatchback|wagon|van|minivan|pickup|crossover)\b/i;
+
+const YEAR_REGEX = /\b(19|20)\d{2}\b/;
+
+// Loose city allowlist — used only to demote vehicle_preference values that
+// look more like a city than a vehicle. Not exhaustive on purpose.
+const COMMON_CA_CITIES = new Set([
+  "toronto", "mississauga", "brampton", "scarborough", "etobicoke", "north york",
+  "vaughan", "markham", "richmond hill", "oshawa", "ajax", "pickering", "whitby",
+  "burlington", "hamilton", "kitchener", "waterloo", "guelph", "london",
+  "windsor", "barrie", "kingston", "ottawa", "montreal", "laval", "quebec",
+  "vancouver", "burnaby", "surrey", "richmond", "calgary", "edmonton",
+  "winnipeg", "halifax", "regina", "saskatoon",
+]);
+
+function isEmptyish(value: unknown): boolean {
+  if (value === null || value === undefined) return true;
+  if (typeof value === "number") return false;
+  if (typeof value === "boolean") return false;
+  if (typeof value !== "string") return false;
+  return EMPTY_LITERALS.has(value.trim().toLowerCase());
+}
+
+function nullIfEmptyish(value: unknown): unknown {
+  return isEmptyish(value) ? null : value;
+}
+
+function looksLikeStatusWord(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  const v = value.trim().toLowerCase();
+  if (!v) return false;
+  if (STATUS_WORDS_IN_NAME.has(v)) return true;
+  // Names with digits or @ are almost always wrong mappings
+  if (/[\d@]/.test(v)) return true;
+  return false;
+}
+
+function looksLikeVehicleText(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  const v = value.trim();
+  if (!v) return false;
+  if (VEHICLE_BRAND_REGEX.test(v)) return true;
+  if (YEAR_REGEX.test(v) && (GENERIC_VEHICLE_REGEX.test(v) || /\b(model|edition|trim|hybrid|sport|premium|xle|lx|ex)\b/i.test(v))) return true;
+  return false;
+}
+
+function looksLikeCity(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  const v = value.trim().toLowerCase();
+  if (!v || v.length > 30) return false;
+  return COMMON_CA_CITIES.has(v);
+}
+
+function looksLikeValidEmail(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  const v = value.trim();
+  // Permissive email regex — only catches obvious garbage like "None", "asdf"
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
+}
+
+/**
+ * Normalize a raw inbound lead payload in place: convert empty-literals to
+ * null, coerce numeric strings, and clean up status-word names. Mutates and
+ * returns the same object for convenience.
+ */
+function normalizeInboundLead(lead: any): any {
+  if (!lead || typeof lead !== "object") return lead;
+
+  // String fields → null when empty-ish
+  for (const k of [
+    "first_name", "last_name", "email", "phone", "city", "province",
+    "buyer_type", "vehicle_preference", "notes", "appointment_time",
+    "reference_code",
+  ]) {
+    if (k in lead) lead[k] = nullIfEmptyish(lead[k]);
+  }
+
+  // Strip status-word names so recovery can run
+  if (looksLikeStatusWord(lead.first_name)) lead.first_name = null;
+  if (looksLikeStatusWord(lead.last_name)) lead.last_name = null;
+
+  // Numeric fields: 0 → null, NaN strings → null
+  for (const k of ["income", "credit_range_min", "credit_range_max", "vehicle_mileage", "vehicle_price"]) {
+    if (!(k in lead)) continue;
+    const raw = lead[k];
+    if (raw === null || raw === undefined || raw === "") {
+      lead[k] = null;
+      continue;
+    }
+    const n = parseNumericInput(raw);
+    if (n === null || n === 0) {
+      if (n === null && raw !== 0 && raw !== "0") {
+        console.warn(`[inbound-webhook] dropping non-numeric "${k}"="${raw}"`);
+      }
+      lead[k] = null;
+    } else {
+      lead[k] = n;
+    }
+  }
+
+  // Boolean coercion for trade_in
+  if ("trade_in" in lead) {
+    const v = lead.trade_in;
+    if (typeof v === "string") {
+      const s = v.trim().toLowerCase();
+      if (["true", "yes", "y", "1"].includes(s)) lead.trade_in = true;
+      else if (["false", "no", "n", "0", ""].includes(s)) lead.trade_in = false;
+    }
+  }
+
+  // appointment_time: invalid date → null
+  if (lead.appointment_time && typeof lead.appointment_time === "string") {
+    const ts = Date.parse(lead.appointment_time);
+    if (Number.isNaN(ts)) {
+      console.warn(`[inbound-webhook] dropping invalid appointment_time "${lead.appointment_time}"`);
+      lead.appointment_time = null;
+    }
+  }
+
+  return lead;
+}
+
+type FieldDiagnostic = {
+  field: string;
+  code: string;
+  message: string;
+  value?: unknown;
+};
+
+/**
+ * Inspect a normalized lead for "looks-wrong" field mappings — vehicle text in
+ * the city slot, garbage emails, payloads where everything except phone is
+ * empty, etc. Returns an array of diagnostics; empty array = looks fine.
+ */
+function detectFieldShapeIssues(lead: any): FieldDiagnostic[] {
+  const issues: FieldDiagnostic[] = [];
+  if (!lead || typeof lead !== "object") return issues;
+
+  // city looks like a vehicle
+  if (lead.city && looksLikeVehicleText(lead.city)) {
+    issues.push({
+      field: "city",
+      code: "city_looks_like_vehicle",
+      message: `"city" field contains vehicle text ("${lead.city}"). Check your Make.com mapping — the location/city variable is likely mapped to the wrong slot.`,
+      value: lead.city,
+    });
+  }
+
+  // vehicle_preference looks like a city (warn-only, doesn't reject)
+  if (lead.vehicle_preference && looksLikeCity(lead.vehicle_preference)) {
+    issues.push({
+      field: "vehicle_preference",
+      code: "vehicle_looks_like_city",
+      message: `"vehicle_preference" looks like a city name ("${lead.vehicle_preference}"). Verify your Make.com mapping.`,
+      value: lead.vehicle_preference,
+    });
+  }
+
+  // email present but not a valid format
+  if (lead.email && !looksLikeValidEmail(lead.email)) {
+    issues.push({
+      field: "email",
+      code: "email_invalid",
+      message: `"email" is not a valid email address ("${lead.email}"). Make.com is sending a literal string instead of the customer's email.`,
+      value: lead.email,
+    });
+  }
+
+  // phone too short
+  if (lead.phone) {
+    const digits = (typeof lead.phone === "string" ? lead.phone : String(lead.phone)).replace(/\D/g, "");
+    if (digits.length > 0 && digits.length < 7) {
+      issues.push({
+        field: "phone",
+        code: "phone_too_short",
+        message: `"phone" has only ${digits.length} digit(s) ("${lead.phone}"). Expected at least 7.`,
+        value: lead.phone,
+      });
+    }
+  }
+
+  return issues;
+}
+
+/** Returns true when the only non-empty field is `phone` (or nothing at all). */
+function isPayloadEffectivelyEmpty(lead: any): boolean {
+  if (!lead || typeof lead !== "object") return true;
+  const meaningful = [
+    "first_name", "last_name", "email", "city", "province", "income",
+    "vehicle_preference", "notes", "credit_range_min", "credit_range_max",
+    "vehicle_mileage", "vehicle_price", "appointment_time",
+  ];
+  return meaningful.every((k) => lead[k] === null || lead[k] === undefined || lead[k] === "");
+}
 // --- End pricing logic ---
 
 Deno.serve(async (req) => {
@@ -275,6 +491,16 @@ Deno.serve(async (req) => {
       dryRunQuery === "1" || dryRunQuery === "true" || dryRunQuery === "yes" ||
       dryRunHeader === "1" || dryRunHeader === "true" || dryRunHeader === "yes";
 
+    // --- Strict mode (?strict=1 or x-strict header) ---
+    // When enabled, payloads with field-shape issues (vehicle text in city,
+    // garbage emails, etc.) are rejected outright instead of stored with a
+    // warning. Useful for debugging Make.com mappings end-to-end.
+    const strictQuery = (url.searchParams.get("strict") ?? "").toLowerCase();
+    const strictHeader = (req.headers.get("x-strict") ?? "").toLowerCase();
+    const strictMode =
+      strictQuery === "1" || strictQuery === "true" || strictQuery === "yes" ||
+      strictHeader === "1" || strictHeader === "true" || strictHeader === "yes";
+
     console.log(
       `[inbound-webhook ${requestId}] HIT method=${req.method} ip=${sourceIp} ua="${userAgent}" hasSecret=${hasSecretHeader} dryRun=${dryRun}`,
     );
@@ -289,6 +515,8 @@ Deno.serve(async (req) => {
 
     const autofillNames = (allSettings["inbound_webhook_autofill_names"] ?? "").toLowerCase() === "true";
     const retryRejected = (allSettings["inbound_webhook_retry_rejected"] ?? "").toLowerCase() === "true";
+    // Default ON: empty pings (only `phone` populated) are rejected at the door.
+    const rejectEmptyPayloads = (allSettings["inbound_webhook_reject_empty_payloads"] ?? "true").toLowerCase() !== "false";
 
     // Check webhook secret if configured
     const configuredSecret = allSettings["inbound_webhook_secret"]?.trim();
@@ -351,6 +579,97 @@ Deno.serve(async (req) => {
     }[] = [];
 
     for (const lead of leadsInput) {
+      // --- 0. Normalize payload (empty-literals → null, numeric coercion) ---
+      normalizeInboundLead(lead);
+
+      // --- 0a. Reject obviously-empty pings ("Make.com fired too early") ---
+      if (rejectEmptyPayloads && isPayloadEffectivelyEmpty(lead)) {
+        const phoneOnly = lead?.phone ? ` (only "phone" was populated: "${lead.phone}")` : "";
+        const rejectionError =
+          `Payload appears empty${phoneOnly}. ` +
+          `Suggested fix: in your Make.com scenario, add a Filter module BEFORE the HTTP request that ` +
+          `only continues when at least first_name, last_name, and email or phone are non-empty. ` +
+          `This usually means the HTTP module is firing before your data-prep step has finished filling its variables.`;
+        if (!dryRun) {
+          try {
+            await admin.from("rejected_inbound_leads").insert({
+              request_id: requestId,
+              reference_code: lead?.reference_code ?? null,
+              error_message: rejectionError,
+              error_type: "payload_appears_empty",
+              first_name: null, last_name: null, email: null,
+              phone: typeof lead?.phone === "string" ? lead.phone : null,
+              city: null, province: null,
+              payload: lead ?? {},
+              source_ip: sourceIp, user_agent: userAgent,
+            });
+          } catch (e) {
+            console.error(`[inbound-webhook ${requestId}] failed to log empty-payload rejection`, e);
+          }
+        }
+        console.warn(`[inbound-webhook ${requestId}] rejected empty payload phone="${lead?.phone ?? ""}"`);
+        results.push({
+          reference_code: lead?.reference_code ?? "unknown",
+          status: "error",
+          error: rejectionError,
+          ...(dryRun ? { dry_run: true } : {}),
+        });
+        continue;
+      }
+
+      // --- 0b. Field-shape sanity checks ---
+      // In strict mode, any issue rejects. Otherwise, only hard-broken email
+      // (where the field is present but invalid) and phone_too_short reject;
+      // city/vehicle confusion is logged but allowed through.
+      const shapeIssues = detectFieldShapeIssues(lead);
+      const hardIssues = shapeIssues.filter(
+        (i) => i.code === "email_invalid" || i.code === "phone_too_short" || i.code === "city_looks_like_vehicle",
+      );
+      const issuesToReject = strictMode ? shapeIssues : hardIssues;
+      if (issuesToReject.length > 0) {
+        const primary = issuesToReject[0];
+        const allMessages = issuesToReject.map((i) => `• ${i.message}`).join("\n");
+        const rejectionError =
+          `Field-shape validation failed${strictMode ? " (strict mode)" : ""}:\n${allMessages}\n\n` +
+          `Suggested fix: open your Make.com HTTP module and verify each variable is mapped to the correct JSON key. ` +
+          `See the Make.com Integration Guide in MayaX admin for the full mapping table.`;
+        if (!dryRun) {
+          try {
+            await admin.from("rejected_inbound_leads").insert({
+              request_id: requestId,
+              reference_code: lead?.reference_code ?? null,
+              error_message: rejectionError,
+              error_type: primary.code,
+              first_name: lead?.first_name ?? null,
+              last_name: lead?.last_name ?? null,
+              email: typeof lead?.email === "string" ? lead.email : null,
+              phone: typeof lead?.phone === "string" ? lead.phone : null,
+              city: lead?.city ?? null,
+              province: lead?.province ?? null,
+              payload: lead ?? {},
+              source_ip: sourceIp, user_agent: userAgent,
+            });
+          } catch (e) {
+            console.error(`[inbound-webhook ${requestId}] failed to log shape rejection`, e);
+          }
+        }
+        console.warn(
+          `[inbound-webhook ${requestId}] rejected for shape issues: ${issuesToReject.map((i) => i.code).join(",")}`,
+        );
+        results.push({
+          reference_code: lead?.reference_code ?? "unknown",
+          status: "error",
+          error: rejectionError,
+          ...(dryRun ? { dry_run: true } : {}),
+        });
+        continue;
+      } else if (shapeIssues.length > 0) {
+        // Soft warnings — don't block, but surface in logs and response.
+        console.warn(
+          `[inbound-webhook ${requestId}] soft warnings: ${shapeIssues.map((i) => i.code).join(",")}`,
+        );
+      }
+
       // --- Retry merge: pull data from prior pending rejections (same email/phone) ---
       // When enabled, an inbound payload that re-uses a known email/phone will be merged
       // with the most recent prior rejection for that contact. This lets a sender fix a
@@ -390,6 +709,8 @@ Deno.serve(async (req) => {
             }
             // Mutate the lead object in-place so the rest of the loop sees merged data
             Object.assign(lead, merged);
+            // Re-normalize after merge, since prior payloads may carry raw "None"/"0" values.
+            normalizeInboundLead(lead);
             mergedRejectionIds = priorRejections.map((r) => r.id);
             console.log(
               `[inbound-webhook ${requestId}] retry-merge matched ${priorRejections.length} prior rejection(s) email=${inboundEmailRaw || "none"} phone=${inboundPhoneDigitsRaw || "none"}`,
@@ -446,7 +767,7 @@ Deno.serve(async (req) => {
               request_id: requestId,
               reference_code: lead?.reference_code ?? null,
               error_message: rejectionError,
-              error_type: "validation",
+              error_type: autofillNames ? "name_recovery_failed" : "missing_required_fields",
               first_name: lead?.first_name ?? null,
               last_name: lead?.last_name ?? null,
               email: typeof lead?.email === "string" ? lead.email : null,
