@@ -192,19 +192,37 @@ const AdminRejectedLeads = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard label="Total rejected" value={stats.total} />
         <StatCard label="Last 24h" value={stats.last24h} accent="text-destructive" />
-        <StatCard label="Missing name fields" value={stats.missingNames} accent="text-warning" />
-        <StatCard label="Other errors" value={stats.other} accent="text-foreground" />
+        <StatCard label="Pending retry" value={stats.pending} accent="text-warning" />
+        <StatCard label="Auto-recovered" value={stats.recovered} accent="text-success" />
       </div>
 
       <div className="glass-card p-4">
-        <div className="flex items-center gap-2 mb-4">
-          <Search className="h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by name, email, phone, ref code, error…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="max-w-md"
-          />
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <Search className="h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by name, email, phone, ref code, error…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="max-w-md"
+            />
+          </div>
+          <div className="flex items-center gap-1 rounded-md border border-border/60 bg-muted/20 p-1">
+            {(["pending", "recovered", "discarded", "all"] as const).map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setStatusFilter(s)}
+                className={`px-2.5 py-1 text-xs rounded capitalize transition-colors ${
+                  statusFilter === s
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
         </div>
 
         {isLoading ? (
@@ -213,7 +231,7 @@ const AdminRejectedLeads = () => {
           </div>
         ) : filtered.length === 0 ? (
           <div className="py-12 text-center text-muted-foreground text-sm">
-            🎉 No rejected inbound leads {search ? "match this search" : "in the last 500 records"}.
+            🎉 No rejected inbound leads match this filter.
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -221,20 +239,36 @@ const AdminRejectedLeads = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Received</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Contact</TableHead>
                   <TableHead>Error</TableHead>
-                  <TableHead>Missing fields</TableHead>
+                  <TableHead>Retries</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.map((row) => {
-                  const missing = missingFieldsFromError(row.error_message);
+                  const isPending = row.status === "pending";
                   return (
                     <TableRow key={row.id} className="cursor-pointer" onClick={() => setSelected(row)}>
                       <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
                         {formatDateTime(row.created_at)}
+                      </TableCell>
+                      <TableCell>
+                        {row.status === "recovered" ? (
+                          <Badge className="bg-success/15 text-success border border-success/40 gap-1 font-normal">
+                            <CheckCircle2 className="h-3 w-3" /> recovered
+                          </Badge>
+                        ) : row.status === "discarded" ? (
+                          <Badge variant="outline" className="gap-1 font-normal text-muted-foreground">
+                            <XCircle className="h-3 w-3" /> discarded
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-warning/15 text-warning border-warning/40 font-normal">
+                            pending
+                          </Badge>
+                        )}
                       </TableCell>
                       <TableCell className="text-sm">
                         {[row.first_name, row.last_name].filter(Boolean).join(" ") || (
@@ -252,22 +286,40 @@ const AdminRejectedLeads = () => {
                           {row.error_message}
                         </Badge>
                       </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {missing.length === 0 ? (
-                            <span className="text-muted-foreground text-xs">—</span>
-                          ) : missing.map((f) => (
-                            <Badge key={f} variant="outline" className="text-xs">{f}</Badge>
-                          ))}
-                        </div>
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                        {row.retry_count > 0 ? (
+                          <span>
+                            ×{row.retry_count}
+                            {row.last_retry_at && (
+                              <span className="block text-[10px]">{formatDateTime(row.last_retry_at)}</span>
+                            )}
+                          </span>
+                        ) : (
+                          "—"
+                        )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost" size="sm"
-                          onClick={(e) => { e.stopPropagation(); setSelected(row); }}
-                        >
-                          View
-                        </Button>
+                        <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                          {isPending && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="gap-1"
+                              disabled={retryingId === row.id}
+                              onClick={() => handleRetry(row)}
+                            >
+                              {retryingId === row.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <RotateCw className="h-3 w-3" />
+                              )}
+                              Retry
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="sm" onClick={() => setSelected(row)}>
+                            View
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
