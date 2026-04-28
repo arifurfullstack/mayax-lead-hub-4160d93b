@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, FlaskConical, Copy, AlertTriangle, CheckCircle2, RefreshCw, Wand2, BookOpen, Info, ShieldAlert, ShieldCheck, FileJson, ChevronDown, UserCheck, UserX, Sparkles, Search } from "lucide-react";
+import { Loader2, FlaskConical, Copy, AlertTriangle, CheckCircle2, RefreshCw, Wand2, BookOpen, Info, ShieldAlert, ShieldCheck, FileJson, ChevronDown, UserCheck, UserX, Sparkles, Search, Activity, ShoppingBag, Zap, Send } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Collapsible,
@@ -797,6 +797,136 @@ const AdminWebhookTester = () => {
   const [diagLoading, setDiagLoading] = useState(false);
   const [diag, setDiag] = useState<DiagResult | null>(null);
 
+  // ── Lifecycle Inspector ────────────────────────────────────────────────────
+  // Given a reference_code (or UUID), pull the full timeline of a lead from
+  // `leads`, `purchases`, `delivery_logs`, and `lead_audit_log` so admins can
+  // immediately answer "the lead never showed up — what happened?"
+  type LifecycleEvent = {
+    at: string;
+    kind: "created" | "sold" | "delivered" | "delivery_failed" | "audit";
+    title: string;
+    detail?: string;
+  };
+  type LifecycleResult = {
+    lead: Record<string, any>;
+    events: LifecycleEvent[];
+    secondsBetweenCreateAndSell: number | null;
+  };
+  const [lifecycleInput, setLifecycleInput] = useState("");
+  const [lifecycleLoading, setLifecycleLoading] = useState(false);
+  const [lifecycleError, setLifecycleError] = useState<string | null>(null);
+  const [lifecycle, setLifecycle] = useState<LifecycleResult | null>(null);
+
+  const runLifecycle = async () => {
+    setLifecycleError(null);
+    setLifecycle(null);
+    const q = lifecycleInput.trim();
+    if (!q) {
+      toast.error("Enter a lead id (UUID) or reference_code (e.g. MX-2026-123)");
+      return;
+    }
+    setLifecycleLoading(true);
+    try {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(q);
+      const baseQuery = supabase
+        .from("leads")
+        .select("id, reference_code, first_name, last_name, sold_status, sold_to_dealer_id, sold_at, price, quality_grade, created_at, has_bankruptcy, trade_in_vehicle");
+      const { data: lead, error: leadErr } = isUuid
+        ? await baseQuery.eq("id", q).maybeSingle()
+        : await baseQuery.eq("reference_code", q).maybeSingle();
+
+      if (leadErr) {
+        setLifecycleError(`Lookup failed: ${leadErr.message}`);
+        return;
+      }
+      if (!lead) {
+        setLifecycleError(`No lead found for ${isUuid ? "id" : "reference_code"} "${q}". The webhook may have rejected it — check Rejected Leads.`);
+        return;
+      }
+
+      const events: LifecycleEvent[] = [];
+
+      events.push({
+        at: (lead as any).created_at,
+        kind: "created",
+        title: "Lead created",
+        detail: `via inbound-webhook · price $${Number((lead as any).price ?? 0).toFixed(2)} · grade ${(lead as any).quality_grade ?? "—"}`,
+      });
+
+      // Purchases (with buyer dealership)
+      const { data: purchases } = await supabase
+        .from("purchases")
+        .select("id, purchased_at, price_paid, dealer_id, dealers(dealership_name)")
+        .eq("lead_id", (lead as any).id)
+        .order("purchased_at", { ascending: true });
+
+      const purchaseIds: string[] = [];
+      for (const p of (purchases ?? []) as any[]) {
+        purchaseIds.push(p.id);
+        events.push({
+          at: p.purchased_at,
+          kind: "sold",
+          title: `Sold to ${p.dealers?.dealership_name ?? "(unknown dealer)"}`,
+          detail: `$${Number(p.price_paid ?? 0).toFixed(2)} · purchase ${p.id.slice(0, 8)}…`,
+        });
+      }
+
+      // Delivery logs (per purchase)
+      if (purchaseIds.length) {
+        const { data: deliveries } = await supabase
+          .from("delivery_logs")
+          .select("attempted_at, channel, success, response_code, error_details, endpoint")
+          .in("purchase_id", purchaseIds)
+          .order("attempted_at", { ascending: true });
+        for (const d of (deliveries ?? []) as any[]) {
+          events.push({
+            at: d.attempted_at,
+            kind: d.success ? "delivered" : "delivery_failed",
+            title: d.success ? `Delivered via ${d.channel}` : `Delivery failed (${d.channel})`,
+            detail: [
+              d.endpoint ? `→ ${d.endpoint}` : null,
+              d.response_code ? `HTTP ${d.response_code}` : null,
+              d.error_details ? `error: ${d.error_details}` : null,
+            ].filter(Boolean).join(" · "),
+          });
+        }
+      }
+
+      // Audit log (admin actions: reset, etc.)
+      const { data: audits } = await supabase
+        .from("lead_audit_log")
+        .select("created_at, action, reason, previous_status, new_status")
+        .eq("lead_id", (lead as any).id)
+        .order("created_at", { ascending: true });
+      for (const a of (audits ?? []) as any[]) {
+        events.push({
+          at: a.created_at,
+          kind: "audit",
+          title: `Admin: ${a.action}`,
+          detail: [
+            a.previous_status && a.new_status ? `${a.previous_status} → ${a.new_status}` : null,
+            a.reason ? `reason: ${a.reason}` : null,
+          ].filter(Boolean).join(" · "),
+        });
+      }
+
+      events.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+
+      let secondsBetweenCreateAndSell: number | null = null;
+      if ((lead as any).sold_at && (lead as any).created_at) {
+        secondsBetweenCreateAndSell = Math.round(
+          (new Date((lead as any).sold_at).getTime() - new Date((lead as any).created_at).getTime()) / 1000
+        );
+      }
+
+      setLifecycle({ lead: lead as any, events, secondsBetweenCreateAndSell });
+    } catch (err: any) {
+      setLifecycleError(err?.message ?? "Lifecycle lookup failed");
+    } finally {
+      setLifecycleLoading(false);
+    }
+  };
+
   const runLeadsDiagnostic = async () => {
     setDiagLoading(true);
     try {
@@ -1500,6 +1630,110 @@ const AdminWebhookTester = () => {
                   </AlertDescription>
                 </Alert>
               )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ── Lead Lifecycle Inspector ───────────────────────────────────── */}
+      <Card className="border-border/60">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Activity className="h-4 w-4 text-primary" />
+            Lead Lifecycle Inspector
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Enter a <code>reference_code</code> (e.g. <code>MX-2026-456</code>) or lead UUID to see exactly what happened after Make.com posted it: when it was created, who bought it, when it was delivered, and any admin actions.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex gap-2">
+            <Input
+              value={lifecycleInput}
+              onChange={(e) => setLifecycleInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") runLifecycle(); }}
+              placeholder="Lead UUID or reference code (MX-YYYY-XXX)"
+              className="font-mono text-xs"
+            />
+            <Button onClick={runLifecycle} disabled={lifecycleLoading} size="sm">
+              {lifecycleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Activity className="h-4 w-4" />}
+              <span className="ml-2">Trace lead</span>
+            </Button>
+          </div>
+
+          {lifecycleError && (
+            <Alert variant="destructive" className="py-2">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription className="text-xs">{lifecycleError}</AlertDescription>
+            </Alert>
+          )}
+
+          {lifecycle && (
+            <div className="space-y-3">
+              {/* Summary header */}
+              <div className="rounded-md border border-border/60 p-3 bg-muted/20 space-y-1.5">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-sm font-semibold">{lifecycle.lead.reference_code}</span>
+                    <Badge variant="outline" className="text-[10px]">
+                      {lifecycle.lead.first_name} {lifecycle.lead.last_name}
+                    </Badge>
+                    <Badge
+                      variant={lifecycle.lead.sold_status === "available" ? "secondary" : "outline"}
+                      className="text-[10px]"
+                    >
+                      {lifecycle.lead.sold_status}
+                    </Badge>
+                  </div>
+                  {lifecycle.secondsBetweenCreateAndSell !== null && (
+                    <div className="text-[11px] text-muted-foreground flex items-center gap-1">
+                      <Zap className="h-3 w-3 text-amber-400" />
+                      Sold <span className="font-mono font-bold text-foreground">{lifecycle.secondsBetweenCreateAndSell}s</span> after creation
+                    </div>
+                  )}
+                </div>
+                {lifecycle.secondsBetweenCreateAndSell !== null && lifecycle.secondsBetweenCreateAndSell < 60 && (
+                  <Alert className="border-amber-500/40 bg-amber-500/10 py-2 mt-2">
+                    <AlertTriangle className="h-3.5 w-3.5 text-amber-400" />
+                    <AlertDescription className="text-[11px]">
+                      This lead was claimed in under a minute — that's why it never appeared "available" in the marketplace UI for long. Consider enabling a minimum-marketplace-seconds throttle in platform settings if you want every lead to stay browsable longer.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+
+              {/* Timeline */}
+              <div className="rounded-md border border-border/60">
+                <div className="px-3 py-2 border-b border-border/60 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                  Timeline ({lifecycle.events.length} event{lifecycle.events.length === 1 ? "" : "s"})
+                </div>
+                <div className="divide-y divide-border/40">
+                  {lifecycle.events.map((e, idx) => {
+                    const icon =
+                      e.kind === "created" ? <Send className="h-3.5 w-3.5 text-sky-400" /> :
+                      e.kind === "sold" ? <ShoppingBag className="h-3.5 w-3.5 text-emerald-400" /> :
+                      e.kind === "delivered" ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> :
+                      e.kind === "delivery_failed" ? <AlertTriangle className="h-3.5 w-3.5 text-destructive" /> :
+                      <ShieldCheck className="h-3.5 w-3.5 text-muted-foreground" />;
+                    return (
+                      <div key={idx} className="px-3 py-2 flex items-start gap-3">
+                        <div className="mt-0.5 shrink-0">{icon}</div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <div className="text-xs font-medium">{e.title}</div>
+                            <div className="text-[10px] font-mono text-muted-foreground">
+                              {new Date(e.at).toLocaleString()}
+                            </div>
+                          </div>
+                          {e.detail && (
+                            <div className="text-[11px] text-muted-foreground mt-0.5 break-all">{e.detail}</div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           )}
         </CardContent>

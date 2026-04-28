@@ -60,6 +60,10 @@ const Marketplace = () => {
   // outage would otherwise be lost.
   const wasDisconnectedRef = useRef(false);
   const [insertingTestLead, setInsertingTestLead] = useState(false);
+  // When > 0, also fetch leads sold within the last N hours and render them
+  // as read-only cards so the marketplace doesn't look "empty" when buyers
+  // claim every new lead instantly.
+  const [includeSoldHours, setIncludeSoldHours] = useState(0);
 
   useEffect(() => {
     fetchLeads();
@@ -231,11 +235,18 @@ const Marketplace = () => {
 
     const { data } = await supabase.rpc("get_marketplace_leads", {
       requesting_dealer_id: dealer?.id,
+      include_sold_hours: includeSoldHours,
     });
 
     setLeads(data || []);
     setLoading(false);
   };
+
+  // Re-fetch whenever the "show sold" window changes
+  useEffect(() => {
+    fetchLeads();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [includeSoldHours]);
 
   const applyPromoCode = async () => {
     if (!promoCode.trim() || !dealerId) return;
@@ -390,11 +401,20 @@ const Marketplace = () => {
   }, [leads]);
 
   const filtered = useMemo(() => {
-    let result = leads.filter((l) => l.sold_status === "available");
-    result = applyFilters(result, filters, maxIncome);
-    result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    return result;
-  }, [leads, filters, maxIncome]);
+    const available = applyFilters(
+      leads.filter((l) => l.sold_status === "available"),
+      filters,
+      maxIncome,
+    ).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    if (includeSoldHours <= 0) return available;
+
+    const sold = leads
+      .filter((l) => l.sold_status === "sold")
+      .sort((a, b) => new Date(b.sold_at ?? 0).getTime() - new Date(a.sold_at ?? 0).getTime());
+
+    return [...available, ...sold];
+  }, [leads, filters, maxIncome, includeSoldHours]);
 
   const activeFilterCount = countActiveFilters(filters);
 
@@ -614,6 +634,18 @@ const Marketplace = () => {
                 )}
               </div>
               <div className="flex items-center gap-3 flex-wrap">
+                {/* Recently sold visibility toggle (admins default to 24h) */}
+                <div
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium"
+                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
+                  title="When on, recently sold leads stay visible (read-only) so an empty marketplace is easier to diagnose."
+                >
+                  <span style={{ color: "rgba(255,255,255,0.6)" }}>Show sold (24h)</span>
+                  <Switch
+                    checked={includeSoldHours > 0}
+                    onCheckedChange={(v) => setIncludeSoldHours(v ? 24 : 0)}
+                  />
+                </div>
                 {/* Promo code */}
                 {activePromo ? (
                   <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary/10 border border-primary/30">
@@ -677,6 +709,7 @@ const Marketplace = () => {
                        promoPrice={activePromo?.flat_price ?? null}
                        promoType={activePromo ? "flat" : null}
                        isAdminView={isAdmin}
+                       readOnly={lead.sold_status === "sold"}
                     />
                   ))}
                 </div>
