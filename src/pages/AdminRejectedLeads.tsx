@@ -419,9 +419,25 @@ const AdminRejectedLeads = () => {
                         </div>
                       </TableCell>
                       <TableCell className="text-sm">
-                        <Badge variant="destructive" className="font-normal">
-                          {row.error_message}
-                        </Badge>
+                        {(() => {
+                          const meta = metaFor(row.error_type);
+                          const Icon = meta.icon;
+                          const firstLine = row.error_message.split("\n")[0];
+                          return (
+                            <div className="flex flex-col gap-1 max-w-[28rem]">
+                              <Badge
+                                variant="outline"
+                                className={`gap-1.5 font-normal w-fit ${meta.tone} border-current/40`}
+                              >
+                                <Icon className="h-3 w-3" />
+                                {meta.label}
+                              </Badge>
+                              <span className="text-[11px] text-muted-foreground line-clamp-2">
+                                {firstLine}
+                              </span>
+                            </div>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                         {row.retry_count > 0 ? (
