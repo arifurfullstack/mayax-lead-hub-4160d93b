@@ -10,7 +10,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
-import { AlertTriangle, RefreshCw, Search, Copy, Trash2, Loader2 } from "lucide-react";
+import { AlertTriangle, RefreshCw, Search, Copy, Trash2, Loader2, RotateCw, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
 type RejectedRow = {
@@ -29,6 +29,11 @@ type RejectedRow = {
   payload: Record<string, unknown>;
   source_ip: string | null;
   user_agent: string | null;
+  status: "pending" | "recovered" | "discarded";
+  recovered_lead_id: string | null;
+  recovered_at: string | null;
+  retry_count: number;
+  last_retry_at: string | null;
 };
 
 const formatDateTime = (iso: string) => {
@@ -59,6 +64,8 @@ const StatCard = ({ label, value, accent }: { label: string; value: number; acce
 const AdminRejectedLeads = () => {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<RejectedRow | null>(null);
+  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "recovered" | "discarded">("pending");
+  const [retryingId, setRetryingId] = useState<string | null>(null);
 
   const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: ["admin-rejected-inbound-leads"],
@@ -75,23 +82,24 @@ const AdminRejectedLeads = () => {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return data ?? [];
     return (data ?? []).filter((r) => {
+      if (statusFilter !== "all" && r.status !== statusFilter) return false;
+      if (!q) return true;
       const haystack = [
         r.first_name, r.last_name, r.email, r.phone, r.reference_code,
         r.city, r.province, r.error_message, r.request_id,
       ].filter(Boolean).join(" ").toLowerCase();
       return haystack.includes(q);
     });
-  }, [data, search]);
+  }, [data, search, statusFilter]);
 
   const stats = useMemo(() => {
     const rows = data ?? [];
     const now = Date.now();
     const last24h = rows.filter((r) => now - new Date(r.created_at).getTime() < 24 * 3600_000).length;
-    const missingNames = rows.filter((r) => /Missing required fields/i.test(r.error_message)).length;
-    const other = rows.length - missingNames;
-    return { total: rows.length, last24h, missingNames, other };
+    const pending = rows.filter((r) => r.status === "pending").length;
+    const recovered = rows.filter((r) => r.status === "recovered").length;
+    return { total: rows.length, last24h, pending, recovered };
   }, [data]);
 
   const handleDelete = async (id: string) => {
@@ -103,6 +111,55 @@ const AdminRejectedLeads = () => {
     toast.success("Rejection record removed");
     setSelected(null);
     refetch();
+  };
+
+  const handleDiscard = async (id: string) => {
+    const { error } = await supabase
+      .from("rejected_inbound_leads")
+      .update({ status: "discarded" })
+      .eq("id", id);
+    if (error) {
+      toast.error(`Discard failed: ${error.message}`);
+      return;
+    }
+    toast.success("Marked as discarded — retry-merge will skip it");
+    refetch();
+  };
+
+  const handleRetry = async (row: RejectedRow) => {
+    // Manual retry: re-POST the original payload through the inbound webhook.
+    // The server's retry-merge logic will pull in any other pending rejections
+    // for the same email/phone and re-attempt name recovery.
+    setRetryingId(row.id);
+    try {
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/inbound-webhook`;
+      const anon = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: anon,
+          Authorization: `Bearer ${anon}`,
+        },
+        body: JSON.stringify(row.payload),
+      });
+      const json = await res.json().catch(() => ({}));
+      const result = Array.isArray(json?.results) ? json.results[0] : null;
+      if (res.ok && result && result.status !== "error") {
+        toast.success(
+          `Retry succeeded — lead ${result.status} (ref ${result.reference_code ?? "—"})`,
+        );
+      } else {
+        toast.error(
+          `Retry still failed: ${result?.error ?? json?.error ?? `HTTP ${res.status}`}`,
+        );
+      }
+      refetch();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Retry failed");
+    } finally {
+      setRetryingId(null);
+    }
   };
 
   const handleCopyPayload = async (payload: unknown) => {
