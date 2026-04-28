@@ -579,6 +579,97 @@ Deno.serve(async (req) => {
     }[] = [];
 
     for (const lead of leadsInput) {
+      // --- 0. Normalize payload (empty-literals → null, numeric coercion) ---
+      normalizeInboundLead(lead);
+
+      // --- 0a. Reject obviously-empty pings ("Make.com fired too early") ---
+      if (rejectEmptyPayloads && isPayloadEffectivelyEmpty(lead)) {
+        const phoneOnly = lead?.phone ? ` (only "phone" was populated: "${lead.phone}")` : "";
+        const rejectionError =
+          `Payload appears empty${phoneOnly}. ` +
+          `Suggested fix: in your Make.com scenario, add a Filter module BEFORE the HTTP request that ` +
+          `only continues when at least first_name, last_name, and email or phone are non-empty. ` +
+          `This usually means the HTTP module is firing before your data-prep step has finished filling its variables.`;
+        if (!dryRun) {
+          try {
+            await admin.from("rejected_inbound_leads").insert({
+              request_id: requestId,
+              reference_code: lead?.reference_code ?? null,
+              error_message: rejectionError,
+              error_type: "payload_appears_empty",
+              first_name: null, last_name: null, email: null,
+              phone: typeof lead?.phone === "string" ? lead.phone : null,
+              city: null, province: null,
+              payload: lead ?? {},
+              source_ip: sourceIp, user_agent: userAgent,
+            });
+          } catch (e) {
+            console.error(`[inbound-webhook ${requestId}] failed to log empty-payload rejection`, e);
+          }
+        }
+        console.warn(`[inbound-webhook ${requestId}] rejected empty payload phone="${lead?.phone ?? ""}"`);
+        results.push({
+          reference_code: lead?.reference_code ?? "unknown",
+          status: "error",
+          error: rejectionError,
+          ...(dryRun ? { dry_run: true } : {}),
+        });
+        continue;
+      }
+
+      // --- 0b. Field-shape sanity checks ---
+      // In strict mode, any issue rejects. Otherwise, only hard-broken email
+      // (where the field is present but invalid) and phone_too_short reject;
+      // city/vehicle confusion is logged but allowed through.
+      const shapeIssues = detectFieldShapeIssues(lead);
+      const hardIssues = shapeIssues.filter(
+        (i) => i.code === "email_invalid" || i.code === "phone_too_short" || i.code === "city_looks_like_vehicle",
+      );
+      const issuesToReject = strictMode ? shapeIssues : hardIssues;
+      if (issuesToReject.length > 0) {
+        const primary = issuesToReject[0];
+        const allMessages = issuesToReject.map((i) => `• ${i.message}`).join("\n");
+        const rejectionError =
+          `Field-shape validation failed${strictMode ? " (strict mode)" : ""}:\n${allMessages}\n\n` +
+          `Suggested fix: open your Make.com HTTP module and verify each variable is mapped to the correct JSON key. ` +
+          `See the Make.com Integration Guide in MayaX admin for the full mapping table.`;
+        if (!dryRun) {
+          try {
+            await admin.from("rejected_inbound_leads").insert({
+              request_id: requestId,
+              reference_code: lead?.reference_code ?? null,
+              error_message: rejectionError,
+              error_type: primary.code,
+              first_name: lead?.first_name ?? null,
+              last_name: lead?.last_name ?? null,
+              email: typeof lead?.email === "string" ? lead.email : null,
+              phone: typeof lead?.phone === "string" ? lead.phone : null,
+              city: lead?.city ?? null,
+              province: lead?.province ?? null,
+              payload: lead ?? {},
+              source_ip: sourceIp, user_agent: userAgent,
+            });
+          } catch (e) {
+            console.error(`[inbound-webhook ${requestId}] failed to log shape rejection`, e);
+          }
+        }
+        console.warn(
+          `[inbound-webhook ${requestId}] rejected for shape issues: ${issuesToReject.map((i) => i.code).join(",")}`,
+        );
+        results.push({
+          reference_code: lead?.reference_code ?? "unknown",
+          status: "error",
+          error: rejectionError,
+          ...(dryRun ? { dry_run: true } : {}),
+        });
+        continue;
+      } else if (shapeIssues.length > 0) {
+        // Soft warnings — don't block, but surface in logs and response.
+        console.warn(
+          `[inbound-webhook ${requestId}] soft warnings: ${shapeIssues.map((i) => i.code).join(",")}`,
+        );
+      }
+
       // --- Retry merge: pull data from prior pending rejections (same email/phone) ---
       // When enabled, an inbound payload that re-uses a known email/phone will be merged
       // with the most recent prior rejection for that contact. This lets a sender fix a
