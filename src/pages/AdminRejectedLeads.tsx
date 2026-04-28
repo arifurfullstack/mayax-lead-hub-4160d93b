@@ -282,6 +282,44 @@ const AdminRejectedLeads = () => {
         <StatCard label="Auto-recovered" value={stats.recovered} accent="text-success" />
       </div>
 
+      {/* Last-7-day error-type heatmap */}
+      {errorHeatmap.length > 0 && (
+        <div className="glass-card p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-foreground">Last 7 days · rejections by reason</h2>
+            <span className="text-[11px] text-muted-foreground">click a card to filter</span>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+            {errorHeatmap.map(([type, count]) => {
+              const meta = metaFor(type);
+              const Icon = meta.icon;
+              const isActive = errorTypeFilter === type;
+              return (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setErrorTypeFilter(isActive ? "all" : type)}
+                  className={`text-left rounded-lg border p-3 transition-colors ${
+                    isActive
+                      ? "border-primary bg-primary/10"
+                      : "border-border/50 bg-muted/20 hover:bg-muted/40"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Icon className={`h-3.5 w-3.5 ${meta.tone}`} />
+                    <span className="text-xs font-medium truncate">{meta.label}</span>
+                  </div>
+                  <div className="flex items-baseline justify-between">
+                    <span className={`text-xl font-bold ${meta.tone}`}>{count}</span>
+                    <span className="text-[10px] text-muted-foreground font-mono">{type}</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="glass-card p-4">
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
           <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -292,6 +330,19 @@ const AdminRejectedLeads = () => {
               onChange={(e) => setSearch(e.target.value)}
               className="max-w-md"
             />
+          </div>
+          <div className="flex items-center gap-2">
+            <FilterIcon className="h-3.5 w-3.5 text-muted-foreground" />
+            <select
+              value={errorTypeFilter}
+              onChange={(e) => setErrorTypeFilter(e.target.value)}
+              className="text-xs bg-card border border-border rounded px-2 py-1.5 text-foreground"
+            >
+              <option value="all">All error types</option>
+              {allErrorTypes.map((t) => (
+                <option key={t} value={t}>{metaFor(t).label} ({t})</option>
+              ))}
+            </select>
           </div>
           <div className="flex items-center gap-1 rounded-md border border-border/60 bg-muted/20 p-1">
             {(["pending", "recovered", "discarded", "all"] as const).map((s) => (
