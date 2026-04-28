@@ -1295,6 +1295,87 @@ const AdminWebhookTester = () => {
     toast.success("Response copied");
   };
 
+  // --- Live send: actually create/update leads, then read back canonical fields ---
+  type LiveOutcome = {
+    reference_code: string;
+    status: string;
+    error?: string;
+    db?: {
+      id: string;
+      reference_code: string;
+      has_bankruptcy: boolean | null;
+      trade_in_vehicle: string | null;
+      sold_status: string;
+    } | null;
+    dbError?: string;
+  };
+  const [liveLoading, setLiveLoading] = useState(false);
+  const [liveConfirmOpen, setLiveConfirmOpen] = useState(false);
+  const [liveOutcomes, setLiveOutcomes] = useState<LiveOutcome[] | null>(null);
+  const [liveHttpStatus, setLiveHttpStatus] = useState<number | null>(null);
+
+  const sendLive = async () => {
+    if (!validation.ok) {
+      toast.error("Fix validation errors before sending live");
+      return;
+    }
+    setLiveLoading(true);
+    setLiveOutcomes(null);
+    setLiveHttpStatus(null);
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      apikey: ANON_KEY,
+      Authorization: `Bearer ${ANON_KEY}`,
+    };
+    if (secret.trim()) headers["x-webhook-secret"] = secret.trim();
+
+    try {
+      const res = await fetch(FUNCTIONS_BASE, {
+        method: "POST",
+        headers,
+        body: payload,
+      });
+      setLiveHttpStatus(res.status);
+      const json = (await res.json()) as ApiResponse;
+      if (!res.ok || !(json as { success?: boolean }).success) {
+        const errMsg = (json as { error?: string }).error ?? `HTTP ${res.status}`;
+        toast.error(`Live send failed: ${errMsg}`);
+        setLiveOutcomes([]);
+        return;
+      }
+      const results = (json as { results: LeadResult[] }).results;
+
+      // Read back the canonical DB row for each created/updated lead by reference_code.
+      const outcomes: LiveOutcome[] = await Promise.all(
+        results.map(async (r) => {
+          if (r.error || !r.reference_code) {
+            return { reference_code: r.reference_code, status: r.status, error: r.error, db: null };
+          }
+          const { data, error } = await supabase
+            .from("leads")
+            .select("id, reference_code, has_bankruptcy, trade_in_vehicle, sold_status")
+            .eq("reference_code", r.reference_code)
+            .maybeSingle();
+          if (error) {
+            return { reference_code: r.reference_code, status: r.status, db: null, dbError: error.message };
+          }
+          return {
+            reference_code: r.reference_code,
+            status: r.status,
+            db: data as LiveOutcome["db"],
+          };
+        }),
+      );
+      setLiveOutcomes(outcomes);
+      toast.success(`Live send OK — ${results.length} lead${results.length === 1 ? "" : "s"} processed`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Request failed");
+    } finally {
+      setLiveLoading(false);
+    }
+  };
+
   const results: LeadResult[] | null =
     response && (response as { success?: boolean }).success
       ? (response as { results: LeadResult[] }).results
@@ -1887,6 +1968,15 @@ const AdminWebhookTester = () => {
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FlaskConical className="h-4 w-4" />}
                 {validation.ok ? "Run dry-run" : "Fix errors to run"}
               </Button>
+              <Button
+                onClick={() => setLiveConfirmOpen(true)}
+                disabled={liveLoading || loading || !validation.ok}
+                variant="destructive"
+                className="gap-2"
+              >
+                {liveLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                Send live (create / update)
+              </Button>
               <Button variant="outline" onClick={formatPayload} disabled={loading} className="gap-2">
                 <Wand2 className="h-4 w-4" /> Format JSON
               </Button>
@@ -1957,6 +2047,101 @@ const AdminWebhookTester = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* ── Live send results ────────────────────────────────────────── */}
+        {liveOutcomes && (
+          <Card className="border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" />
+                Live send results
+                {liveHttpStatus !== null && (
+                  <Badge variant="outline" className="text-[10px] font-mono">HTTP {liveHttpStatus}</Badge>
+                )}
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Canonical values read back from the <code>leads</code> table after the webhook ran.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {liveOutcomes.length === 0 && (
+                <div className="text-xs text-muted-foreground">No results returned.</div>
+              )}
+              {liveOutcomes.map((o, i) => (
+                <div key={i} className="rounded-md border border-border/60 p-3 space-y-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-mono text-sm">{o.reference_code || "—"}</span>
+                    {statusBadge(o.status)}
+                    {o.db?.sold_status && (
+                      <Badge variant="outline" className="text-[10px]">sold_status: {o.db.sold_status}</Badge>
+                    )}
+                  </div>
+                  {o.error && (
+                    <div className="text-xs text-destructive font-mono">Webhook error: {o.error}</div>
+                  )}
+                  {o.dbError && (
+                    <div className="text-xs text-destructive font-mono">DB read error: {o.dbError}</div>
+                  )}
+                  {o.db && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="rounded border border-border/60 p-2">
+                        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">has_bankruptcy</div>
+                        {o.db.has_bankruptcy === null || o.db.has_bankruptcy === undefined ? (
+                          <Badge variant="outline" className="mt-1 text-[10px]">null</Badge>
+                        ) : (
+                          <Badge variant={o.db.has_bankruptcy ? "destructive" : "secondary"} className="mt-1 text-[10px]">
+                            {String(o.db.has_bankruptcy)}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="rounded border border-border/60 p-2">
+                        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">trade_in_vehicle</div>
+                        <div className="mt-1 text-xs font-mono break-all">
+                          {o.db.trade_in_vehicle == null || o.db.trade_in_vehicle === ""
+                            ? <span className="text-muted-foreground">null</span>
+                            : o.db.trade_in_vehicle}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* ── Live send confirmation dialog ────────────────────────────── */}
+        <Dialog open={liveConfirmOpen} onOpenChange={setLiveConfirmOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-400" />
+                Send live to inbound webhook?
+              </DialogTitle>
+              <DialogDescription>
+                This will <strong>create or update real leads</strong> in the database (no <code>dry_run</code>).
+                Existing leads matched by email/phone will be merged. Continue?
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setLiveConfirmOpen(false)} disabled={liveLoading}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={async () => {
+                  setLiveConfirmOpen(false);
+                  await sendLive();
+                }}
+                disabled={liveLoading}
+                className="gap-2"
+              >
+                {liveLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                Yes, send live
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <Card>
           <CardHeader className="flex-row items-start justify-between space-y-0">
