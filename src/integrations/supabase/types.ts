@@ -827,12 +827,19 @@ export type Database = {
           first_name: string | null
           id: string
           last_name: string | null
+          last_retry_at: string | null
+          normalized_email: string | null
+          normalized_phone: string | null
           payload: Json
           phone: string | null
           province: string | null
+          recovered_at: string | null
+          recovered_lead_id: string | null
           reference_code: string | null
           request_id: string | null
+          retry_count: number
           source_ip: string | null
+          status: string
           user_agent: string | null
         }
         Insert: {
@@ -844,12 +851,19 @@ export type Database = {
           first_name?: string | null
           id?: string
           last_name?: string | null
+          last_retry_at?: string | null
+          normalized_email?: string | null
+          normalized_phone?: string | null
           payload?: Json
           phone?: string | null
           province?: string | null
+          recovered_at?: string | null
+          recovered_lead_id?: string | null
           reference_code?: string | null
           request_id?: string | null
+          retry_count?: number
           source_ip?: string | null
+          status?: string
           user_agent?: string | null
         }
         Update: {
@@ -861,12 +875,19 @@ export type Database = {
           first_name?: string | null
           id?: string
           last_name?: string | null
+          last_retry_at?: string | null
+          normalized_email?: string | null
+          normalized_phone?: string | null
           payload?: Json
           phone?: string | null
           province?: string | null
+          recovered_at?: string | null
+          recovered_lead_id?: string | null
           reference_code?: string | null
           request_id?: string | null
+          retry_count?: number
           source_ip?: string | null
+          status?: string
           user_agent?: string | null
         }
         Relationships: []
