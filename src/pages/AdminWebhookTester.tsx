@@ -1393,6 +1393,140 @@ const AdminWebhookTester = () => {
                 className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
               />
             </div>
+            {(() => {
+              // Name-recovery preview — local simulation, no network call.
+              // Mirrors `recoverNamesFromPayload` in the edge function so admins
+              // can see exactly which leads would pass / fail with or without
+              // the `inbound_webhook_autofill_names` setting enabled.
+              let parsed: unknown;
+              try {
+                parsed = JSON.parse(payload);
+              } catch {
+                return null;
+              }
+              if (parsed === null || typeof parsed !== "object") return null;
+              const leads = Array.isArray(parsed) ? (parsed as any[]) : [parsed as any];
+              const previews = leads.map((l, i) => ({
+                ...simulateNameRecovery(l, simulateAutofill),
+                leadIndex: i,
+              }));
+              const passed = previews.filter((p) => p.wouldPass).length;
+              const recoveredCount = previews.filter((p) => p.source).length;
+              return (
+                <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3 flex-wrap">
+                    <div>
+                      <h3 className="text-sm font-semibold flex items-center gap-2">
+                        <Sparkles className="h-4 w-4 text-primary" />
+                        Name recovery preview
+                      </h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Simulates the webhook's first/last-name auto-fill locally — no request sent.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 rounded-md border border-border/60 bg-background/60 px-3 py-1.5">
+                      <Switch
+                        id="sim-autofill"
+                        checked={simulateAutofill}
+                        onCheckedChange={setSimulateAutofill}
+                      />
+                      <Label htmlFor="sim-autofill" className="text-xs cursor-pointer">
+                        Simulate auto-fill {simulateAutofill ? "ON" : "OFF"}
+                      </Label>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <Badge variant="outline" className="bg-emerald-500/15 text-emerald-300 border-emerald-500/40">
+                      {passed}/{previews.length} would pass
+                    </Badge>
+                    {recoveredCount > 0 && (
+                      <Badge variant="outline" className="bg-blue-500/15 text-blue-300 border-blue-500/40">
+                        {recoveredCount} recovered
+                      </Badge>
+                    )}
+                    {passed < previews.length && (
+                      <Badge variant="outline" className="bg-red-500/15 text-red-300 border-red-500/40">
+                        {previews.length - passed} would reject
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    {previews.map((p) => (
+                      <div
+                        key={p.leadIndex}
+                        className={`rounded border px-3 py-2 text-xs ${
+                          p.wouldPass
+                            ? "border-emerald-500/30 bg-emerald-500/5"
+                            : "border-red-500/40 bg-red-500/10"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            {p.wouldPass ? (
+                              <UserCheck className="h-3.5 w-3.5 text-emerald-400" />
+                            ) : (
+                              <UserX className="h-3.5 w-3.5 text-red-400" />
+                            )}
+                            <span className="font-mono text-muted-foreground">
+                              Lead #{p.leadIndex + 1}
+                            </span>
+                            {p.wouldPass ? (
+                              <Badge
+                                variant="outline"
+                                className="bg-emerald-500/15 text-emerald-300 border-emerald-500/40 text-[10px]"
+                              >
+                                Would accept
+                              </Badge>
+                            ) : (
+                              <Badge
+                                variant="outline"
+                                className="bg-red-500/15 text-red-300 border-red-500/40 text-[10px]"
+                              >
+                                Would reject
+                              </Badge>
+                            )}
+                            {p.source && (
+                              <Badge
+                                variant="outline"
+                                className="bg-blue-500/15 text-blue-300 border-blue-500/40 text-[10px]"
+                              >
+                                from {p.source}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        <div className="mt-1.5 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 font-mono text-[11px]">
+                          <div>
+                            <span className="text-muted-foreground">first: </span>
+                            <span className={p.originalFirst ? "" : "text-muted-foreground italic"}>
+                              {p.originalFirst ?? "(empty)"}
+                            </span>
+                            {p.recoveredFirst && (
+                              <span className="text-emerald-300"> → {p.recoveredFirst}</span>
+                            )}
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">last: </span>
+                            <span className={p.originalLast ? "" : "text-muted-foreground italic"}>
+                              {p.originalLast ?? "(empty)"}
+                            </span>
+                            {p.recoveredLast && (
+                              <span className="text-emerald-300"> → {p.recoveredLast}</span>
+                            )}
+                          </div>
+                        </div>
+                        {p.suggestedFix && (
+                          <div className="mt-1.5 text-[11px] text-red-200/90 leading-relaxed">
+                            <strong className="text-red-300">Suggested fix: </strong>
+                            {p.suggestedFix}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
             <div className="flex flex-wrap gap-2 pt-2">
               <Button onClick={runDryRun} disabled={loading || !validation.ok} className="gap-2">
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FlaskConical className="h-4 w-4" />}
