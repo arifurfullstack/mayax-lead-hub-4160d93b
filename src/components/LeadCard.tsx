@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Shield, MapPin, Clock, FileText, User, Home, Monitor, Building2, CheckCircle2, DollarSign, Lock, Car, Gauge, Phone, Mail, Eye } from "lucide-react";
+import { Shield, MapPin, Clock, FileText, User, Home, Monitor, Building2, CheckCircle2, DollarSign, Lock, Car, Gauge, Phone, Mail, Eye, ShoppingBag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -14,6 +14,8 @@ interface LeadCardProps {
   promoPrice?: number | null;
   promoType?: "flat" | "percentage" | null;
   isAdminView?: boolean;
+  /** When true, render as a non-purchasable "Sold" card. */
+  readOnly?: boolean;
 }
 
 function getLeadType(lead: any): { label: string; icon: React.ReactNode } {
@@ -60,7 +62,20 @@ function isRevealed(lead: any): boolean {
   return lead.email !== "xxx@xxxx.com" && lead.last_name !== "***";
 }
 
-export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, index = 0, promoPrice, promoType, isAdminView }: LeadCardProps) {
+function timeAgoShort(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const diffMs = Date.now() - new Date(iso).getTime();
+  if (!Number.isFinite(diffMs) || diffMs < 0) return "";
+  const m = Math.floor(diffMs / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  return `${d}d ago`;
+}
+
+export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, index = 0, promoPrice, promoType, isAdminView, readOnly }: LeadCardProps) {
   const { remaining, display } = useCountdown(unlockAt);
   const leadType = getLeadType(lead);
   const buyerLabel = lead.buyer_type === "walk-in" ? "In-Store Buyer" : "Online Buyer";
@@ -73,15 +88,17 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
   const staggerDelay = `${index * 80}ms`;
   const revealed = isRevealed(lead);
   const incomeDisplay = lead.income != null && Number(lead.income) >= 1500 ? `$${Number(lead.income).toLocaleString()}` : null;
+  const isSold = readOnly || lead.sold_status === "sold";
 
   return (
     <div
       className={cn(
         "glass-card p-3.5 cursor-pointer relative z-10 flex flex-col",
-        selected && "glass-card-selected"
+        selected && "glass-card-selected",
+        isSold && "opacity-70 saturate-[0.6]"
       )}
       style={{ animationDelay: staggerDelay }}
-      onClick={() => onSelect?.(lead)}
+      onClick={() => { if (!isSold) onSelect?.(lead); }}
     >
       <div className="shimmer-sweep" style={{ animationDelay: `${index * 80 + 300}ms` }} />
 
