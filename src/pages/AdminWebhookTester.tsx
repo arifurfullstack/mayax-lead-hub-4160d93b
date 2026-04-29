@@ -738,6 +738,11 @@ const AdminWebhookTester = () => {
   // so the user can preview both ON and OFF behaviour without changing platform settings.
   const [simulateAutofill, setSimulateAutofill] = useState(true);
 
+  // Run mode — controls whether the Run button does a dry-run (no DB writes)
+  // or a live send (creates/updates real leads in Marketplace).
+  // Default to "dry" so a fresh page load can never accidentally write.
+  const [mode, setMode] = useState<"dry" | "live">("dry");
+
   // --- Inspect Lead in DB (admin lookup by id or reference_code) ---
   const [lookupInput, setLookupInput] = useState("");
   const [lookupLoading, setLookupLoading] = useState(false);
@@ -1527,11 +1532,60 @@ const AdminWebhookTester = () => {
 
       <Alert className="border-amber-500/40 bg-amber-500/10">
         <AlertTriangle className="h-4 w-4 text-amber-400" />
-        <AlertTitle>Dry-run only</AlertTitle>
+        <AlertTitle>
+          {mode === "dry" ? "Dry-run mode — safe" : "Live mode — writes to Marketplace"}
+        </AlertTitle>
         <AlertDescription>
-          Requests go to <code className="text-xs">{FUNCTIONS_BASE}?dry_run=1</code>. Nothing is inserted, updated, or deleted.
+          {mode === "dry" ? (
+            <>
+              Requests go to <code className="text-xs">{FUNCTIONS_BASE}?dry_run=1</code>.
+              Nothing is inserted, updated, or deleted. Switch to <strong>Live</strong> below to actually create leads.
+            </>
+          ) : (
+            <>
+              Requests go to <code className="text-xs">{FUNCTIONS_BASE}</code> and will{" "}
+              <strong>create or update real leads</strong> visible in Marketplace.
+              You'll be asked to confirm before each send.
+            </>
+          )}
         </AlertDescription>
       </Alert>
+
+      {/* Mode toggle — segmented control */}
+      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border/60 bg-card/40 p-3">
+        <div className="text-xs font-medium text-muted-foreground">Run mode:</div>
+        <div className="inline-flex rounded-md border border-border/60 bg-background/40 p-0.5">
+          <button
+            type="button"
+            onClick={() => setMode("dry")}
+            className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+              mode === "dry"
+                ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <ShieldCheck className="h-3.5 w-3.5 inline mr-1.5" />
+            Dry-run (safe)
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("live")}
+            className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+              mode === "live"
+                ? "bg-red-500/20 text-red-300 border border-red-500/40"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Zap className="h-3.5 w-3.5 inline mr-1.5" />
+            Live (writes to Marketplace)
+          </button>
+        </div>
+        <div className="text-[11px] text-muted-foreground">
+          {mode === "dry"
+            ? "The Run button validates and previews — no rows written."
+            : "The Run button will prompt for confirmation, then create/update leads."}
+        </div>
+      </div>
 
       {/* ── Inspect Lead in DB ─────────────────────────────────────────── */}
       {/* ── RLS Permission Diagnostic ───────────────────────────────────── */}
@@ -2198,19 +2252,22 @@ const AdminWebhookTester = () => {
               );
             })()}
             <div className="flex flex-wrap gap-2 pt-2">
-              <Button onClick={runDryRun} disabled={loading || !validation.ok} className="gap-2">
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FlaskConical className="h-4 w-4" />}
-                {validation.ok ? "Run dry-run" : "Fix errors to run"}
-              </Button>
-              <Button
-                onClick={() => setLiveConfirmOpen(true)}
-                disabled={liveLoading || loading || !validation.ok}
-                variant="destructive"
-                className="gap-2"
-              >
-                {liveLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                Send live (create / update)
-              </Button>
+              {mode === "dry" ? (
+                <Button onClick={runDryRun} disabled={loading || !validation.ok} className="gap-2">
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FlaskConical className="h-4 w-4" />}
+                  {validation.ok ? "Run dry-run" : "Fix errors to run"}
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => setLiveConfirmOpen(true)}
+                  disabled={liveLoading || loading || !validation.ok}
+                  variant="destructive"
+                  className="gap-2"
+                >
+                  {liveLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
+                  {validation.ok ? "Run live (create / update)" : "Fix errors to run"}
+                </Button>
+              )}
               <Button variant="outline" onClick={formatPayload} disabled={loading} className="gap-2">
                 <Wand2 className="h-4 w-4" /> Format JSON
               </Button>
