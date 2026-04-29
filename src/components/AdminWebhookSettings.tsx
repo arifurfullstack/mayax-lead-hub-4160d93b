@@ -131,22 +131,23 @@ export default function AdminWebhookSettings({ settingsForm, setSettingsForm, pl
           </div>
           <pre className="text-[11px] text-muted-foreground overflow-x-auto">
 {`{
-  "first_name": "John",
-  "last_name": "Doe",
-  "email": "john@email.com",
-  "phone": "416 454 6556",
+  "first_name": "Alex",
+  "last_name": "Martin",
+  "email": "alex.martin@example.com",
+  "phone": "647 555 0142",
   "city": "Toronto",
   "province": "Ontario",
-  "income": 4500,
-  "credit_range_min": 600,
-  "credit_range_max": 700,
-  "vehicle_preference": "SUV",
   "buyer_type": "online",
+  "income": "$6,800",
+  "credit_range_min": 720,
+  "credit_range_max": 780,
+  "vehicle_preference": "2024 Honda CR-V Hybrid",
+  "vehicle_mileage": 12000,
+  "vehicle_price": 38000,
   "trade_in": true,
-  "trade_in_vehicle": "2018 Honda Civic, 80,000 km",
-  "has_bankruptcy": false,
-  "notes": "Looking for financing",
-  "appointment_time": "2025-01-15T14:00:00Z"
+  "appointment_time": "2026-05-15T14:00:00-04:00",
+  "notes": "Wants to trade in 2018 Civic. Prefers weekend appointment.",
+  "reference_code": "MX-2026-0001"
 }`}
           </pre>
         </div>
