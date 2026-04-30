@@ -1096,7 +1096,7 @@ Deno.serve(async (req) => {
       }
 
       const year = new Date().getFullYear();
-      const seq = String(Math.floor(Math.random() * 900) + 100);
+      const seq = String(Math.floor(Math.random() * 900000) + 100000);
       const referenceCode = matchedLead?.reference_code ?? lead.reference_code ?? `MX-${year}-${seq}`;
 
       // Parse notes for hidden flags
@@ -1317,6 +1317,25 @@ Deno.serve(async (req) => {
         console.error(
           `[inbound-webhook ${requestId}] insert error ref=${referenceCode} email=${inboundEmail || "none"} phone=${inboundPhoneDigits || "none"} error="${error.message}"`,
         );
+        try {
+          await admin.from("rejected_inbound_leads").insert({
+            request_id: requestId,
+            reference_code: referenceCode,
+            error_message: `Marketplace insert failed: ${error.message}`,
+            error_type: "marketplace_insert_failed",
+            first_name: lead?.first_name ?? null,
+            last_name: lead?.last_name ?? null,
+            email: typeof lead?.email === "string" ? lead.email : null,
+            phone: typeof lead?.phone === "string" ? lead.phone : null,
+            city: lead?.city ?? null,
+            province: lead?.province ?? null,
+            payload: lead ?? {},
+            source_ip: sourceIp,
+            user_agent: userAgent,
+          });
+        } catch (e) {
+          console.error(`[inbound-webhook ${requestId}] failed to log insert rejection`, e);
+        }
         results.push({ reference_code: referenceCode, status: "error", error: error.message });
       } else {
         console.log(
