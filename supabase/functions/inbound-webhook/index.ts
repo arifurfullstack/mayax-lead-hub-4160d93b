@@ -690,21 +690,6 @@ Deno.serve(async (req) => {
     // Default ON: empty pings (only `phone` populated) are rejected at the door.
     const rejectEmptyPayloads = (allSettings["inbound_webhook_reject_empty_payloads"] ?? "true").toLowerCase() !== "false";
 
-    // Check webhook secret if configured
-    const configuredSecret = allSettings["inbound_webhook_secret"]?.trim();
-    if (configuredSecret) {
-      const providedSecret = req.headers.get("x-webhook-secret") ?? "";
-      if (providedSecret !== configuredSecret) {
-        console.warn(
-          `[inbound-webhook ${requestId}] 401 invalid secret hasSecretHeader=${hasSecretHeader} ip=${sourceIp} ua="${userAgent}"`,
-        );
-        return new Response(JSON.stringify({ error: "Invalid webhook secret" }), {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-    }
-
     // Parse pricing settings
     const pricing = parsePricingFromRows(settingsRows ?? []);
 
@@ -738,6 +723,60 @@ Deno.serve(async (req) => {
           })),
         ),
     );
+
+    // Check webhook secret if configured. This intentionally happens AFTER
+    // parsing so missing/invalid-secret posts still land in Rejected Leads with
+    // enough detail to debug a sender that hit the right URL but forgot the header.
+    const configuredSecret = allSettings["inbound_webhook_secret"]?.trim();
+    if (configuredSecret) {
+      const providedSecret = req.headers.get("x-webhook-secret") ?? "";
+      if (providedSecret !== configuredSecret) {
+        const rejectionError = hasSecretHeader
+          ? "Invalid webhook secret. The x-webhook-secret header was provided but did not match the saved inbound secret."
+          : "Missing webhook secret. This inbound URL currently requires the x-webhook-secret header because an inbound webhook secret is saved in Admin settings.";
+
+        if (!dryRun) {
+          for (const rawLead of leadsInput) {
+            const lead = rawLead && typeof rawLead === "object" && !Array.isArray(rawLead)
+              ? normalizeInboundLead(rawLead)
+              : {};
+            try {
+              await admin.from("rejected_inbound_leads").insert({
+                request_id: requestId,
+                reference_code: lead?.reference_code ?? null,
+                error_message: rejectionError,
+                error_type: hasSecretHeader ? "invalid_webhook_secret" : "missing_webhook_secret",
+                first_name: lead?.first_name ?? null,
+                last_name: lead?.last_name ?? null,
+                email: typeof lead?.email === "string" ? lead.email : null,
+                phone: typeof lead?.phone === "string" ? lead.phone : null,
+                city: lead?.city ?? null,
+                province: lead?.province ?? null,
+                payload: lead ?? {},
+                source_ip: sourceIp,
+                user_agent: userAgent,
+              });
+            } catch (e) {
+              console.error(`[inbound-webhook ${requestId}] failed to log secret rejection`, e);
+            }
+          }
+        }
+
+        console.warn(
+          `[inbound-webhook ${requestId}] 401 ${hasSecretHeader ? "invalid" : "missing"} secret ip=${sourceIp} ua="${userAgent}"`,
+        );
+        return new Response(JSON.stringify({
+          success: false,
+          error: rejectionError,
+          rejected: !dryRun,
+          error_type: hasSecretHeader ? "invalid_webhook_secret" : "missing_webhook_secret",
+        }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     const results: {
       reference_code: string;
       status: string;
@@ -1057,7 +1096,7 @@ Deno.serve(async (req) => {
       }
 
       const year = new Date().getFullYear();
-      const seq = String(Math.floor(Math.random() * 900) + 100);
+      const seq = String(Math.floor(Math.random() * 900000) + 100000);
       const referenceCode = matchedLead?.reference_code ?? lead.reference_code ?? `MX-${year}-${seq}`;
 
       // Parse notes for hidden flags
@@ -1278,6 +1317,25 @@ Deno.serve(async (req) => {
         console.error(
           `[inbound-webhook ${requestId}] insert error ref=${referenceCode} email=${inboundEmail || "none"} phone=${inboundPhoneDigits || "none"} error="${error.message}"`,
         );
+        try {
+          await admin.from("rejected_inbound_leads").insert({
+            request_id: requestId,
+            reference_code: referenceCode,
+            error_message: `Marketplace insert failed: ${error.message}`,
+            error_type: "marketplace_insert_failed",
+            first_name: lead?.first_name ?? null,
+            last_name: lead?.last_name ?? null,
+            email: typeof lead?.email === "string" ? lead.email : null,
+            phone: typeof lead?.phone === "string" ? lead.phone : null,
+            city: lead?.city ?? null,
+            province: lead?.province ?? null,
+            payload: lead ?? {},
+            source_ip: sourceIp,
+            user_agent: userAgent,
+          });
+        } catch (e) {
+          console.error(`[inbound-webhook ${requestId}] failed to log insert rejection`, e);
+        }
         results.push({ reference_code: referenceCode, status: "error", error: error.message });
       } else {
         console.log(
