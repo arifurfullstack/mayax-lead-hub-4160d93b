@@ -448,10 +448,6 @@ const Settings = () => {
             <User className="h-4 w-4" />
             Profile
           </TabsTrigger>
-          <TabsTrigger value="promo" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
-            <Tag className="h-4 w-4" />
-            Promo Code
-          </TabsTrigger>
           <TabsTrigger value="notifications" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
             <Bell className="h-4 w-4" />
             Notifications
