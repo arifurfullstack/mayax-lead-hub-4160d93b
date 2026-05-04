@@ -634,18 +634,20 @@ const Marketplace = () => {
                 )}
               </div>
               <div className="flex items-center gap-3 flex-wrap">
-                {/* Recently sold visibility toggle (admins default to 24h) */}
-                <div
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium"
-                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
-                  title="When on, recently sold leads stay visible (read-only) so an empty marketplace is easier to diagnose."
-                >
-                  <span style={{ color: "rgba(255,255,255,0.6)" }}>Show sold (24h)</span>
-                  <Switch
-                    checked={includeSoldHours > 0}
-                    onCheckedChange={(v) => setIncludeSoldHours(v ? 24 : 0)}
-                  />
-                </div>
+                {/* Recently sold visibility toggle — admin only */}
+                {isAdmin && (
+                  <div
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium"
+                    style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
+                    title="Admin only — when on, recently sold leads stay visible (read-only) so an empty marketplace is easier to diagnose."
+                  >
+                    <span style={{ color: "rgba(255,255,255,0.6)" }}>Show sold (24h)</span>
+                    <Switch
+                      checked={includeSoldHours > 0}
+                      onCheckedChange={(v) => setIncludeSoldHours(v ? 24 : 0)}
+                    />
+                  </div>
+                )}
                 {/* Promo code */}
                 {activePromo ? (
                   <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary/10 border border-primary/30">
