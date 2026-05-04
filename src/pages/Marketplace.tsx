@@ -660,18 +660,20 @@ const Marketplace = () => {
                     </button>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-1.5">
-                    <Input
-                      placeholder="Promo code"
-                      value={promoCode}
-                      onChange={(e) => setPromoCode(e.target.value)}
-                      className="h-8 w-32 text-xs uppercase bg-card border-border"
-                      onKeyDown={(e) => e.key === "Enter" && applyPromoCode()}
-                    />
-                    <Button size="sm" variant="outline" className="h-8 text-xs" onClick={applyPromoCode} disabled={applyingPromo || !promoCode.trim()}>
-                      {applyingPromo ? "..." : "Apply"}
-                    </Button>
-                  </div>
+                  isAdmin && (
+                    <div className="flex items-center gap-1.5">
+                      <Input
+                        placeholder="Promo code"
+                        value={promoCode}
+                        onChange={(e) => setPromoCode(e.target.value)}
+                        className="h-8 w-32 text-xs uppercase bg-card border-border"
+                        onKeyDown={(e) => e.key === "Enter" && applyPromoCode()}
+                      />
+                      <Button size="sm" variant="outline" className="h-8 text-xs" onClick={applyPromoCode} disabled={applyingPromo || !promoCode.trim()}>
+                        {applyingPromo ? "..." : "Apply"}
+                      </Button>
+                    </div>
+                  )
                 )}
                 {usage && (
                   <div
