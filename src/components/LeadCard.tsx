@@ -88,6 +88,7 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
   const staggerDelay = `${index * 80}ms`;
   const revealed = isRevealed(lead);
   const incomeDisplay = lead.income != null && Number(lead.income) >= 1500 ? `$${Number(lead.income).toLocaleString()}` : null;
+  const hasCreditRange = lead.credit_range_min != null && lead.credit_range_max != null;
   const isSold = readOnly || lead.sold_status === "sold";
 
   return (
@@ -230,6 +231,14 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
         <div className="flex items-center gap-1.5 mb-0.5 text-muted-foreground">
           <Tooltip><TooltipTrigger asChild><DollarSign className="h-3.5 w-3.5 cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Monthly Income</TooltipContent></Tooltip>
           <Tooltip><TooltipTrigger asChild><span className="text-sm cursor-help">{incomeDisplay}</span></TooltipTrigger><TooltipContent side="top" className="text-xs">Monthly Income: {incomeDisplay}</TooltipContent></Tooltip>
+        </div>
+      )}
+
+      {/* Credit Range */}
+      {hasCreditRange && (
+        <div className="flex items-center gap-1.5 mb-0.5 text-muted-foreground">
+          <Tooltip><TooltipTrigger asChild><Gauge className="h-3.5 w-3.5 cursor-help" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Credit Score Range</TooltipContent></Tooltip>
+          <Tooltip><TooltipTrigger asChild><span className="text-sm font-mono-timer cursor-help">Credit {creditRange}</span></TooltipTrigger><TooltipContent side="top" className="text-xs">Self-reported credit range: {creditRange}</TooltipContent></Tooltip>
         </div>
       )}
 
