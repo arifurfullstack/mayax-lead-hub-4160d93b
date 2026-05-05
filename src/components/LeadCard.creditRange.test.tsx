@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { LeadCard } from "./LeadCard";
 
@@ -27,12 +27,16 @@ function renderCard(extra: Record<string, unknown>) {
 }
 
 describe("LeadCard credit range", () => {
-  it("renders normalized range when min/max are swapped", () => {
+  it("renders normalized range when min/max are swapped", async () => {
     renderCard({ credit_range_min: 800, credit_range_max: 600 });
-    expect(screen.getByText("Credit 600-800")).toBeInTheDocument();
-    expect(
-      screen.getByText("Self-reported credit range: 600-800")
-    ).toBeInTheDocument();
+    const label = screen.getByText("Credit 600-800");
+    expect(label).toBeInTheDocument();
+    fireEvent.focus(label);
+    await waitFor(() =>
+      expect(
+        screen.getAllByText("Self-reported credit range: 600-800").length
+      ).toBeGreaterThan(0)
+    );
   });
 
   it("does not render credit range when values are null", () => {
@@ -48,11 +52,15 @@ describe("LeadCard credit range", () => {
     expect(screen.queryByText(/^Credit /)).not.toBeInTheDocument();
   });
 
-  it("handles string numeric values correctly", () => {
+  it("handles string numeric values correctly", async () => {
     renderCard({ credit_range_min: "750", credit_range_max: "550" });
-    expect(screen.getByText("Credit 550-750")).toBeInTheDocument();
-    expect(
-      screen.getByText("Self-reported credit range: 550-750")
-    ).toBeInTheDocument();
+    const label = screen.getByText("Credit 550-750");
+    expect(label).toBeInTheDocument();
+    fireEvent.focus(label);
+    await waitFor(() =>
+      expect(
+        screen.getAllByText("Self-reported credit range: 550-750").length
+      ).toBeGreaterThan(0)
+    );
   });
 });
