@@ -204,9 +204,15 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
 
       {/* Bankruptcy */}
       {lead.has_bankruptcy && (
-        <div className="flex items-center gap-1.5 mb-0.5 text-muted-foreground">
-          <Tooltip><TooltipTrigger asChild><Shield className="h-3.5 w-3.5 cursor-help text-amber-400" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Bankruptcy disclosed</TooltipContent></Tooltip>
-          <Tooltip><TooltipTrigger asChild><span className="text-sm text-amber-400 font-medium cursor-help">Bankruptcy</span></TooltipTrigger><TooltipContent side="top" className="text-xs">Customer disclosed prior bankruptcy</TooltipContent></Tooltip>
+        <div className="mb-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded border border-amber-500/50 bg-amber-500/10 text-amber-400 uppercase tracking-wider font-mono-timer cursor-help">
+                <Shield className="h-3 w-3" /> Bankruptcy
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">Customer disclosed prior bankruptcy</TooltipContent>
+          </Tooltip>
         </div>
       )}
 
