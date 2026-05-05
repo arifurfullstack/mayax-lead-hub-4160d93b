@@ -80,15 +80,15 @@ export function LeadCard({ lead, locked, unlockAt, onBuy, selected, onSelect, in
   const leadType = getLeadType(lead);
   const buyerLabel = lead.buyer_type === "walk-in" ? "In-Store Buyer" : "Online Buyer";
   const buyerIcon = lead.buyer_type === "walk-in" ? <Home className="h-3 w-3" /> : <User className="h-3 w-3" />;
-  const creditRange = lead.credit_range_min != null && lead.credit_range_max != null
-    ? `${lead.credit_range_min}-${lead.credit_range_max}`
-    : "N/A";
   const location = [lead.city, lead.province].filter(Boolean).join(", ");
   const isLocked = locked && remaining > 0;
   const staggerDelay = `${index * 80}ms`;
   const revealed = isRevealed(lead);
   const incomeDisplay = lead.income != null && Number(lead.income) >= 1500 ? `$${Number(lead.income).toLocaleString()}` : null;
   const hasCreditRange = lead.credit_range_min != null && lead.credit_range_max != null;
+  const creditRange = hasCreditRange
+    ? `${Math.min(Number(lead.credit_range_min), Number(lead.credit_range_max))}-${Math.max(Number(lead.credit_range_min), Number(lead.credit_range_max))}`
+    : "N/A";
   const isSold = readOnly || lead.sold_status === "sold";
 
   return (
