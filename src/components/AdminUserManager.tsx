@@ -106,6 +106,9 @@ const AdminUserManager = () => {
   });
 
   const [saving, setSaving] = useState(false);
+  const [webhookError, setWebhookError] = useState<string | null>(null);
+  const [webhookChecking, setWebhookChecking] = useState(false);
+  const [webhookReachable, setWebhookReachable] = useState<null | boolean>(null);
 
   const fetchUsers = async () => {
     setLoading(true);
