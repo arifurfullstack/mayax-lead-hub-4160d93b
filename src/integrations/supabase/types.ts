@@ -1090,6 +1090,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_recalculate_all_lead_prices: {
+        Args: never
+        Returns: {
+          updated_count: number
+        }[]
+      }
       admin_reset_leads_to_available: {
         Args: { _lead_ids: string[]; _reason?: string }
         Returns: {
