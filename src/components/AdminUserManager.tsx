@@ -543,6 +543,27 @@ const AdminUserManager = () => {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-1.5 col-span-2 pt-2 border-t border-border">
+              <Label className="text-xs text-muted-foreground">Outbound Webhook URL</Label>
+              <Input
+                value={editForm.webhook_url}
+                onChange={(e) => setEditForm(f => ({ ...f, webhook_url: e.target.value }))}
+                className="bg-background border-border font-mono text-xs"
+                placeholder="https://hooks.example.com/lead-delivery"
+              />
+              <p className="text-[10px] text-muted-foreground">
+                POSTed when this dealer purchases a lead. Saved here also appears in their Settings.
+              </p>
+            </div>
+            <div className="space-y-1.5 col-span-2">
+              <Label className="text-xs text-muted-foreground">Webhook Secret (optional)</Label>
+              <Input
+                value={editForm.webhook_secret}
+                onChange={(e) => setEditForm(f => ({ ...f, webhook_secret: e.target.value }))}
+                className="bg-background border-border font-mono text-xs"
+                placeholder="Used to sign payloads (X-MayaX-Signature)"
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setEditMode(false); setSelectedUser(null); }}>Cancel</Button>
