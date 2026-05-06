@@ -7,6 +7,16 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { DEFAULT_PRICING, type PricingSettings } from "@/lib/leadScoring";
+import { z } from "zod";
+
+const MAX_PRICE = 10000;
+const priceSchema = z
+  .string()
+  .trim()
+  .refine((v) => v !== "", { message: "Required" })
+  .refine((v) => /^\d+(\.\d{1,2})?$/.test(v), { message: "Must be a non-negative number (max 2 decimals)" })
+  .refine((v) => Number(v) >= 0, { message: "Cannot be negative" })
+  .refine((v) => Number(v) <= MAX_PRICE, { message: `Cannot exceed $${MAX_PRICE}` });
 
 interface Props {
   platformSettings: Record<string, string>;
@@ -27,6 +37,7 @@ const FIELDS: { key: keyof PricingSettings; label: string; description: string }
 export default function AdminLeadPricingSettings({ platformSettings, onSaved }: Props) {
   const [form, setForm] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const initial: Record<string, string> = {};
@@ -40,7 +51,30 @@ export default function AdminLeadPricingSettings({ platformSettings, onSaved }: 
     return FIELDS.reduce((sum, f) => sum + (Number(form[f.key]) || 0), 0);
   }, [form]);
 
+  const validateField = (key: string, value: string): string => {
+    const result = priceSchema.safeParse(value);
+    return result.success ? "" : result.error.issues[0]?.message ?? "Invalid value";
+  };
+
+  const validateAll = (): boolean => {
+    const next: Record<string, string> = {};
+    for (const f of FIELDS) {
+      const msg = validateField(f.key, form[f.key] ?? "");
+      if (msg) next[f.key] = msg;
+    }
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  };
+
   const handleSave = async () => {
+    if (!validateAll()) {
+      toast({
+        title: "Invalid pricing",
+        description: "Please fix the highlighted fields before saving.",
+        variant: "destructive",
+      });
+      return;
+    }
     setSaving(true);
     for (const f of FIELDS) {
       const value = form[f.key] ?? String(DEFAULT_PRICING[f.key]);
@@ -82,13 +116,26 @@ export default function AdminLeadPricingSettings({ platformSettings, onSaved }: 
                 <Input
                   type="number"
                   min={0}
+                  max={MAX_PRICE}
                   step="1"
                   value={form[key] ?? ""}
-                  onChange={(e) => setForm((prev) => ({ ...prev, [key]: e.target.value }))}
-                  className="bg-background border-border pl-7"
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setForm((prev) => ({ ...prev, [key]: value }));
+                    setErrors((prev) => ({ ...prev, [key]: validateField(key, value) }));
+                  }}
+                  onBlur={(e) =>
+                    setErrors((prev) => ({ ...prev, [key]: validateField(key, e.target.value) }))
+                  }
+                  aria-invalid={!!errors[key]}
+                  className={`bg-background pl-7 ${errors[key] ? "border-destructive" : "border-border"}`}
                 />
               </div>
-              <p className="text-[10px] text-muted-foreground/60">{description}</p>
+              {errors[key] ? (
+                <p className="text-[10px] text-destructive">{errors[key]}</p>
+              ) : (
+                <p className="text-[10px] text-muted-foreground/60">{description}</p>
+              )}
             </div>
           ))}
         </div>
