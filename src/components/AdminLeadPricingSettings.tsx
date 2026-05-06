@@ -49,8 +49,15 @@ export default function AdminLeadPricingSettings({ platformSettings, onSaved }: 
         await supabase.from("platform_settings").insert({ key: f.key, value });
       }
     }
+    // Apply new pricing to all existing available leads
+    const { data: recalc, error: recalcErr } = await supabase.rpc("admin_recalculate_all_lead_prices");
     setSaving(false);
-    toast({ title: "Saved", description: "Lead pricing settings updated." });
+    if (recalcErr) {
+      toast({ title: "Saved (partial)", description: `Pricing saved, but repricing existing leads failed: ${recalcErr.message}`, variant: "destructive" });
+    } else {
+      const n = Array.isArray(recalc) ? (recalc[0]?.updated_count ?? 0) : 0;
+      toast({ title: "Saved", description: `Pricing updated. ${n} existing lead${n === 1 ? "" : "s"} repriced.` });
+    }
     onSaved();
   };
 
