@@ -657,7 +657,7 @@ const AdminUserManager = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setEditMode(false); setSelectedUser(null); }}>Cancel</Button>
-            <Button disabled={saving} onClick={saveEdit}>
+            <Button disabled={saving || !!webhookError} onClick={saveEdit}>
               {saving ? "Saving…" : "Save Changes"}
             </Button>
           </DialogFooter>
