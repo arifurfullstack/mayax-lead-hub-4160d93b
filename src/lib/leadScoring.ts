@@ -228,6 +228,7 @@ export interface PricingSettings {
   lead_price_trade: number;
   lead_price_bankruptcy: number;
   lead_price_appointment: number;
+  lead_price_credit_score: number;
 }
 
 export const DEFAULT_PRICING: PricingSettings = {
@@ -238,6 +239,7 @@ export const DEFAULT_PRICING: PricingSettings = {
   lead_price_trade: 15,
   lead_price_bankruptcy: 15,
   lead_price_appointment: 10,
+  lead_price_credit_score: 5,
 };
 
 export function parsePricingSettings(raw: Record<string, string>): PricingSettings {
@@ -256,6 +258,8 @@ export interface DynamicLeadInput {
   trade_in?: boolean | null;
   has_bankruptcy?: boolean | null;
   appointment_time?: string | null;
+  credit_range_min?: number | null;
+  credit_range_max?: number | null;
 }
 
 export interface PriceBreakdown {
@@ -265,6 +269,7 @@ export interface PriceBreakdown {
   trade: number;
   bankruptcy: number;
   appointment: number;
+  credit_score: number;
   total: number;
 }
 
@@ -284,6 +289,9 @@ export function calculateLeadPrice(lead: DynamicLeadInput, settings: PricingSett
   const trade = lead.trade_in ? settings.lead_price_trade : 0;
   const bankruptcy = lead.has_bankruptcy ? settings.lead_price_bankruptcy : 0;
   const appointment = lead.appointment_time ? settings.lead_price_appointment : 0;
+  const hasCredit =
+    (lead.credit_range_min ?? null) !== null || (lead.credit_range_max ?? null) !== null;
+  const credit_score = hasCredit ? settings.lead_price_credit_score : 0;
 
   return {
     base,
@@ -292,7 +300,8 @@ export function calculateLeadPrice(lead: DynamicLeadInput, settings: PricingSett
     trade,
     bankruptcy,
     appointment,
-    total: base + income + vehicle + trade + bankruptcy + appointment,
+    credit_score,
+    total: base + income + vehicle + trade + bankruptcy + appointment + credit_score,
   };
 }
 
