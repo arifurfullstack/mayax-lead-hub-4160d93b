@@ -21,6 +21,7 @@ const FIELDS: { key: keyof PricingSettings; label: string; description: string }
   { key: "lead_price_trade", label: "Trade-In", description: "Added when trade-in is detected in notes or flagged" },
   { key: "lead_price_bankruptcy", label: "Bankruptcy", description: "Added when bankruptcy is detected in notes" },
   { key: "lead_price_appointment", label: "Phone Appointment", description: "Added when an appointment/call request is present" },
+  { key: "lead_price_credit_score", label: "Credit Score", description: "Added when self-reported credit range (min or max) is provided" },
 ];
 
 export default function AdminLeadPricingSettings({ platformSettings, onSaved }: Props) {

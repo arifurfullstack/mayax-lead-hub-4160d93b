@@ -57,6 +57,7 @@ interface PricingSettings {
   lead_price_trade: number;
   lead_price_bankruptcy: number;
   lead_price_appointment: number;
+  lead_price_credit_score: number;
 }
 
 function parseNumericInput(value: unknown): number | null {
@@ -139,6 +140,7 @@ const DEFAULT_PRICING: PricingSettings = {
   lead_price_trade: 15,
   lead_price_bankruptcy: 15,
   lead_price_appointment: 10,
+  lead_price_credit_score: 5,
 };
 
 function parsePricingFromRows(rows: { key: string; value: string | null }[]): PricingSettings {
@@ -157,6 +159,8 @@ function calculateDynamicPrice(lead: {
   trade_in?: boolean;
   has_bankruptcy?: boolean;
   appointment_time?: string | null;
+  credit_range_min?: number | null;
+  credit_range_max?: number | null;
 }, settings: PricingSettings): number {
   let total = settings.lead_price_base;
   const inc = lead.income ?? 0;
@@ -166,6 +170,9 @@ function calculateDynamicPrice(lead: {
   if (lead.trade_in) total += settings.lead_price_trade;
   if (lead.has_bankruptcy) total += settings.lead_price_bankruptcy;
   if (lead.appointment_time) total += settings.lead_price_appointment;
+  if ((lead.credit_range_min ?? null) !== null || (lead.credit_range_max ?? null) !== null) {
+    total += settings.lead_price_credit_score;
+  }
   return total;
 }
 
@@ -1153,6 +1160,8 @@ Deno.serve(async (req) => {
         trade_in: trade_in === true,
         has_bankruptcy: has_bankruptcy === true,
         appointment_time,
+        credit_range_min,
+        credit_range_max,
       }, pricing);
 
       const leadData: Record<string, unknown> = {
