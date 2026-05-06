@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   Users, Search, Plus, Pencil, Trash2, DollarSign, Shield, Ban,
-  CheckCircle2, Clock, XCircle, Eye, UserPlus,
+  CheckCircle2, Clock, XCircle, Eye, UserPlus, AlertCircle, Loader2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,30 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+
+/**
+ * Validates a webhook URL. Must be a syntactically valid https:// URL
+ * with a non-empty host. Returns an error message string, or null if valid.
+ * Empty input is treated as valid (webhook is optional).
+ */
+function validateWebhookUrl(raw: string): string | null {
+  const v = raw.trim();
+  if (!v) return null;
+  let parsed: URL;
+  try {
+    parsed = new URL(v);
+  } catch {
+    return "Invalid URL format (e.g. https://hooks.example.com/lead)";
+  }
+  if (parsed.protocol !== "https:") {
+    return "Webhook URL must use https:// for secure delivery";
+  }
+  if (!parsed.hostname || !parsed.hostname.includes(".")) {
+    return "URL must include a valid host (e.g. hooks.example.com)";
+  }
+  if (/\s/.test(v)) return "URL cannot contain whitespace";
+  return null;
+}
 
 interface UserRow {
   id: string;
