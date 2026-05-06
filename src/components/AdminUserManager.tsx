@@ -167,6 +167,12 @@ const AdminUserManager = () => {
 
   const saveEdit = async () => {
     if (!selectedUser) return;
+    const webhookErr = validateWebhookUrl(editForm.webhook_url);
+    if (webhookErr) {
+      setWebhookError(webhookErr);
+      toast({ title: "Invalid webhook URL", description: webhookErr, variant: "destructive" });
+      return;
+    }
     setSaving(true);
 
     // Validate wallet balance
