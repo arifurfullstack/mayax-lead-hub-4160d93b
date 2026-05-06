@@ -712,8 +712,8 @@ const Marketplace = () => {
                       selected={selectedLeads.has(lead.id)}
                       onSelect={toggleSelect}
                       index={i}
-                       promoPrice={activePromo?.flat_price ?? null}
-                       promoType={activePromo ? "flat" : null}
+                       promoPrice={isAdmin ? (activePromo?.flat_price ?? null) : null}
+                       promoType={isAdmin && activePromo ? "flat" : null}
                        isAdminView={isAdmin}
                        readOnly={lead.sold_status === "sold"}
                     />
@@ -910,7 +910,7 @@ const Marketplace = () => {
                       </div>
                       <span className="font-bold text-foreground font-mono-timer whitespace-nowrap">
                         ${priceFor(lead).toFixed(2)}
-                        {activePromo && <span className="text-xs text-primary ml-1">(promo)</span>}
+                        {isAdmin && activePromo && <span className="text-xs text-primary ml-1">(promo)</span>}
                       </span>
                     </div>
                   ))}
@@ -928,7 +928,7 @@ const Marketplace = () => {
                     )}
                   </span>
                 </div>
-                {activePromo && (
+                {isAdmin && activePromo && (
                   <div className="flex items-center gap-2 text-xs text-primary bg-primary/10 px-3 py-1.5 rounded-lg">
                     <Tag className="h-3.5 w-3.5" />
                     <span>Promo <strong>{activePromo.code}</strong> applied — flat rate pricing</span>
