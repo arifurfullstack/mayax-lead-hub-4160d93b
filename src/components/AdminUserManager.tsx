@@ -600,15 +600,50 @@ const AdminUserManager = () => {
             </div>
             <div className="space-y-1.5 col-span-2 pt-2 border-t border-border">
               <Label className="text-xs text-muted-foreground">Outbound Webhook URL</Label>
-              <Input
-                value={editForm.webhook_url}
-                onChange={(e) => setEditForm(f => ({ ...f, webhook_url: e.target.value }))}
-                className="bg-background border-border font-mono text-xs"
-                placeholder="https://hooks.example.com/lead-delivery"
-              />
-              <p className="text-[10px] text-muted-foreground">
-                POSTed when this dealer purchases a lead. Saved here also appears in their Settings.
-              </p>
+              <div className="flex gap-2">
+                <Input
+                  value={editForm.webhook_url}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setEditForm(f => ({ ...f, webhook_url: val }));
+                    setWebhookError(validateWebhookUrl(val));
+                    setWebhookReachable(null);
+                  }}
+                  onBlur={() => setWebhookError(validateWebhookUrl(editForm.webhook_url))}
+                  className={cn(
+                    "bg-background border-border font-mono text-xs",
+                    webhookError && "border-destructive focus-visible:ring-destructive",
+                  )}
+                  placeholder="https://hooks.example.com/lead-delivery"
+                  aria-invalid={!!webhookError}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={webhookChecking || !!webhookError || !editForm.webhook_url.trim()}
+                  onClick={checkWebhookReachable}
+                >
+                  {webhookChecking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Test"}
+                </Button>
+              </div>
+              {webhookError ? (
+                <p className="text-[11px] text-destructive flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" /> {webhookError}
+                </p>
+              ) : webhookReachable === true ? (
+                <p className="text-[11px] text-success flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3" /> Endpoint reachable.
+                </p>
+              ) : webhookReachable === false ? (
+                <p className="text-[11px] text-warning flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" /> Could not reach endpoint (DNS, TLS, or network blocked). URL format is valid — you can still save.
+                </p>
+              ) : (
+                <p className="text-[10px] text-muted-foreground">
+                  POSTed when this dealer purchases a lead. Must be https://. Saved here also appears in their Settings.
+                </p>
+              )}
             </div>
             <div className="space-y-1.5 col-span-2">
               <Label className="text-xs text-muted-foreground">Webhook Secret (optional)</Label>
