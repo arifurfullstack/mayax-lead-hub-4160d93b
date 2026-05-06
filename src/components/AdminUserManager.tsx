@@ -33,6 +33,8 @@ interface UserRow {
   address: string | null;
   business_type: string | null;
   website: string | null;
+  webhook_url: string | null;
+  webhook_secret: string | null;
   roles: string[];
 }
 
@@ -63,6 +65,7 @@ const AdminUserManager = () => {
     province: "", address: "", business_type: "independent", website: "",
     approval_status: "pending", subscription_tier: "basic",
     wallet_balance: "0",
+    webhook_url: "", webhook_secret: "",
   });
 
   // Add funds
@@ -128,6 +131,8 @@ const AdminUserManager = () => {
       approval_status: u.approval_status,
       subscription_tier: u.subscription_tier,
       wallet_balance: Number(u.wallet_balance ?? 0).toFixed(2),
+      webhook_url: u.webhook_url ?? "",
+      webhook_secret: u.webhook_secret ?? "",
     });
     setUserRole(u.roles.includes("admin") ? "admin" : u.roles.includes("moderator") ? "moderator" : "user");
     setEditMode(true);
@@ -157,6 +162,8 @@ const AdminUserManager = () => {
       approval_status: editForm.approval_status,
       subscription_tier: editForm.subscription_tier,
       wallet_balance: newBalance,
+      webhook_url: editForm.webhook_url.trim() || null,
+      webhook_secret: editForm.webhook_secret.trim() || null,
     }).eq("id", selectedUser.id);
 
     if (error) {
