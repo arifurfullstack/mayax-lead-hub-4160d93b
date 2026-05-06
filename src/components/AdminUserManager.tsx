@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   Users, Search, Plus, Pencil, Trash2, DollarSign, Shield, Ban,
-  CheckCircle2, Clock, XCircle, Eye, UserPlus,
+  CheckCircle2, Clock, XCircle, Eye, UserPlus, AlertCircle, Loader2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,30 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+
+/**
+ * Validates a webhook URL. Must be a syntactically valid https:// URL
+ * with a non-empty host. Returns an error message string, or null if valid.
+ * Empty input is treated as valid (webhook is optional).
+ */
+function validateWebhookUrl(raw: string): string | null {
+  const v = raw.trim();
+  if (!v) return null;
+  let parsed: URL;
+  try {
+    parsed = new URL(v);
+  } catch {
+    return "Invalid URL format (e.g. https://hooks.example.com/lead)";
+  }
+  if (parsed.protocol !== "https:") {
+    return "Webhook URL must use https:// for secure delivery";
+  }
+  if (!parsed.hostname || !parsed.hostname.includes(".")) {
+    return "URL must include a valid host (e.g. hooks.example.com)";
+  }
+  if (/\s/.test(v)) return "URL cannot contain whitespace";
+  return null;
+}
 
 interface UserRow {
   id: string;
@@ -82,6 +106,9 @@ const AdminUserManager = () => {
   });
 
   const [saving, setSaving] = useState(false);
+  const [webhookError, setWebhookError] = useState<string | null>(null);
+  const [webhookChecking, setWebhookChecking] = useState(false);
+  const [webhookReachable, setWebhookReachable] = useState<null | boolean>(null);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -135,11 +162,39 @@ const AdminUserManager = () => {
       webhook_secret: u.webhook_secret ?? "",
     });
     setUserRole(u.roles.includes("admin") ? "admin" : u.roles.includes("moderator") ? "moderator" : "user");
+    setWebhookError(validateWebhookUrl(u.webhook_url ?? ""));
+    setWebhookReachable(null);
     setEditMode(true);
+  };
+
+  const checkWebhookReachable = async () => {
+    const err = validateWebhookUrl(editForm.webhook_url);
+    setWebhookError(err);
+    if (err || !editForm.webhook_url.trim()) return;
+    setWebhookChecking(true);
+    setWebhookReachable(null);
+    try {
+      // no-cors HEAD ping — opaque response means we got a TCP/TLS handshake
+      const ctrl = new AbortController();
+      const timeout = setTimeout(() => ctrl.abort(), 6000);
+      await fetch(editForm.webhook_url.trim(), { method: "HEAD", mode: "no-cors", signal: ctrl.signal });
+      clearTimeout(timeout);
+      setWebhookReachable(true);
+    } catch {
+      setWebhookReachable(false);
+    } finally {
+      setWebhookChecking(false);
+    }
   };
 
   const saveEdit = async () => {
     if (!selectedUser) return;
+    const webhookErr = validateWebhookUrl(editForm.webhook_url);
+    if (webhookErr) {
+      setWebhookError(webhookErr);
+      toast({ title: "Invalid webhook URL", description: webhookErr, variant: "destructive" });
+      return;
+    }
     setSaving(true);
 
     // Validate wallet balance
@@ -545,15 +600,50 @@ const AdminUserManager = () => {
             </div>
             <div className="space-y-1.5 col-span-2 pt-2 border-t border-border">
               <Label className="text-xs text-muted-foreground">Outbound Webhook URL</Label>
-              <Input
-                value={editForm.webhook_url}
-                onChange={(e) => setEditForm(f => ({ ...f, webhook_url: e.target.value }))}
-                className="bg-background border-border font-mono text-xs"
-                placeholder="https://hooks.example.com/lead-delivery"
-              />
-              <p className="text-[10px] text-muted-foreground">
-                POSTed when this dealer purchases a lead. Saved here also appears in their Settings.
-              </p>
+              <div className="flex gap-2">
+                <Input
+                  value={editForm.webhook_url}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setEditForm(f => ({ ...f, webhook_url: val }));
+                    setWebhookError(validateWebhookUrl(val));
+                    setWebhookReachable(null);
+                  }}
+                  onBlur={() => setWebhookError(validateWebhookUrl(editForm.webhook_url))}
+                  className={cn(
+                    "bg-background border-border font-mono text-xs",
+                    webhookError && "border-destructive focus-visible:ring-destructive",
+                  )}
+                  placeholder="https://hooks.example.com/lead-delivery"
+                  aria-invalid={!!webhookError}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={webhookChecking || !!webhookError || !editForm.webhook_url.trim()}
+                  onClick={checkWebhookReachable}
+                >
+                  {webhookChecking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Test"}
+                </Button>
+              </div>
+              {webhookError ? (
+                <p className="text-[11px] text-destructive flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" /> {webhookError}
+                </p>
+              ) : webhookReachable === true ? (
+                <p className="text-[11px] text-success flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3" /> Endpoint reachable.
+                </p>
+              ) : webhookReachable === false ? (
+                <p className="text-[11px] text-warning flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" /> Could not reach endpoint (DNS, TLS, or network blocked). URL format is valid — you can still save.
+                </p>
+              ) : (
+                <p className="text-[10px] text-muted-foreground">
+                  POSTed when this dealer purchases a lead. Must be https://. Saved here also appears in their Settings.
+                </p>
+              )}
             </div>
             <div className="space-y-1.5 col-span-2">
               <Label className="text-xs text-muted-foreground">Webhook Secret (optional)</Label>
@@ -567,7 +657,7 @@ const AdminUserManager = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setEditMode(false); setSelectedUser(null); }}>Cancel</Button>
-            <Button disabled={saving} onClick={saveEdit}>
+            <Button disabled={saving || !!webhookError} onClick={saveEdit}>
               {saving ? "Saving…" : "Save Changes"}
             </Button>
           </DialogFooter>
