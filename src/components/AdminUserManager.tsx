@@ -162,7 +162,29 @@ const AdminUserManager = () => {
       webhook_secret: u.webhook_secret ?? "",
     });
     setUserRole(u.roles.includes("admin") ? "admin" : u.roles.includes("moderator") ? "moderator" : "user");
+    setWebhookError(validateWebhookUrl(u.webhook_url ?? ""));
+    setWebhookReachable(null);
     setEditMode(true);
+  };
+
+  const checkWebhookReachable = async () => {
+    const err = validateWebhookUrl(editForm.webhook_url);
+    setWebhookError(err);
+    if (err || !editForm.webhook_url.trim()) return;
+    setWebhookChecking(true);
+    setWebhookReachable(null);
+    try {
+      // no-cors HEAD ping — opaque response means we got a TCP/TLS handshake
+      const ctrl = new AbortController();
+      const timeout = setTimeout(() => ctrl.abort(), 6000);
+      await fetch(editForm.webhook_url.trim(), { method: "HEAD", mode: "no-cors", signal: ctrl.signal });
+      clearTimeout(timeout);
+      setWebhookReachable(true);
+    } catch {
+      setWebhookReachable(false);
+    } finally {
+      setWebhookChecking(false);
+    }
   };
 
   const saveEdit = async () => {
