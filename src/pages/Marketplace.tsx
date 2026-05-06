@@ -650,6 +650,7 @@ const Marketplace = () => {
                 )}
                 {/* Promo code */}
                 {activePromo ? (
+                  isAdmin ? (
                   <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary/10 border border-primary/30">
                     <Tag className="h-3.5 w-3.5 text-primary" />
                     <span className="text-primary font-bold font-mono-timer">{activePromo.code}</span>
@@ -659,6 +660,7 @@ const Marketplace = () => {
                       <X className="h-3.5 w-3.5" />
                     </button>
                   </div>
+                  ) : null
                 ) : (
                   isAdmin && (
                     <div className="flex items-center gap-1.5">
