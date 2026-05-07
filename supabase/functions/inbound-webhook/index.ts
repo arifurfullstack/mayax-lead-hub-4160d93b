@@ -9,43 +9,107 @@ const corsHeaders = {
 // --- Inline scoring logic (must match src/lib/leadScoring.ts) ---
 const GENERIC_VEHICLES = ["car", "suv", "truck", "sedan", "van", "minivan", "coupe", "hatchback", "wagon", "pickup"];
 
-function calculateAiScore(lead: {
-  income?: number | null;
-  vehicle_preference?: string | null;
-  buyer_type?: string | null;
-  notes?: string | null;
-  appointment_time?: string | null;
-  trade_in?: boolean | null;
-}): { ai_score: number; quality_grade: string } {
-  let score = 65;
-  const income = lead.income ?? 0;
-  if (income >= 5000) score += 10;
-  else if (income >= 1800) score += 5;
+type ScoreOp = "gte" | "lte" | "between" | "specific" | "generic" | "true" | "present" | "count_capped";
+interface ScoreRule { id: string; label: string; field: string; op: ScoreOp; value?: number | number[]; points: number; }
+interface GradeBucket { grade: string; min: number; max: number; }
 
-  const veh = (lead.vehicle_preference ?? "").trim().toLowerCase();
-  if (veh) {
-    score += GENERIC_VEHICLES.some((g) => veh === g) ? 5 : 10;
+const DEFAULT_SCORE_RULES: { base: number; rules: ScoreRule[] } = {
+  base: 65,
+  rules: [
+    { id: "income_high", label: "Income ≥ $5,000", field: "income", op: "gte", value: 5000, points: 15 },
+    { id: "income_mid", label: "Income $1,800–$4,999", field: "income", op: "between", value: [1800, 4999], points: 8 },
+    { id: "vehicle_specific", label: "Specific vehicle preference", field: "vehicle_preference", op: "specific", points: 10 },
+    { id: "vehicle_generic", label: "Generic vehicle preference", field: "vehicle_preference", op: "generic", points: 5 },
+    { id: "trade_in", label: "Trade-in available", field: "trade_in", op: "true", points: 5 },
+    { id: "appointment", label: "Appointment scheduled", field: "appointment_time", op: "present", points: 5 },
+    { id: "bankruptcy", label: "Bankruptcy disclosed", field: "has_bankruptcy", op: "true", points: 3 },
+    { id: "email", label: "Email provided", field: "email", op: "present", points: 2 },
+    { id: "phone", label: "Phone provided", field: "phone", op: "present", points: 2 },
+    { id: "docs", label: "Documents uploaded", field: "document_files", op: "count_capped", value: 3, points: 3 },
+  ],
+};
+const DEFAULT_GRADE_BUCKETS: { buckets: GradeBucket[] } = {
+  buckets: [
+    { grade: "A+", min: 95, max: 100 },
+    { grade: "A", min: 88, max: 94 },
+    { grade: "B+", min: 82, max: 87 },
+    { grade: "B", min: 75, max: 81 },
+    { grade: "C+", min: 68, max: 74 },
+    { grade: "C", min: 60, max: 67 },
+    { grade: "D+", min: 50, max: 59 },
+    { grade: "D", min: 0, max: 49 },
+  ],
+};
+
+function evalScoreRule(rule: ScoreRule, lead: Record<string, unknown>): number {
+  const v = lead[rule.field];
+  switch (rule.op) {
+    case "gte": return (typeof v === "number" ? v : Number(v ?? 0)) >= Number(rule.value ?? 0) ? rule.points : 0;
+    case "lte": return (typeof v === "number" ? v : Number(v ?? 0)) <= Number(rule.value ?? 0) ? rule.points : 0;
+    case "between": {
+      const n = typeof v === "number" ? v : Number(v ?? 0);
+      const r = Array.isArray(rule.value) ? rule.value : [0, 0];
+      return n >= r[0] && n <= r[1] ? rule.points : 0;
+    }
+    case "specific": {
+      const s = typeof v === "string" ? v.trim().toLowerCase() : "";
+      return s && !GENERIC_VEHICLES.includes(s) ? rule.points : 0;
+    }
+    case "generic": {
+      const s = typeof v === "string" ? v.trim().toLowerCase() : "";
+      return s && GENERIC_VEHICLES.includes(s) ? rule.points : 0;
+    }
+    case "true": return v === true ? rule.points : 0;
+    case "present": {
+      if (v === null || v === undefined) return 0;
+      if (typeof v === "string" && v.trim() === "") return 0;
+      return rule.points;
+    }
+    case "count_capped": {
+      const cap = Number(rule.value ?? 1);
+      const count = Array.isArray(v) ? v.length : (typeof v === "number" ? v : 0);
+      return Math.min(count, cap) * rule.points;
+    }
+    default: return 0;
   }
+}
 
-  const combined = `${lead.buyer_type ?? ""} ${lead.notes ?? ""}`.toLowerCase();
-  if (lead.trade_in || /trade|refinanc/.test(combined)) score += 5;
-  if (/bankrupt/.test(lead.notes ?? "")) score += 5;
-  if (lead.appointment_time) score += 5;
-  if ((lead.income ?? 0) > 0 && veh) score += 5;
+function gradeForScore(score: number, buckets: GradeBucket[]): string {
+  const sorted = [...buckets].sort((a, b) => b.min - a.min);
+  for (const b of sorted) if (score >= b.min && score <= b.max) return b.grade;
+  return sorted[sorted.length - 1]?.grade ?? "D";
+}
 
-  score = Math.min(score, 100);
+function parseGradingFromRows(rows: { key: string; value: string | null }[]): {
+  scoreCfg: { base: number; rules: ScoreRule[] };
+  bucketCfg: { buckets: GradeBucket[] };
+} {
+  let scoreCfg = DEFAULT_SCORE_RULES;
+  let bucketCfg = DEFAULT_GRADE_BUCKETS;
+  for (const row of rows) {
+    try {
+      if (row.key === "grading_score_rules" && row.value) {
+        const p = JSON.parse(row.value);
+        if (typeof p?.base === "number" && Array.isArray(p?.rules)) scoreCfg = p;
+      }
+      if (row.key === "grading_grade_buckets" && row.value) {
+        const p = JSON.parse(row.value);
+        if (Array.isArray(p?.buckets) && p.buckets.length > 0) bucketCfg = p;
+      }
+    } catch { /* ignore */ }
+  }
+  return { scoreCfg, bucketCfg };
+}
 
-  let quality_grade: string;
-  if (score >= 97) quality_grade = "A+";
-  else if (score >= 93) quality_grade = "A";
-  else if (score >= 89) quality_grade = "B+";
-  else if (score >= 85) quality_grade = "B";
-  else if (score >= 81) quality_grade = "C+";
-  else if (score >= 77) quality_grade = "C";
-  else if (score >= 73) quality_grade = "D+";
-  else quality_grade = "D";
-
-  return { ai_score: score, quality_grade };
+function calculateAiScore(
+  lead: Record<string, unknown>,
+  scoreCfg: { base: number; rules: ScoreRule[] } = DEFAULT_SCORE_RULES,
+  bucketCfg: { buckets: GradeBucket[] } = DEFAULT_GRADE_BUCKETS,
+): { ai_score: number; quality_grade: string } {
+  let score = scoreCfg.base;
+  for (const r of scoreCfg.rules) score += evalScoreRule(r, lead);
+  score = Math.min(100, Math.max(0, Math.round(score)));
+  return { ai_score: score, quality_grade: gradeForScore(score, bucketCfg.buckets) };
 }
 
 // --- Dynamic pricing logic ---
@@ -699,6 +763,7 @@ Deno.serve(async (req) => {
 
     // Parse pricing settings
     const pricing = parsePricingFromRows(settingsRows ?? []);
+    const { scoreCfg, bucketCfg } = parseGradingFromRows(settingsRows ?? []);
 
     let body: unknown;
     let rawBytes = 0;
@@ -1151,7 +1216,10 @@ Deno.serve(async (req) => {
         notes: lead.notes ?? null,
         appointment_time,
         trade_in: trade_in === true,
-      });
+        has_bankruptcy: has_bankruptcy === true,
+        email: inboundEmail || null,
+        phone: inboundPhone || null,
+      }, scoreCfg, bucketCfg);
 
       // Dynamic price
       const price = calculateDynamicPrice({
