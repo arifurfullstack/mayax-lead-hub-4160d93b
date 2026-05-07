@@ -763,6 +763,7 @@ Deno.serve(async (req) => {
 
     // Parse pricing settings
     const pricing = parsePricingFromRows(settingsRows ?? []);
+    const { scoreCfg, bucketCfg } = parseGradingFromRows(settingsRows ?? []);
 
     let body: unknown;
     let rawBytes = 0;
