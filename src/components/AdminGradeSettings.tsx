@@ -142,9 +142,26 @@ export default function AdminGradeSettings({ platformSettings, onSaved }: Props)
         await supabase.from("platform_settings").insert({ key, value });
       }
     }
-    setSaving(false);
-    toast({ title: "Saved", description: "Grade & AI score settings updated." });
-    onSaved();
+    toast({ title: "Saved", description: "Grade & AI score settings updated. Re-grading existing leads…" });
+
+    // Auto re-grade all existing leads with the new rules/buckets
+    try {
+      const { data, error } = await supabase.functions.invoke("recalculate-lead-scores");
+      if (error) throw error;
+      toast({
+        title: "Leads re-graded",
+        description: `Updated ${data?.updated ?? 0} of ${data?.total ?? 0} leads.`,
+      });
+    } catch (err) {
+      toast({
+        title: "Auto re-grade failed",
+        description: err instanceof Error ? err.message : "Run manual recalculation.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+      onSaved();
+    }
   };
 
   const handleRecalc = async () => {
