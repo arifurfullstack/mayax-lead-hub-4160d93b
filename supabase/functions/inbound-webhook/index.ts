@@ -1216,7 +1216,10 @@ Deno.serve(async (req) => {
         notes: lead.notes ?? null,
         appointment_time,
         trade_in: trade_in === true,
-      });
+        has_bankruptcy: has_bankruptcy === true,
+        email: inboundEmail || null,
+        phone: inboundPhone || null,
+      }, scoreCfg, bucketCfg);
 
       // Dynamic price
       const price = calculateDynamicPrice({
