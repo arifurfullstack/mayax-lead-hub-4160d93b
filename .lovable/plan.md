@@ -1,35 +1,45 @@
-# Publish Lead Grades content
+# Publish Calling Script guide
 
-Publish the dealer guide content you provided into the **Lead Grades** knowledge base page so it's immediately visible to all approved dealers.
+Publish the full "Dealer Rep Calling & Texting Guide" you provided into the **Calling Script** knowledge base page so it's immediately visible to all approved dealers.
 
 ## What gets published
 
-The full guide formatted as semantic HTML, written into the existing `platform_settings` row (`kb_lead_grades_content`), with `kb_lead_grades_updated_at` set to now.
+The complete guide formatted as semantic HTML, written into `platform_settings.kb_calling_script_content`, with `kb_calling_script_updated_at` set to now.
 
 Sections included (in order):
-- Introduction
-- How MayaX Lead Hub Works
-- Understanding MayaX Lead Grades (A+, A, B+, B, C+)
-- Important Dealer Disclosure
-- What Determines Lead Grades
-- C / C+ Grade Leads ($25 range) + recommended strategy
-- B / B+ Grade Leads ($45–$55 range) + recommended strategy
-- A / A+ Grade Leads ($60+ range) + recommended strategy
-- Important Expectations About Lead Grades
-- Why Some Customers May Say "Not Interested"
-- Dealer Rep Positioning + Correct Positioning Examples
+- Overview
+- The Correct Positioning (NEVER / ALWAYS)
+- Daily Contact Rules
+- Opening Call Script
+- Building Trust
+- Finding the Customer's Weak Spots
+- Credit Questions
+- Income Questions
+- Trade-In Questions
+- The Exception Approval Strategy
+- Appointment Strategy
+- Same-Day Appointment Close
+- Next-Day Appointment Close
+- Expiration Pressure
+- Long-Distance Customers
+- Common Objections & Rebuttals (6 scripted rebuttals)
+- Voicemail Script
+- Missed Call Text Message
+- CRM Notes Standards (with example note)
+- Final Important Rules (NEVER / ALWAYS + emotional triggers)
 
 ## Formatting
 
 - `<h2>` for major sections, `<h3>` for sub-sections
-- `<p>` paragraphs, `<ul><li>` bullet lists
-- `<strong>` for emphasis (NEVER, SHOULD, grade names, dollar ranges)
-- Renders inside the existing `prose prose-invert` styling — no CSS changes
+- `<p>` for paragraphs and script lines, `<ul><li>` for bullet lists
+- `<strong>` for emphasis (NEVER, ALWAYS, customer placeholders, dollar amounts)
+- `<blockquote>` for verbatim script lines reps should read
+- Renders inside the existing `prose prose-invert` styling on /calling-script — no CSS changes
 - "Last updated" timestamp updates automatically
 
 ## How
 
-Direct upsert into `platform_settings` via a one-time SQL migration. RLS already permits admin writes; this runs as the migration role. No code, schema, sidebar, or UI changes.
+Direct upsert into `platform_settings` via a one-time SQL migration (delete + insert pattern, same as the Lead Grades publish). No code, schema, sidebar, or UI changes.
 
 ## Files touched
 
@@ -37,4 +47,4 @@ None — content-only DB write.
 
 ## Note
 
-The Calling Script page is left untouched. The "Dealer Rep Positioning" piece will live on the Lead Grades page as part of the full guide. If you'd rather split positioning/script guidance onto the Calling Script page instead, say so before I run.
+The Lead Grades page is left untouched.
