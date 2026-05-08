@@ -41,13 +41,13 @@ import fallbackLogo from "@/assets/mayax-logo.jpg";
 const mainItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Marketplace", url: "/marketplace", icon: Store },
+  { title: "Lead Grades", url: "/lead-grades", icon: Award },
+  { title: "Calling Script", url: "/calling-script", icon: PhoneCall },
   { title: "Orders", url: "/orders", icon: ShoppingCart },
   { title: "Wallet", url: "/wallet", icon: Wallet },
   { title: "Subscription", url: "/subscription", icon: CreditCard },
   { title: "AutoPay", url: "/autopay", icon: Zap },
   { title: "Request Lead", url: "/request-lead", icon: FileText },
-  { title: "Lead Grades", url: "/lead-grades", icon: Award },
-  { title: "Calling Script", url: "/calling-script", icon: PhoneCall },
 ];
 
 const settingsItems = [
