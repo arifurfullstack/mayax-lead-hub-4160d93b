@@ -16,6 +16,8 @@ import {
   AlertTriangle,
   BookOpen,
   Workflow,
+  Award,
+  PhoneCall,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, Link } from "react-router-dom";
@@ -44,6 +46,8 @@ const mainItems = [
   { title: "Subscription", url: "/subscription", icon: CreditCard },
   { title: "AutoPay", url: "/autopay", icon: Zap },
   { title: "Request Lead", url: "/request-lead", icon: FileText },
+  { title: "Lead Grades", url: "/lead-grades", icon: Award },
+  { title: "Calling Script", url: "/calling-script", icon: PhoneCall },
 ];
 
 const settingsItems = [

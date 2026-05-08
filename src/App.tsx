@@ -30,6 +30,8 @@ import SubmitLead from "./pages/SubmitLead";
 import ApplyNow from "./pages/ApplyNow";
 import RequestLead from "./pages/RequestLead";
 import Unsubscribe from "./pages/Unsubscribe";
+import LeadGrades from "./pages/LeadGrades";
+import CallingScript from "./pages/CallingScript";
 import DynamicHead from "./components/DynamicHead";
 import { useApplyTheme } from "./hooks/useApplyTheme";
 
@@ -76,6 +78,8 @@ const App = () => (
             <Route path="/settings" element={<Settings />} />
             <Route path="/autopay" element={<AutoPay />} />
             <Route path="/request-lead" element={<RequestLead />} />
+            <Route path="/lead-grades" element={<LeadGrades />} />
+            <Route path="/calling-script" element={<CallingScript />} />
             <Route path="/admin" element={<ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute>} />
             <Route path="/admin/emails" element={<ProtectedRoute requireAdmin><AdminEmails /></ProtectedRoute>} />
             <Route path="/admin/webhook-tester" element={<ProtectedRoute requireAdmin><AdminWebhookTester /></ProtectedRoute>} />

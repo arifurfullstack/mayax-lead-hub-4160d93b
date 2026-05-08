@@ -29,6 +29,7 @@ import {
   Tag,
   Webhook,
   Mail,
+  BookOpen,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -64,6 +65,7 @@ import AdminGradeSettings from "@/components/AdminGradeSettings";
 import AdminLeadRequests from "@/components/AdminLeadRequests";
 import AdminEmailSetup from "@/components/AdminEmailSetup";
 import { AdminFindDuplicates } from "@/components/AdminFindDuplicates";
+import AdminKnowledgeBase from "@/components/AdminKnowledgeBase";
 import LeadFileUploader from "@/components/LeadFileUploader";
 import AdminLeadTable, { type AdminLead } from "@/components/AdminLeadTable";
 
@@ -479,6 +481,9 @@ const AdminDashboard = () => {
           <TabsTrigger value="duplicates" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
             <Search className="h-4 w-4" /> Find Duplicates
           </TabsTrigger>
+          <TabsTrigger value="knowledge-base" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
+            <BookOpen className="h-4 w-4" /> Knowledge Base
+          </TabsTrigger>
         </TabsList>
 
         {/* ─── Dealers Tab ─── */}
@@ -695,6 +700,10 @@ const AdminDashboard = () => {
         {/* ─── Find Duplicates Tab ─── */}
         <TabsContent value="duplicates" className="space-y-4">
           <AdminFindDuplicates />
+        </TabsContent>
+        {/* ─── Knowledge Base Tab ─── */}
+        <TabsContent value="knowledge-base" className="space-y-4">
+          <AdminKnowledgeBase />
         </TabsContent>
       </Tabs>
 
