@@ -701,6 +701,10 @@ const AdminDashboard = () => {
         <TabsContent value="duplicates" className="space-y-4">
           <AdminFindDuplicates />
         </TabsContent>
+        {/* ─── Knowledge Base Tab ─── */}
+        <TabsContent value="knowledge-base" className="space-y-4">
+          <AdminKnowledgeBase />
+        </TabsContent>
       </Tabs>
 
       {/* ─── Dealer Detail Dialog ─── */}
