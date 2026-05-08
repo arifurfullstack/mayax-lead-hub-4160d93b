@@ -1,55 +1,40 @@
-# Lead Grades & Calling Script Pages
+# Publish Lead Grades content
 
-Add two new knowledge-base style pages visible to all logged-in dealers (and admins), with admin-only rich content editing.
+Publish the dealer guide content you provided into the **Lead Grades** knowledge base page so it's immediately visible to all approved dealers.
 
-## Sidebar (src/components/AppSidebar.tsx)
+## What gets published
 
-Add to the **Main** group, visible to everyone:
-- `Lead Grades` → `/lead-grades` (icon: `Award` or `BadgeCheck`)
-- `Calling Script` → `/calling-script` (icon: `PhoneCall`)
+The full guide formatted as semantic HTML, written into the existing `platform_settings` row (`kb_lead_grades_content`), with `kb_lead_grades_updated_at` set to now.
 
-## Storage (reuse `platform_settings` table)
+Sections included (in order):
+- Introduction
+- How MayaX Lead Hub Works
+- Understanding MayaX Lead Grades (A+, A, B+, B, C+)
+- Important Dealer Disclosure
+- What Determines Lead Grades
+- C / C+ Grade Leads ($25 range) + recommended strategy
+- B / B+ Grade Leads ($45–$55 range) + recommended strategy
+- A / A+ Grade Leads ($60+ range) + recommended strategy
+- Important Expectations About Lead Grades
+- Why Some Customers May Say "Not Interested"
+- Dealer Rep Positioning + Correct Positioning Examples
 
-No new table needed — store HTML/markdown in existing `platform_settings` key/value table:
-- `kb_lead_grades_content` — HTML body
-- `kb_lead_grades_updated_at` — ISO timestamp
-- `kb_calling_script_content` — HTML body
-- `kb_calling_script_updated_at` — ISO timestamp
+## Formatting
 
-RLS already allows: anyone can read, admins can insert/update. Perfect fit.
+- `<h2>` for major sections, `<h3>` for sub-sections
+- `<p>` paragraphs, `<ul><li>` bullet lists
+- `<strong>` for emphasis (NEVER, SHOULD, grade names, dollar ranges)
+- Renders inside the existing `prose prose-invert` styling — no CSS changes
+- "Last updated" timestamp updates automatically
 
-## Dealer-facing pages
+## How
 
-`src/pages/LeadGrades.tsx` and `src/pages/CallingScript.tsx`:
-- Wrapped in `AppLayout` (sidebar + topbar) like existing dealer pages.
-- Fetch the relevant `platform_settings` row.
-- Render content via `dangerouslySetInnerHTML` inside a styled glass card with Tailwind `prose` typography.
-- Show "Last updated" timestamp.
-- Empty state: "Content coming soon — your admin hasn't published this yet."
+Direct upsert into `platform_settings` via a one-time SQL migration. RLS already permits admin writes; this runs as the migration role. No code, schema, sidebar, or UI changes.
 
-Routes registered in `src/App.tsx` behind `ProtectedRoute` (any approved dealer).
+## Files touched
 
-## Admin editor
+None — content-only DB write.
 
-New tab in `AdminDashboard.tsx` called **Knowledge Base** containing component `src/components/AdminKnowledgeBase.tsx`:
-- Two collapsible sections: Lead Grades, Calling Script.
-- Each has a rich-text editor + Save button.
-- Editor: lightweight — use a `Textarea` with HTML support plus a small toolbar (bold/italic/lists/headings/links) implemented via `document.execCommand` on a `contentEditable` div, OR install `@tiptap/react` + `@tiptap/starter-kit` for a proper WYSIWYG. **Recommended: Tiptap** for clean output.
-- On save: upsert both `_content` and `_updated_at` rows in `platform_settings`.
-- Live preview pane next to the editor.
+## Note
 
-## Files
-
-- new: `src/pages/LeadGrades.tsx`
-- new: `src/pages/CallingScript.tsx`
-- new: `src/components/AdminKnowledgeBase.tsx`
-- edit: `src/components/AppSidebar.tsx` (2 new menu items)
-- edit: `src/App.tsx` (2 new routes)
-- edit: `src/pages/AdminDashboard.tsx` (new tab)
-- add deps: `@tiptap/react`, `@tiptap/starter-kit`, `@tiptap/extension-link`
-
-No DB migration needed (reusing `platform_settings`).
-
-## Open question
-
-Should the pages be visible to **all logged-in dealers** including pending/suspended, or only **approved** ones? Default plan: approved only (matches other dealer routes via `ProtectedRoute`).
+The Calling Script page is left untouched. The "Dealer Rep Positioning" piece will live on the Lead Grades page as part of the full guide. If you'd rather split positioning/script guidance onto the Calling Script page instead, say so before I run.
