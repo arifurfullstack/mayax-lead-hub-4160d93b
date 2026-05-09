@@ -114,7 +114,12 @@ Deno.serve(async (req) => {
       const session = await stripeRes.json();
 
       if (!stripeRes.ok) {
-        return new Response(JSON.stringify({ error: session.error?.message || "Stripe error" }), {
+        const msg = session.error?.message || "Stripe error";
+        await admin.from("payment_requests").update({
+          status: "failed",
+          error_message: msg,
+        }).eq("id", payReq!.id);
+        return new Response(JSON.stringify({ error: msg }), {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
