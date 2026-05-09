@@ -1,50 +1,17 @@
-# Publish Calling Script guide
+# Fix "Failed to create checkout session"
 
-Publish the full "Dealer Rep Calling & Texting Guide" you provided into the **Calling Script** knowledge base page so it's immediately visible to all approved dealers.
+## Root cause
+The `create-checkout` edge function fails to boot with:
+`SyntaxError: Identifier 'config' has already been declared` (line 168).
 
-## What gets published
+In the PayPal branch, `const config = gw.config as Record<string, string>;` is declared **twice** — once before the token fetch and again right after. Because the worker can't boot, **every** checkout call (including Stripe) returns "Failed to create checkout session".
 
-The complete guide formatted as semantic HTML, written into `platform_settings.kb_calling_script_content`, with `kb_calling_script_updated_at` set to now.
+Your Stripe keys saved fine — the failure is unrelated to the keys.
 
-Sections included (in order):
-- Overview
-- The Correct Positioning (NEVER / ALWAYS)
-- Daily Contact Rules
-- Opening Call Script
-- Building Trust
-- Finding the Customer's Weak Spots
-- Credit Questions
-- Income Questions
-- Trade-In Questions
-- The Exception Approval Strategy
-- Appointment Strategy
-- Same-Day Appointment Close
-- Next-Day Appointment Close
-- Expiration Pressure
-- Long-Distance Customers
-- Common Objections & Rebuttals (6 scripted rebuttals)
-- Voicemail Script
-- Missed Call Text Message
-- CRM Notes Standards (with example note)
-- Final Important Rules (NEVER / ALWAYS + emotional triggers)
+## Fix
+Remove the second duplicate `const config` declaration inside the PayPal branch of `supabase/functions/create-checkout/index.ts`. The first declaration above already provides `config` for the `mode` lookup.
 
-## Formatting
+No other changes needed. Edge function will redeploy automatically and Stripe checkout (and PayPal) will work.
 
-- `<h2>` for major sections, `<h3>` for sub-sections
-- `<p>` for paragraphs and script lines, `<ul><li>` for bullet lists
-- `<strong>` for emphasis (NEVER, ALWAYS, customer placeholders, dollar amounts)
-- `<blockquote>` for verbatim script lines reps should read
-- Renders inside the existing `prose prose-invert` styling on /calling-script — no CSS changes
-- "Last updated" timestamp updates automatically
-
-## How
-
-Direct upsert into `platform_settings` via a one-time SQL migration (delete + insert pattern, same as the Lead Grades publish). No code, schema, sidebar, or UI changes.
-
-## Files touched
-
-None — content-only DB write.
-
-## Note
-
-The Lead Grades page is left untouched.
+## Security note
+You pasted a **live Stripe secret key** in chat. Treat it as compromised — please rotate it in your Stripe Dashboard → Developers → API keys, then re-enter the new key in Admin → Payments → Stripe → Configure.
