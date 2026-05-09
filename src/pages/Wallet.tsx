@@ -74,27 +74,52 @@ const WalletPage = () => {
     if (status === "success" && pr) {
       setReceiptLoading(true);
       setReceipt({ id: pr, pending: true });
-      // Poll briefly until the webhook marks the request completed
+
+      // Realtime is the primary signal; poll is just a slim fallback (3 tries / ~9s)
+      const MAX_ATTEMPTS = 3;
       let attempts = 0;
+      let settled = false;
+
       const interval = setInterval(async () => {
+        if (settled) return;
         attempts++;
         const { data } = await supabase
           .from("payment_requests")
           .select("*")
           .eq("id", pr)
           .maybeSingle();
-        if (data?.status === "completed") {
+
+        if (data?.status === "completed" || data?.status === "failed") {
+          settled = true;
           clearInterval(interval);
           setReceipt(data);
           setReceiptLoading(false);
-        } else if (attempts >= 15) {
+        } else if (attempts >= MAX_ATTEMPTS) {
+          settled = true;
           clearInterval(interval);
-          setReceipt(data ?? { id: pr, pending: true });
+          setReceipt({ ...(data ?? { id: pr }), pending: true, timedOut: true });
           setReceiptLoading(false);
         }
-      }, 1500);
+      }, 3000);
     }
   }, []);
+
+  const refreshReceipt = async () => {
+    if (!receipt?.id) return;
+    setReceiptLoading(true);
+    const { data } = await supabase
+      .from("payment_requests")
+      .select("*")
+      .eq("id", receipt.id)
+      .maybeSingle();
+    if (data?.status === "completed" || data?.status === "failed") {
+      setReceipt(data);
+    } else {
+      setReceipt({ ...(data ?? receipt), pending: true, timedOut: true });
+    }
+    setReceiptLoading(false);
+    fetchData();
+  };
 
   const openReceiptForTxn = async (txn: any) => {
     if (!txn.reference_id) {
@@ -754,10 +779,27 @@ const WalletPage = () => {
             </DialogTitle>
           </DialogHeader>
 
-          {receiptLoading || receipt?.pending ? (
+          {receiptLoading ? (
             <div className="py-10 flex flex-col items-center gap-3">
               <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
               <p className="text-sm text-muted-foreground">Confirming payment with the bank…</p>
+            </div>
+          ) : receipt?.pending && receipt?.timedOut ? (
+            <div className="py-6 flex flex-col items-center gap-3 text-center">
+              <Clock className="h-10 w-10 text-warning" />
+              <p className="text-sm text-foreground font-medium">Still confirming with your bank</p>
+              <p className="text-xs text-muted-foreground max-w-xs">
+                This is taking longer than usual. Your funds will appear automatically once the
+                payment processor confirms — or refresh now to check again.
+              </p>
+              <div className="flex gap-2 w-full mt-2">
+                <Button variant="outline" className="flex-1" onClick={refreshReceipt}>
+                  <RotateCw className="h-4 w-4 mr-2" /> Refresh
+                </Button>
+                <Button className="flex-1" onClick={() => setReceipt(null)}>
+                  Close
+                </Button>
+              </div>
             </div>
           ) : receipt ? (
             <div className="space-y-5 mt-2">
