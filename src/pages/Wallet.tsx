@@ -74,27 +74,52 @@ const WalletPage = () => {
     if (status === "success" && pr) {
       setReceiptLoading(true);
       setReceipt({ id: pr, pending: true });
-      // Poll briefly until the webhook marks the request completed
+
+      // Realtime is the primary signal; poll is just a slim fallback (3 tries / ~9s)
+      const MAX_ATTEMPTS = 3;
       let attempts = 0;
+      let settled = false;
+
       const interval = setInterval(async () => {
+        if (settled) return;
         attempts++;
         const { data } = await supabase
           .from("payment_requests")
           .select("*")
           .eq("id", pr)
           .maybeSingle();
-        if (data?.status === "completed") {
+
+        if (data?.status === "completed" || data?.status === "failed") {
+          settled = true;
           clearInterval(interval);
           setReceipt(data);
           setReceiptLoading(false);
-        } else if (attempts >= 15) {
+        } else if (attempts >= MAX_ATTEMPTS) {
+          settled = true;
           clearInterval(interval);
-          setReceipt(data ?? { id: pr, pending: true });
+          setReceipt({ ...(data ?? { id: pr }), pending: true, timedOut: true });
           setReceiptLoading(false);
         }
-      }, 1500);
+      }, 3000);
     }
   }, []);
+
+  const refreshReceipt = async () => {
+    if (!receipt?.id) return;
+    setReceiptLoading(true);
+    const { data } = await supabase
+      .from("payment_requests")
+      .select("*")
+      .eq("id", receipt.id)
+      .maybeSingle();
+    if (data?.status === "completed" || data?.status === "failed") {
+      setReceipt(data);
+    } else {
+      setReceipt({ ...(data ?? receipt), pending: true, timedOut: true });
+    }
+    setReceiptLoading(false);
+    fetchData();
+  };
 
   const openReceiptForTxn = async (txn: any) => {
     if (!txn.reference_id) {
