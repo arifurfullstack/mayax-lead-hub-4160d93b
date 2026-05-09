@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CreditCard, Building2, Settings2, CheckCircle2, XCircle, DollarSign, Zap, Loader2 } from "lucide-react";
+import { CreditCard, Building2, Settings2, CheckCircle2, XCircle, DollarSign, Zap, Loader2, BookOpen, Copy, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 
@@ -38,6 +38,24 @@ const AdminPaymentManager = () => {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [webhookGuideOpen, setWebhookGuideOpen] = useState(false);
+
+  const STRIPE_WEBHOOK_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/payment-webhook?provider=stripe`;
+  const STRIPE_WEBHOOK_EVENTS = [
+    "checkout.session.completed",
+    "checkout.session.expired",
+    "checkout.session.async_payment_failed",
+    "payment_intent.payment_failed",
+  ];
+
+  const copyToClipboard = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({ title: "Copied", description: `${label} copied to clipboard.` });
+    } catch {
+      toast({ title: "Copy failed", description: "Could not access clipboard.", variant: "destructive" });
+    }
+  };
 
   const { data: gateways, isLoading } = useQuery({
     queryKey: ["payment-gateways"],
@@ -310,7 +328,16 @@ const AdminPaymentManager = () => {
                     />
                   </div>
                   <div>
-                    <Label className="text-xs">Webhook Secret</Label>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs">Webhook Secret</Label>
+                      <button
+                        type="button"
+                        onClick={() => setWebhookGuideOpen(true)}
+                        className="text-[11px] text-primary hover:underline inline-flex items-center gap-1"
+                      >
+                        <BookOpen className="h-3 w-3" /> Setup guide
+                      </button>
+                    </div>
                     <Input
                       type="password"
                       value={configForm.webhook_secret || ""}
@@ -318,6 +345,11 @@ const AdminPaymentManager = () => {
                       placeholder="whsec_..."
                       className="bg-background font-mono text-xs"
                     />
+                    {!configForm.webhook_secret && (
+                      <p className="text-[11px] text-warning mt-1">
+                        Required — without this, Stripe payments will not credit wallets.
+                      </p>
+                    )}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     Find these in your <span className="font-medium">Stripe Dashboard → Developers → API Keys</span>. Use test keys for sandbox mode.
