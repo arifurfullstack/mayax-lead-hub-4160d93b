@@ -648,21 +648,69 @@ const WalletPage = () => {
 
       {/* Pending Deposits */}
       {pendingDeposits.length > 0 && (
-        <div className="glass-card p-4 mb-8">
+        <div className="glass-card p-4 mb-8 border border-warning/30">
           <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-            <Clock className="h-4 w-4 text-warning" /> Pending Deposits
+            <Clock className="h-4 w-4 text-warning animate-pulse" /> Pending Top-Ups
+            <Badge className="bg-warning/20 text-warning border-0 text-[10px] ml-1">
+              {pendingDeposits.length}
+            </Badge>
           </h3>
           <div className="space-y-2">
-            {pendingDeposits.map((dep) => (
-              <div key={dep.id} className="flex items-center justify-between p-3 bg-warning/5 rounded-lg border border-warning/20">
-                <div className="flex items-center gap-3">
-                  <Badge className="bg-warning/20 text-warning border-0 text-[10px]">{dep.gateway.replace("_", " ")}</Badge>
-                  <span className="text-sm text-foreground font-mono">${Number(dep.amount).toFixed(2)}</span>
-                  {dep.gateway_reference && <span className="text-xs text-muted-foreground font-mono">{dep.gateway_reference}</span>}
+            {pendingDeposits.map((dep) => {
+              const created = new Date(dep.created_at);
+              const ageMin = Math.max(0, Math.floor((Date.now() - created.getTime()) / 60000));
+              const ageLabel = ageMin < 1 ? "just now" : ageMin < 60 ? `${ageMin} min ago` : `${Math.floor(ageMin / 60)} h ago`;
+              const statusLabel =
+                dep.gateway === "bank_transfer"
+                  ? "Awaiting bank transfer & admin approval"
+                  : dep.gateway === "stripe"
+                  ? "Awaiting card confirmation"
+                  : dep.gateway === "paypal"
+                  ? "Awaiting PayPal confirmation"
+                  : "Awaiting confirmation";
+              return (
+                <div
+                  key={dep.id}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-warning/5 rounded-lg border border-warning/20"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <Badge className="bg-warning/20 text-warning border-0 text-[10px] capitalize">
+                        {String(dep.gateway).replace("_", " ")}
+                      </Badge>
+                      <span className="text-sm text-foreground font-mono font-semibold">
+                        ${Number(dep.amount).toFixed(2)}
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-[10px] text-warning">
+                        <span className="h-1.5 w-1.5 rounded-full bg-warning animate-pulse" />
+                        Pending
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{statusLabel}</p>
+                    {dep.gateway_reference && (
+                      <p
+                        className="text-[10px] text-muted-foreground/70 font-mono truncate mt-0.5"
+                        title={dep.gateway_reference}
+                      >
+                        Ref: {dep.gateway_reference}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-xs text-muted-foreground">{ageLabel}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      title="View details"
+                      onClick={() => openReceiptForTxn({ reference_id: dep.id })}
+                    >
+                      <Receipt className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-                <span className="text-xs text-muted-foreground">{new Date(dep.created_at).toLocaleDateString()}</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
