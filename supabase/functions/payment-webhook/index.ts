@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import Stripe from "https://esm.sh/stripe@17.5.0?target=denonext";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -20,11 +21,50 @@ Deno.serve(async (req) => {
 
     if (provider === "stripe") {
       const body = await req.text();
-      // In production you'd verify the Stripe signature here
-      const event = JSON.parse(body);
+      const signature = req.headers.get("stripe-signature");
+      if (!signature) {
+        return new Response(JSON.stringify({ error: "Missing stripe-signature header" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Look up Stripe config (secret key + webhook secret) from payment_gateways
+      const { data: gw } = await admin
+        .from("payment_gateways")
+        .select("config")
+        .eq("id", "stripe")
+        .single();
+      const config = (gw?.config ?? {}) as Record<string, string>;
+      const stripeKey = config.secret_key || Deno.env.get("STRIPE_SECRET_KEY");
+      const webhookSecret = config.webhook_secret || Deno.env.get("STRIPE_WEBHOOK_SECRET");
+      if (!stripeKey || !webhookSecret) {
+        return new Response(JSON.stringify({ error: "Stripe not configured (missing secret_key or webhook_secret)" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const stripe = new Stripe(stripeKey, { apiVersion: "2024-12-18.acacia" });
+
+      let event: Stripe.Event;
+      try {
+        event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
+      } catch (err) {
+        console.error("Stripe signature verification failed:", (err as Error).message);
+        return new Response(JSON.stringify({ error: "Invalid signature" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
 
       if (event.type === "checkout.session.completed") {
-        const session = event.data.object;
+        const session = event.data.object as Stripe.Checkout.Session;
+        if (session.payment_status !== "paid") {
+          return new Response(JSON.stringify({ received: true, note: "Not paid yet" }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
         const paymentRequestId = session.metadata?.payment_request_id;
         const dealerId = session.metadata?.dealer_id;
 
@@ -56,6 +96,11 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+
+      // Acknowledge other event types so Stripe doesn't retry
+      return new Response(JSON.stringify({ received: true, ignored: event.type }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     if (provider === "paypal") {
