@@ -55,6 +55,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import AdminPlanManager from "@/components/AdminPlanManager";
 import AdminPaymentManager from "@/components/AdminPaymentManager";
+import AdminStripeSessions from "@/components/AdminStripeSessions";
 import AdminBrandingSettings from "@/components/AdminBrandingSettings";
 import AdminUserManager from "@/components/AdminUserManager";
 import AdminPromoCodeManager from "@/components/AdminPromoCodeManager";
@@ -640,6 +641,7 @@ const AdminDashboard = () => {
         {/* ─── Payments Tab ─── */}
         <TabsContent value="payments" className="space-y-4">
           <AdminPaymentManager />
+          <AdminStripeSessions />
         </TabsContent>
 
         {/* ─── Branding Tab ─── */}
