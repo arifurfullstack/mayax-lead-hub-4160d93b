@@ -60,17 +60,22 @@ Deno.serve(async (req) => {
 
       if (event.type === "checkout.session.completed") {
         const session = event.data.object as Stripe.Checkout.Session;
-        if (session.payment_status !== "paid") {
-          return new Response(JSON.stringify({ received: true, note: "Not paid yet" }), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
         const paymentRequestId = session.metadata?.payment_request_id;
         const dealerId = session.metadata?.dealer_id;
 
         if (!paymentRequestId || !dealerId) {
           return new Response(JSON.stringify({ error: "Missing metadata" }), {
             status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        if (session.payment_status !== "paid") {
+          await admin.from("payment_requests").update({
+            status: "failed",
+            error_message: `Stripe checkout did not complete (payment_status=${session.payment_status})`,
+          }).eq("id", paymentRequestId).eq("status", "pending");
+          return new Response(JSON.stringify({ received: true, note: "Not paid" }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
@@ -89,10 +94,36 @@ Deno.serve(async (req) => {
           });
         }
 
-        // Credit wallet
-        await creditWallet(admin, dealerId, Number(payReq.amount), paymentRequestId, "stripe");
+        // Credit wallet (record any failure on the payment_request for the UI)
+        try {
+          await creditWallet(admin, dealerId, Number(payReq.amount), paymentRequestId, "stripe");
+        } catch (e) {
+          const msg = (e as Error).message || "Unknown error crediting wallet";
+          await admin.from("payment_requests").update({
+            status: "failed",
+            error_message: msg,
+          }).eq("id", paymentRequestId);
+          throw e;
+        }
 
         return new Response(JSON.stringify({ received: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (event.type === "checkout.session.expired" || event.type === "checkout.session.async_payment_failed" || event.type === "payment_intent.payment_failed") {
+        const obj = event.data.object as any;
+        const paymentRequestId = obj?.metadata?.payment_request_id;
+        if (paymentRequestId) {
+          const reason = obj?.last_payment_error?.message
+            || obj?.failure_message
+            || (event.type === "checkout.session.expired" ? "Stripe checkout session expired" : "Stripe payment failed");
+          await admin.from("payment_requests").update({
+            status: "failed",
+            error_message: reason,
+          }).eq("id", paymentRequestId).eq("status", "pending");
+        }
+        return new Response(JSON.stringify({ received: true, recorded: event.type }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }

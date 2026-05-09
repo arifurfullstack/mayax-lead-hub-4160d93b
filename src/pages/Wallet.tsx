@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { DollarSign, ArrowUpRight, ArrowDownLeft, Plus, TrendingUp, CreditCard, Building2, Clock, Copy, CheckCircle2, Receipt, Printer } from "lucide-react";
+import { DollarSign, ArrowUpRight, ArrowDownLeft, Plus, TrendingUp, CreditCard, Building2, Clock, Copy, CheckCircle2, Receipt, Printer, AlertTriangle, RotateCw, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +46,7 @@ const WalletPage = () => {
   const [gateways, setGateways] = useState<any[]>([]);
   const [bankDetails, setBankDetails] = useState<any>(null);
   const [pendingDeposits, setPendingDeposits] = useState<any[]>([]);
+  const [failedDeposits, setFailedDeposits] = useState<any[]>([]);
   const [receipt, setReceipt] = useState<any | null>(null);
   const [receiptLoading, setReceiptLoading] = useState(false);
 
@@ -111,6 +112,22 @@ const WalletPage = () => {
     setReceiptLoading(false);
   };
 
+  const handleRetryFailed = (dep: any) => {
+    const amt = Number(dep.amount);
+    const isPreset = presetAmounts.includes(amt);
+    setSelectedAmount(amt);
+    setIsCustom(!isPreset);
+    setCustomAmount(isPreset ? "" : String(amt));
+    setSelectedGateway(null);
+    setStep(1);
+    setAddFundsOpen(true);
+  };
+
+  const handleDismissFailed = async (id: string) => {
+    setFailedDeposits((prev) => prev.filter((p) => p.id !== id));
+    await supabase.from("payment_requests").update({ status: "dismissed" }).eq("id", id);
+  };
+
   // Realtime: instant updates when wallet balance, transactions, or pending deposits change
   useEffect(() => {
     if (!dealerId) return;
@@ -152,6 +169,14 @@ const WalletPage = () => {
             }
             return filtered;
           });
+          setFailedDeposits((prev) => {
+            const row = (payload.new ?? payload.old) as any;
+            const filtered = prev.filter((p) => p.id !== row.id);
+            if (payload.eventType !== "DELETE" && (payload.new as any)?.status === "failed") {
+              return [payload.new as any, ...filtered].slice(0, 5);
+            }
+            return filtered;
+          });
         }
       )
       .subscribe();
@@ -175,15 +200,17 @@ const WalletPage = () => {
       setDealerId(dealer.id);
       setBalance(dealer.wallet_balance);
 
-      const [{ data: txns }, { data: gws }, { data: deposits }] = await Promise.all([
+      const [{ data: txns }, { data: gws }, { data: deposits }, { data: failed }] = await Promise.all([
         supabase.from("wallet_transactions").select("*").eq("dealer_id", dealer.id).order("created_at", { ascending: false }),
         supabase.from("payment_gateways").select("*").eq("enabled", true).order("sort_order"),
         supabase.from("payment_requests").select("*").eq("dealer_id", dealer.id).eq("status", "pending").order("created_at", { ascending: false }),
+        supabase.from("payment_requests").select("*").eq("dealer_id", dealer.id).eq("status", "failed").order("created_at", { ascending: false }).limit(5),
       ]);
 
       setTransactions(txns || []);
       setGateways(gws || []);
       setPendingDeposits(deposits || []);
+      setFailedDeposits(failed || []);
     }
     setLoading(false);
   };
@@ -539,6 +566,60 @@ const WalletPage = () => {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Failed Deposits */}
+      {failedDeposits.length > 0 && (
+        <div className="glass-card p-4 mb-4 border border-destructive/40">
+          <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-destructive" /> Failed Top-Ups
+          </h3>
+          <div className="space-y-2">
+            {failedDeposits.map((dep) => (
+              <div
+                key={dep.id}
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-destructive/5 rounded-lg border border-destructive/20"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Badge className="bg-destructive/20 text-destructive border-0 text-[10px]">
+                      {String(dep.gateway).replace("_", " ")}
+                    </Badge>
+                    <span className="text-sm font-mono text-foreground">
+                      ${Number(dep.amount).toFixed(2)}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(dep.created_at).toLocaleString()}
+                    </span>
+                  </div>
+                  {dep.error_message && (
+                    <p className="text-xs text-destructive break-words">
+                      {dep.error_message}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    size="sm"
+                    className="gradient-blue-cyan text-foreground gap-1.5"
+                    onClick={() => handleRetryFailed(dep)}
+                  >
+                    <RotateCw className="h-3.5 w-3.5" /> Retry
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8"
+                    title="Dismiss"
+                    onClick={() => handleDismissFailed(dep.id)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Pending Deposits */}
       {pendingDeposits.length > 0 && (
