@@ -91,10 +91,15 @@ Deno.serve(async (req) => {
         status: "pending",
       }).select("id").single();
 
+      // Append payment_request_id to success URL so the UI can render a receipt
+      const baseSuccess = body.success_url || `${supabaseUrl}?payment=success`;
+      const successJoiner = baseSuccess.includes("?") ? "&" : "?";
+      const successUrl = `${baseSuccess}${successJoiner}pr=${payReq!.id}`;
+
       // Create Stripe Checkout Session
       const params = new URLSearchParams();
       params.append("mode", "payment");
-      params.append("success_url", `${body.success_url || supabaseUrl}?payment=success`);
+      params.append("success_url", successUrl);
       params.append("cancel_url", `${body.cancel_url || supabaseUrl}?payment=cancelled`);
       params.append("line_items[0][price_data][currency]", "usd");
       params.append("line_items[0][price_data][unit_amount]", String(Math.round(amount * 100)));

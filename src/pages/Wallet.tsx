@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { DollarSign, ArrowUpRight, ArrowDownLeft, Plus, TrendingUp, CreditCard, Building2, Clock, Copy, CheckCircle2 } from "lucide-react";
+import { DollarSign, ArrowUpRight, ArrowDownLeft, Plus, TrendingUp, CreditCard, Building2, Clock, Copy, CheckCircle2, Receipt, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,16 +46,19 @@ const WalletPage = () => {
   const [gateways, setGateways] = useState<any[]>([]);
   const [bankDetails, setBankDetails] = useState<any>(null);
   const [pendingDeposits, setPendingDeposits] = useState<any[]>([]);
+  const [receipt, setReceipt] = useState<any | null>(null);
+  const [receiptLoading, setReceiptLoading] = useState(false);
 
   const [page, setPage] = useState(0);
   const perPage = 10;
 
   useEffect(() => { fetchData(); }, []);
 
-  // Handle return from Stripe / PayPal checkout — toast only; realtime updates the balance
+  // Handle return from Stripe / PayPal checkout — open receipt dialog on success
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const status = params.get("payment");
+    const pr = params.get("pr");
     if (!status) return;
     window.history.replaceState({}, "", window.location.pathname);
 
@@ -64,13 +67,49 @@ const WalletPage = () => {
         title: "Payment cancelled",
         description: "You cancelled the checkout. No funds were charged.",
       });
-    } else if (status === "success") {
-      toast({
-        title: "Payment received",
-        description: "Confirming with your bank — your balance will update automatically.",
-      });
+      return;
+    }
+
+    if (status === "success" && pr) {
+      setReceiptLoading(true);
+      setReceipt({ id: pr, pending: true });
+      // Poll briefly until the webhook marks the request completed
+      let attempts = 0;
+      const interval = setInterval(async () => {
+        attempts++;
+        const { data } = await supabase
+          .from("payment_requests")
+          .select("*")
+          .eq("id", pr)
+          .maybeSingle();
+        if (data?.status === "completed") {
+          clearInterval(interval);
+          setReceipt(data);
+          setReceiptLoading(false);
+        } else if (attempts >= 15) {
+          clearInterval(interval);
+          setReceipt(data ?? { id: pr, pending: true });
+          setReceiptLoading(false);
+        }
+      }, 1500);
     }
   }, []);
+
+  const openReceiptForTxn = async (txn: any) => {
+    if (!txn.reference_id) {
+      toast({ title: "No receipt", description: "This transaction has no associated receipt." });
+      return;
+    }
+    setReceiptLoading(true);
+    setReceipt({ id: txn.reference_id, pending: true });
+    const { data } = await supabase
+      .from("payment_requests")
+      .select("*")
+      .eq("id", txn.reference_id)
+      .maybeSingle();
+    setReceipt(data ?? { id: txn.reference_id, pending: true });
+    setReceiptLoading(false);
+  };
 
   // Realtime: instant updates when wallet balance, transactions, or pending deposits change
   useEffect(() => {
@@ -560,6 +599,7 @@ const WalletPage = () => {
                   <TableHead className="text-muted-foreground">Description</TableHead>
                   <TableHead className="text-muted-foreground text-right">Amount</TableHead>
                   <TableHead className="text-muted-foreground text-right">Balance</TableHead>
+                    <TableHead className="text-muted-foreground text-right w-12"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -587,6 +627,19 @@ const WalletPage = () => {
                     <TableCell className="text-sm text-right text-muted-foreground">
                       ${Number(txn.balance_after).toFixed(2)}
                     </TableCell>
+                      <TableCell className="text-right">
+                        {txn.type === "deposit" && txn.reference_id && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            title="View receipt"
+                            onClick={() => openReceiptForTxn(txn)}
+                          >
+                            <Receipt className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -609,6 +662,80 @@ const WalletPage = () => {
           </>
         )}
       </div>
+
+      {/* Receipt Dialog */}
+      <Dialog open={!!receipt} onOpenChange={(o) => { if (!o) setReceipt(null); }}>
+        <DialogContent className="glass border-border print:bg-white print:text-black">
+          <DialogHeader>
+            <DialogTitle className="text-foreground flex items-center gap-2">
+              <Receipt className="h-5 w-5 text-primary" />
+              Wallet Top-Up Receipt
+            </DialogTitle>
+          </DialogHeader>
+
+          {receiptLoading || receipt?.pending ? (
+            <div className="py-10 flex flex-col items-center gap-3">
+              <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              <p className="text-sm text-muted-foreground">Confirming payment with the bank…</p>
+            </div>
+          ) : receipt ? (
+            <div className="space-y-5 mt-2">
+              <div className="flex flex-col items-center text-center gap-1 py-2">
+                <CheckCircle2 className="h-10 w-10 text-success" />
+                <p className="text-sm text-muted-foreground">Amount Charged</p>
+                <p className="text-3xl font-extrabold text-foreground">
+                  ${Number(receipt.amount ?? 0).toFixed(2)}
+                </p>
+                <Badge className="bg-success/20 text-success border-0 mt-1">
+                  {receipt.status === "completed" ? "Paid" : receipt.status}
+                </Badge>
+              </div>
+
+              <div className="glass-card p-4 space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Date</span>
+                  <span className="text-foreground">
+                    {new Date(receipt.completed_at || receipt.created_at).toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Payment Method</span>
+                  <span className="text-foreground capitalize">
+                    {String(receipt.gateway || "").replace("_", " ")}
+                  </span>
+                </div>
+                {receipt.gateway_reference && (
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground shrink-0">
+                      {receipt.gateway === "stripe" ? "Stripe Session" : "Reference"}
+                    </span>
+                    <span className="text-foreground font-mono text-xs truncate" title={receipt.gateway_reference}>
+                      {receipt.gateway_reference}
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Receipt ID</span>
+                  <span className="text-foreground font-mono text-xs">{receipt.id}</span>
+                </div>
+              </div>
+
+              <p className="text-xs text-muted-foreground text-center">
+                A copy of this receipt has been emailed to you.
+              </p>
+
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={() => window.print()}>
+                  <Printer className="h-4 w-4 mr-2" /> Print / Save PDF
+                </Button>
+                <Button className="flex-1 gradient-blue-cyan text-foreground" onClick={() => setReceipt(null)}>
+                  Done
+                </Button>
+              </div>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
