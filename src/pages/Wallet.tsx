@@ -599,6 +599,7 @@ const WalletPage = () => {
                   <TableHead className="text-muted-foreground">Description</TableHead>
                   <TableHead className="text-muted-foreground text-right">Amount</TableHead>
                   <TableHead className="text-muted-foreground text-right">Balance</TableHead>
+                    <TableHead className="text-muted-foreground text-right w-12"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -626,6 +627,19 @@ const WalletPage = () => {
                     <TableCell className="text-sm text-right text-muted-foreground">
                       ${Number(txn.balance_after).toFixed(2)}
                     </TableCell>
+                      <TableCell className="text-right">
+                        {txn.type === "deposit" && txn.reference_id && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            title="View receipt"
+                            onClick={() => openReceiptForTxn(txn)}
+                          >
+                            <Receipt className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
