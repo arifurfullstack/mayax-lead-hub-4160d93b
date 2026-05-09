@@ -662,6 +662,80 @@ const WalletPage = () => {
           </>
         )}
       </div>
+
+      {/* Receipt Dialog */}
+      <Dialog open={!!receipt} onOpenChange={(o) => { if (!o) setReceipt(null); }}>
+        <DialogContent className="glass border-border print:bg-white print:text-black">
+          <DialogHeader>
+            <DialogTitle className="text-foreground flex items-center gap-2">
+              <Receipt className="h-5 w-5 text-primary" />
+              Wallet Top-Up Receipt
+            </DialogTitle>
+          </DialogHeader>
+
+          {receiptLoading || receipt?.pending ? (
+            <div className="py-10 flex flex-col items-center gap-3">
+              <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              <p className="text-sm text-muted-foreground">Confirming payment with the bank…</p>
+            </div>
+          ) : receipt ? (
+            <div className="space-y-5 mt-2">
+              <div className="flex flex-col items-center text-center gap-1 py-2">
+                <CheckCircle2 className="h-10 w-10 text-success" />
+                <p className="text-sm text-muted-foreground">Amount Charged</p>
+                <p className="text-3xl font-extrabold text-foreground">
+                  ${Number(receipt.amount ?? 0).toFixed(2)}
+                </p>
+                <Badge className="bg-success/20 text-success border-0 mt-1">
+                  {receipt.status === "completed" ? "Paid" : receipt.status}
+                </Badge>
+              </div>
+
+              <div className="glass-card p-4 space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Date</span>
+                  <span className="text-foreground">
+                    {new Date(receipt.completed_at || receipt.created_at).toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Payment Method</span>
+                  <span className="text-foreground capitalize">
+                    {String(receipt.gateway || "").replace("_", " ")}
+                  </span>
+                </div>
+                {receipt.gateway_reference && (
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground shrink-0">
+                      {receipt.gateway === "stripe" ? "Stripe Session" : "Reference"}
+                    </span>
+                    <span className="text-foreground font-mono text-xs truncate" title={receipt.gateway_reference}>
+                      {receipt.gateway_reference}
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Receipt ID</span>
+                  <span className="text-foreground font-mono text-xs">{receipt.id}</span>
+                </div>
+              </div>
+
+              <p className="text-xs text-muted-foreground text-center">
+                A copy of this receipt has been emailed to you.
+              </p>
+
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={() => window.print()}>
+                  <Printer className="h-4 w-4 mr-2" /> Print / Save PDF
+                </Button>
+                <Button className="flex-1 gradient-blue-cyan text-foreground" onClick={() => setReceipt(null)}>
+                  Done
+                </Button>
+              </div>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
