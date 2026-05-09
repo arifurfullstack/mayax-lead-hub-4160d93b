@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { DollarSign, ArrowUpRight, ArrowDownLeft, Plus, TrendingUp, CreditCard, Building2, Clock, Copy, CheckCircle2, Receipt, Printer } from "lucide-react";
+import { DollarSign, ArrowUpRight, ArrowDownLeft, Plus, TrendingUp, CreditCard, Building2, Clock, Copy, CheckCircle2, Receipt, Printer, AlertTriangle, RotateCw, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +46,7 @@ const WalletPage = () => {
   const [gateways, setGateways] = useState<any[]>([]);
   const [bankDetails, setBankDetails] = useState<any>(null);
   const [pendingDeposits, setPendingDeposits] = useState<any[]>([]);
+  const [failedDeposits, setFailedDeposits] = useState<any[]>([]);
   const [receipt, setReceipt] = useState<any | null>(null);
   const [receiptLoading, setReceiptLoading] = useState(false);
 
@@ -152,6 +153,14 @@ const WalletPage = () => {
             }
             return filtered;
           });
+          setFailedDeposits((prev) => {
+            const row = (payload.new ?? payload.old) as any;
+            const filtered = prev.filter((p) => p.id !== row.id);
+            if (payload.eventType !== "DELETE" && (payload.new as any)?.status === "failed") {
+              return [payload.new as any, ...filtered].slice(0, 5);
+            }
+            return filtered;
+          });
         }
       )
       .subscribe();
@@ -175,15 +184,17 @@ const WalletPage = () => {
       setDealerId(dealer.id);
       setBalance(dealer.wallet_balance);
 
-      const [{ data: txns }, { data: gws }, { data: deposits }] = await Promise.all([
+      const [{ data: txns }, { data: gws }, { data: deposits }, { data: failed }] = await Promise.all([
         supabase.from("wallet_transactions").select("*").eq("dealer_id", dealer.id).order("created_at", { ascending: false }),
         supabase.from("payment_gateways").select("*").eq("enabled", true).order("sort_order"),
         supabase.from("payment_requests").select("*").eq("dealer_id", dealer.id).eq("status", "pending").order("created_at", { ascending: false }),
+        supabase.from("payment_requests").select("*").eq("dealer_id", dealer.id).eq("status", "failed").order("created_at", { ascending: false }).limit(5),
       ]);
 
       setTransactions(txns || []);
       setGateways(gws || []);
       setPendingDeposits(deposits || []);
+      setFailedDeposits(failed || []);
     }
     setLoading(false);
   };
