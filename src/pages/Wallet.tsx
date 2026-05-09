@@ -567,6 +567,60 @@ const WalletPage = () => {
         </Dialog>
       </div>
 
+      {/* Failed Deposits */}
+      {failedDeposits.length > 0 && (
+        <div className="glass-card p-4 mb-4 border border-destructive/40">
+          <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-destructive" /> Failed Top-Ups
+          </h3>
+          <div className="space-y-2">
+            {failedDeposits.map((dep) => (
+              <div
+                key={dep.id}
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-destructive/5 rounded-lg border border-destructive/20"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Badge className="bg-destructive/20 text-destructive border-0 text-[10px]">
+                      {String(dep.gateway).replace("_", " ")}
+                    </Badge>
+                    <span className="text-sm font-mono text-foreground">
+                      ${Number(dep.amount).toFixed(2)}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(dep.created_at).toLocaleString()}
+                    </span>
+                  </div>
+                  {dep.error_message && (
+                    <p className="text-xs text-destructive break-words">
+                      {dep.error_message}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    size="sm"
+                    className="gradient-blue-cyan text-foreground gap-1.5"
+                    onClick={() => handleRetryFailed(dep)}
+                  >
+                    <RotateCw className="h-3.5 w-3.5" /> Retry
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8"
+                    title="Dismiss"
+                    onClick={() => handleDismissFailed(dep.id)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Pending Deposits */}
       {pendingDeposits.length > 0 && (
         <div className="glass-card p-4 mb-8">
