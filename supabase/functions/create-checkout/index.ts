@@ -141,7 +141,6 @@ Deno.serve(async (req) => {
         });
       }
 
-      const config = gw.config as Record<string, string>;
       const mode = config?.mode === "live" ? "live" : "sandbox";
       const baseUrl = mode === "live"
         ? "https://api-m.paypal.com"
