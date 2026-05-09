@@ -41,11 +41,24 @@ const AdminStripeSessions = () => {
     setRefreshing(true);
     const { data, error } = await supabase
       .from("payment_requests")
-      .select("id,dealer_id,amount,status,gateway_reference,error_message,created_at,completed_at,dealers(dealership_name,email)")
+      .select("id,dealer_id,amount,status,gateway_reference,error_message,created_at,completed_at")
       .eq("gateway", "stripe")
       .order("created_at", { ascending: false })
       .limit(50);
-    if (!error && data) setRows(data as unknown as Row[]);
+    if (!error && data) {
+      const dealerIds = Array.from(new Set(data.map((r: any) => r.dealer_id)));
+      const { data: dealers } = await supabase
+        .from("dealers")
+        .select("id,dealership_name,email")
+        .in("id", dealerIds);
+      const map = new Map((dealers ?? []).map((d: any) => [d.id, d]));
+      setRows(
+        (data as any[]).map((r) => ({
+          ...r,
+          dealers: map.get(r.dealer_id) ?? null,
+        })) as Row[],
+      );
+    }
     setLoading(false);
     setRefreshing(false);
   };
