@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { DollarSign, ArrowUpRight, ArrowDownLeft, Plus, TrendingUp, CreditCard, Building2, Clock, Copy, CheckCircle2 } from "lucide-react";
+import { DollarSign, ArrowUpRight, ArrowDownLeft, Plus, TrendingUp, CreditCard, Building2, Clock, Copy, CheckCircle2, Receipt, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,16 +46,19 @@ const WalletPage = () => {
   const [gateways, setGateways] = useState<any[]>([]);
   const [bankDetails, setBankDetails] = useState<any>(null);
   const [pendingDeposits, setPendingDeposits] = useState<any[]>([]);
+  const [receipt, setReceipt] = useState<any | null>(null);
+  const [receiptLoading, setReceiptLoading] = useState(false);
 
   const [page, setPage] = useState(0);
   const perPage = 10;
 
   useEffect(() => { fetchData(); }, []);
 
-  // Handle return from Stripe / PayPal checkout — toast only; realtime updates the balance
+  // Handle return from Stripe / PayPal checkout — open receipt dialog on success
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const status = params.get("payment");
+    const pr = params.get("pr");
     if (!status) return;
     window.history.replaceState({}, "", window.location.pathname);
 
@@ -64,13 +67,49 @@ const WalletPage = () => {
         title: "Payment cancelled",
         description: "You cancelled the checkout. No funds were charged.",
       });
-    } else if (status === "success") {
-      toast({
-        title: "Payment received",
-        description: "Confirming with your bank — your balance will update automatically.",
-      });
+      return;
+    }
+
+    if (status === "success" && pr) {
+      setReceiptLoading(true);
+      setReceipt({ id: pr, pending: true });
+      // Poll briefly until the webhook marks the request completed
+      let attempts = 0;
+      const interval = setInterval(async () => {
+        attempts++;
+        const { data } = await supabase
+          .from("payment_requests")
+          .select("*")
+          .eq("id", pr)
+          .maybeSingle();
+        if (data?.status === "completed") {
+          clearInterval(interval);
+          setReceipt(data);
+          setReceiptLoading(false);
+        } else if (attempts >= 15) {
+          clearInterval(interval);
+          setReceipt(data ?? { id: pr, pending: true });
+          setReceiptLoading(false);
+        }
+      }, 1500);
     }
   }, []);
+
+  const openReceiptForTxn = async (txn: any) => {
+    if (!txn.reference_id) {
+      toast({ title: "No receipt", description: "This transaction has no associated receipt." });
+      return;
+    }
+    setReceiptLoading(true);
+    setReceipt({ id: txn.reference_id, pending: true });
+    const { data } = await supabase
+      .from("payment_requests")
+      .select("*")
+      .eq("id", txn.reference_id)
+      .maybeSingle();
+    setReceipt(data ?? { id: txn.reference_id, pending: true });
+    setReceiptLoading(false);
+  };
 
   // Realtime: instant updates when wallet balance, transactions, or pending deposits change
   useEffect(() => {
