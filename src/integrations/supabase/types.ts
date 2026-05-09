@@ -619,6 +619,7 @@ export type Database = {
           completed_at: string | null
           created_at: string
           dealer_id: string
+          error_message: string | null
           gateway: string
           gateway_reference: string | null
           id: string
@@ -630,6 +631,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           dealer_id: string
+          error_message?: string | null
           gateway: string
           gateway_reference?: string | null
           id?: string
@@ -641,6 +643,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           dealer_id?: string
+          error_message?: string | null
           gateway?: string
           gateway_reference?: string | null
           id?: string
