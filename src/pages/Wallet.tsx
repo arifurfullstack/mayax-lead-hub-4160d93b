@@ -52,6 +52,64 @@ const WalletPage = () => {
 
   useEffect(() => { fetchData(); }, []);
 
+  // Handle return from Stripe / PayPal checkout
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get("payment");
+    if (!status) return;
+
+    // Clean the URL right away so the toast / poll only runs once
+    window.history.replaceState({}, "", window.location.pathname);
+
+    if (status === "cancelled") {
+      toast({
+        title: "Payment cancelled",
+        description: "You cancelled the checkout. No funds were charged.",
+      });
+      return;
+    }
+
+    if (status === "success") {
+      toast({
+        title: "Payment received",
+        description: "Confirming with your bank — your balance will update in a few seconds.",
+      });
+
+      // Poll until the webhook credits the wallet (or we give up after ~20s)
+      let attempts = 0;
+      const startBalance = Number(balance ?? 0);
+      const interval = setInterval(async () => {
+        attempts++;
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) { clearInterval(interval); return; }
+
+        const { data: dealer } = await supabase
+          .from("dealers")
+          .select("wallet_balance")
+          .eq("user_id", session.user.id)
+          .single();
+
+        const newBal = Number(dealer?.wallet_balance ?? 0);
+        if (dealer && newBal > startBalance) {
+          clearInterval(interval);
+          await fetchData();
+          toast({
+            title: "Wallet topped up",
+            description: `New balance: $${newBal.toFixed(2)}`,
+          });
+        } else if (attempts >= 10) {
+          clearInterval(interval);
+          await fetchData();
+          toast({
+            title: "Still processing",
+            description: "Stripe is taking longer than usual. Refresh in a moment if the balance hasn't updated.",
+          });
+        }
+      }, 2000);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const fetchData = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
