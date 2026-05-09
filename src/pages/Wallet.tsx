@@ -52,13 +52,11 @@ const WalletPage = () => {
 
   useEffect(() => { fetchData(); }, []);
 
-  // Handle return from Stripe / PayPal checkout
+  // Handle return from Stripe / PayPal checkout — toast only; realtime updates the balance
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const status = params.get("payment");
     if (!status) return;
-
-    // Clean the URL right away so the toast / poll only runs once
     window.history.replaceState({}, "", window.location.pathname);
 
     if (status === "cancelled") {
@@ -66,49 +64,63 @@ const WalletPage = () => {
         title: "Payment cancelled",
         description: "You cancelled the checkout. No funds were charged.",
       });
-      return;
-    }
-
-    if (status === "success") {
+    } else if (status === "success") {
       toast({
         title: "Payment received",
-        description: "Confirming with your bank — your balance will update in a few seconds.",
+        description: "Confirming with your bank — your balance will update automatically.",
       });
+    }
+  }, []);
 
-      // Poll until the webhook credits the wallet (or we give up after ~20s)
-      let attempts = 0;
-      const startBalance = Number(balance ?? 0);
-      const interval = setInterval(async () => {
-        attempts++;
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) { clearInterval(interval); return; }
+  // Realtime: instant updates when wallet balance, transactions, or pending deposits change
+  useEffect(() => {
+    if (!dealerId) return;
 
-        const { data: dealer } = await supabase
-          .from("dealers")
-          .select("wallet_balance")
-          .eq("user_id", session.user.id)
-          .single();
-
-        const newBal = Number(dealer?.wallet_balance ?? 0);
-        if (dealer && newBal > startBalance) {
-          clearInterval(interval);
-          await fetchData();
-          toast({
-            title: "Wallet topped up",
-            description: `New balance: $${newBal.toFixed(2)}`,
-          });
-        } else if (attempts >= 10) {
-          clearInterval(interval);
-          await fetchData();
-          toast({
-            title: "Still processing",
-            description: "Stripe is taking longer than usual. Refresh in a moment if the balance hasn't updated.",
+    const channel = supabase
+      .channel(`wallet-${dealerId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "dealers", filter: `id=eq.${dealerId}` },
+        (payload) => {
+          const newBal = Number((payload.new as any)?.wallet_balance ?? 0);
+          setBalance((prev) => {
+            if (newBal > prev) {
+              toast({
+                title: "Wallet topped up",
+                description: `New balance: $${newBal.toFixed(2)}`,
+              });
+            }
+            return newBal;
           });
         }
-      }, 2000);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "wallet_transactions", filter: `dealer_id=eq.${dealerId}` },
+        (payload) => {
+          setTransactions((prev) => [payload.new as any, ...prev]);
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "payment_requests", filter: `dealer_id=eq.${dealerId}` },
+        (payload) => {
+          setPendingDeposits((prev) => {
+            const row = (payload.new ?? payload.old) as any;
+            const filtered = prev.filter((p) => p.id !== row.id);
+            if (payload.eventType !== "DELETE" && (payload.new as any)?.status === "pending") {
+              return [payload.new as any, ...filtered];
+            }
+            return filtered;
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [dealerId]);
 
   const fetchData = async () => {
     const { data: { session } } = await supabase.auth.getSession();
