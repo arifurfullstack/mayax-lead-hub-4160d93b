@@ -5,6 +5,8 @@ project_id = "ikusoyppxhubbmrbxzfc"
     verify_jwt = false
   [functions.inbound-webhook]
     verify_jwt = false
+  [functions.payment-webhook]
+    verify_jwt = false
   [functions.handle-email-suppression]
     verify_jwt = false
   [functions.handle-email-unsubscribe]
