@@ -112,6 +112,22 @@ const WalletPage = () => {
     setReceiptLoading(false);
   };
 
+  const handleRetryFailed = (dep: any) => {
+    const amt = Number(dep.amount);
+    const isPreset = presetAmounts.includes(amt);
+    setSelectedAmount(amt);
+    setIsCustom(!isPreset);
+    setCustomAmount(isPreset ? "" : String(amt));
+    setSelectedGateway(null);
+    setStep(1);
+    setAddFundsOpen(true);
+  };
+
+  const handleDismissFailed = async (id: string) => {
+    setFailedDeposits((prev) => prev.filter((p) => p.id !== id));
+    await supabase.from("payment_requests").update({ status: "dismissed" }).eq("id", id);
+  };
+
   // Realtime: instant updates when wallet balance, transactions, or pending deposits change
   useEffect(() => {
     if (!dealerId) return;
