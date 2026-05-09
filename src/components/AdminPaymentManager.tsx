@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CreditCard, Building2, Settings2, CheckCircle2, XCircle, DollarSign, Zap, Loader2 } from "lucide-react";
+import { CreditCard, Building2, Settings2, CheckCircle2, XCircle, DollarSign, Zap, Loader2, BookOpen, Copy, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 
@@ -38,6 +38,24 @@ const AdminPaymentManager = () => {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [webhookGuideOpen, setWebhookGuideOpen] = useState(false);
+
+  const STRIPE_WEBHOOK_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/payment-webhook?provider=stripe`;
+  const STRIPE_WEBHOOK_EVENTS = [
+    "checkout.session.completed",
+    "checkout.session.expired",
+    "checkout.session.async_payment_failed",
+    "payment_intent.payment_failed",
+  ];
+
+  const copyToClipboard = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({ title: "Copied", description: `${label} copied to clipboard.` });
+    } catch {
+      toast({ title: "Copy failed", description: "Could not access clipboard.", variant: "destructive" });
+    }
+  };
 
   const { data: gateways, isLoading } = useQuery({
     queryKey: ["payment-gateways"],
@@ -310,7 +328,16 @@ const AdminPaymentManager = () => {
                     />
                   </div>
                   <div>
-                    <Label className="text-xs">Webhook Secret</Label>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs">Webhook Secret</Label>
+                      <button
+                        type="button"
+                        onClick={() => setWebhookGuideOpen(true)}
+                        className="text-[11px] text-primary hover:underline inline-flex items-center gap-1"
+                      >
+                        <BookOpen className="h-3 w-3" /> Setup guide
+                      </button>
+                    </div>
                     <Input
                       type="password"
                       value={configForm.webhook_secret || ""}
@@ -318,6 +345,11 @@ const AdminPaymentManager = () => {
                       placeholder="whsec_..."
                       className="bg-background font-mono text-xs"
                     />
+                    {!configForm.webhook_secret && (
+                      <p className="text-[11px] text-warning mt-1">
+                        Required — without this, Stripe payments will not credit wallets.
+                      </p>
+                    )}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     Find these in your <span className="font-medium">Stripe Dashboard → Developers → API Keys</span>. Use test keys for sandbox mode.
@@ -415,6 +447,124 @@ const AdminPaymentManager = () => {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Stripe Webhook Setup Guide */}
+      <Dialog open={webhookGuideOpen} onOpenChange={setWebhookGuideOpen}>
+        <DialogContent className="bg-card border-border max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <BookOpen className="h-5 w-5 text-primary" />
+              Stripe Webhook Setup
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-5 text-sm">
+            <p className="text-muted-foreground">
+              Stripe needs to notify us when payments succeed or fail. Without this webhook, customers
+              will pay but their wallets will <span className="text-warning font-medium">never be credited</span>.
+              Follow these steps once — it takes about 2 minutes.
+            </p>
+
+            {/* Step 1 */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="h-6 w-6 rounded-full bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center">1</span>
+                <p className="font-medium text-foreground">Open the Stripe Webhooks page</p>
+              </div>
+              <a
+                href="https://dashboard.stripe.com/webhooks"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ml-8 inline-flex items-center gap-1.5 text-primary hover:underline text-xs"
+              >
+                dashboard.stripe.com/webhooks <ExternalLink className="h-3 w-3" />
+              </a>
+              <p className="ml-8 text-xs text-muted-foreground">Click <span className="font-medium text-foreground">+ Add endpoint</span>.</p>
+            </div>
+
+            {/* Step 2 */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="h-6 w-6 rounded-full bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center">2</span>
+                <p className="font-medium text-foreground">Paste this Endpoint URL</p>
+              </div>
+              <div className="ml-8 flex items-center gap-2">
+                <code className="flex-1 bg-background border border-border rounded px-3 py-2 font-mono text-xs break-all">
+                  {STRIPE_WEBHOOK_URL}
+                </code>
+                <Button size="sm" variant="outline" className="gap-1.5 shrink-0" onClick={() => copyToClipboard(STRIPE_WEBHOOK_URL, "Endpoint URL")}>
+                  <Copy className="h-3.5 w-3.5" /> Copy
+                </Button>
+              </div>
+            </div>
+
+            {/* Step 3 */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="h-6 w-6 rounded-full bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center">3</span>
+                <p className="font-medium text-foreground">Select these events to listen for</p>
+              </div>
+              <div className="ml-8 space-y-1.5">
+                <p className="text-xs text-muted-foreground">In <span className="font-medium text-foreground">Select events</span>, search and check each:</p>
+                <ul className="space-y-1">
+                  {STRIPE_WEBHOOK_EVENTS.map((evt) => (
+                    <li key={evt} className="flex items-center gap-2">
+                      <code className="flex-1 bg-background border border-border rounded px-2 py-1 font-mono text-xs">{evt}</code>
+                      <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => copyToClipboard(evt, evt)}>
+                        <Copy className="h-3 w-3" />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+                <Button size="sm" variant="outline" className="gap-1.5 mt-1" onClick={() => copyToClipboard(STRIPE_WEBHOOK_EVENTS.join("\n"), "All event names")}>
+                  <Copy className="h-3.5 w-3.5" /> Copy all event names
+                </Button>
+              </div>
+            </div>
+
+            {/* Step 4 */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="h-6 w-6 rounded-full bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center">4</span>
+                <p className="font-medium text-foreground">Reveal & copy the Signing secret</p>
+              </div>
+              <p className="ml-8 text-xs text-muted-foreground">
+                After creating the endpoint, click it open. Under <span className="font-medium text-foreground">Signing secret</span>,
+                click <span className="font-medium text-foreground">Reveal</span>. It looks like:
+              </p>
+              <code className="ml-8 block bg-background border border-border rounded px-3 py-2 font-mono text-xs text-muted-foreground">
+                whsec_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+              </code>
+            </div>
+
+            {/* Step 5 */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="h-6 w-6 rounded-full bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center">5</span>
+                <p className="font-medium text-foreground">Paste it into Webhook Secret here</p>
+              </div>
+              <p className="ml-8 text-xs text-muted-foreground">
+                Close this guide, paste the <code className="font-mono text-foreground">whsec_…</code> value into the
+                <span className="font-medium text-foreground"> Webhook Secret</span> field, then click
+                <span className="font-medium text-foreground"> Save Configuration</span>. You're done.
+              </p>
+            </div>
+
+            <div className="rounded-lg border border-success/30 bg-success/5 p-3 text-xs text-success-foreground">
+              <p className="flex items-start gap-2">
+                <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0 text-success" />
+                <span>
+                  <span className="font-medium text-success">Tip:</span> Use a Live-mode webhook with your live secret key,
+                  or a Test-mode webhook with your test key. They must match.
+                </span>
+              </p>
+            </div>
+
+            <div className="flex justify-end">
+              <Button onClick={() => setWebhookGuideOpen(false)}>Got it</Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
