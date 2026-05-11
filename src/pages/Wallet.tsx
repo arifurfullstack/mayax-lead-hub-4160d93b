@@ -260,6 +260,19 @@ const TopUpTimeline = ({ request, lastCheck, isVerifying, compact }: TopUpTimeli
 
 const WalletPage = () => {
   const [balance, setBalance] = useState(0);
+  // Pulse the header balance briefly whenever it increases (realtime credit).
+  const [balanceFlash, setBalanceFlash] = useState<null | "up" | "down">(null);
+  const [balanceDelta, setBalanceDelta] = useState<number | null>(null);
+  const flashTimerRef = useRef<number | null>(null);
+  const triggerBalanceFlash = (delta: number) => {
+    setBalanceDelta(delta);
+    setBalanceFlash(delta >= 0 ? "up" : "down");
+    if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current);
+    flashTimerRef.current = window.setTimeout(() => {
+      setBalanceFlash(null);
+      setBalanceDelta(null);
+    }, 2400);
+  };
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dealerId, setDealerId] = useState<string | null>(null);
@@ -617,7 +630,11 @@ const WalletPage = () => {
         (payload) => {
           const newBal = Number((payload.new as any)?.wallet_balance ?? 0);
           setBalance((prev) => {
-            if (newBal > prev) {
+            const diff = newBal - prev;
+            if (diff !== 0) {
+              triggerBalanceFlash(diff);
+            }
+            if (diff > 0) {
               toast({
                 title: "Wallet topped up",
                 description: `New balance: $${newBal.toFixed(2)}`,
@@ -942,8 +959,36 @@ const WalletPage = () => {
         <div>
           <p className="text-sm text-muted-foreground flex items-center gap-2 mb-1">
             <DollarSign className="h-4 w-4" /> Available Balance
+            <span
+              className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide text-success/80"
+              title="Updates instantly via realtime"
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
+              Live
+            </span>
           </p>
-          <p className="text-4xl font-extrabold text-foreground">${balance.toFixed(2)}</p>
+          <div className="relative inline-flex items-baseline gap-3">
+            <p
+              key={balance}
+              className={cn(
+                "text-4xl font-extrabold text-foreground transition-all duration-500",
+                balanceFlash === "up" && "text-success drop-shadow-[0_0_12px_hsl(var(--success)/0.55)] scale-[1.04]",
+                balanceFlash === "down" && "text-destructive scale-[1.02]",
+              )}
+            >
+              ${balance.toFixed(2)}
+            </p>
+            {balanceDelta !== null && (
+              <span
+                className={cn(
+                  "text-sm font-semibold animate-in fade-in slide-in-from-bottom-1 duration-300",
+                  balanceDelta >= 0 ? "text-success" : "text-destructive",
+                )}
+              >
+                {balanceDelta >= 0 ? "+" : "−"}${Math.abs(balanceDelta).toFixed(2)}
+              </span>
+            )}
+          </div>
         </div>
         <Dialog open={addFundsOpen} onOpenChange={handleOpenChange}>
           <DialogTrigger asChild>
