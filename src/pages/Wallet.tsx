@@ -1411,6 +1411,7 @@ const WalletPage = () => {
                   isVerifying={verifyingId === receipt.id}
                 />
               </div>
+              <TopUpTimelineLegend className="w-full text-left" />
               <div className="flex gap-2 w-full mt-2">
                 {receipt?.gateway === "stripe" || (!receipt?.gateway && receipt?.id) ? (
                   <Button
@@ -1467,6 +1468,7 @@ const WalletPage = () => {
                   isVerifying={verifyingId === receipt.id}
                 />
               </div>
+              <TopUpTimelineLegend />
 
               <div className="glass-card p-4 space-y-2 text-sm">
                 <div className="flex justify-between">
