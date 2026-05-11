@@ -174,6 +174,7 @@ async function reconcileOne(
         error_message: msg,
         details: { stripe_session_id: session.id, payment_intent: session.payment_intent },
       });
+      await sendFailedTopupEmail(admin, pr, msg);
       return { id: pr.id, status: "failed", error: msg };
     }
   }
@@ -196,6 +197,7 @@ async function reconcileOne(
       error_message: reason,
       details: { stripe_session_id: session.id, session_status: session.status, payment_status: session.payment_status },
     });
+    await sendFailedTopupEmail(admin, pr, reason);
     return { id: pr.id, status: "failed", session_status: session.status };
   }
 
@@ -205,6 +207,40 @@ async function reconcileOne(
     session_status: session.status,
     payment_status: session.payment_status,
   };
+}
+
+async function sendFailedTopupEmail(
+  admin: ReturnType<typeof createClient>,
+  pr: any,
+  reason: string,
+) {
+  try {
+    const { data: dealer } = await admin
+      .from("dealers")
+      .select("dealership_name, email, notification_email")
+      .eq("id", pr.dealer_id)
+      .single();
+    const recipient = (dealer as any)?.notification_email || (dealer as any)?.email;
+    if (!recipient) return;
+    await admin.functions.invoke("send-transactional-email", {
+      headers: { Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!}` },
+      body: {
+        templateName: "wallet-topup-failed",
+        recipientEmail: recipient,
+        idempotencyKey: `wallet-topup-failed-${pr.id}`,
+        templateData: {
+          dealership_name: (dealer as any)?.dealership_name,
+          amount: Number(pr.amount),
+          gateway: pr.gateway,
+          reference: pr.id,
+          reason,
+          date: new Date().toLocaleString(),
+        },
+      },
+    });
+  } catch (e) {
+    console.error("wallet-topup-failed email failed:", e);
+  }
 }
 
 async function creditWallet(
