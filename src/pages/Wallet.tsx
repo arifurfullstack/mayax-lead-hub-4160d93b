@@ -125,6 +125,7 @@ const WalletPage = () => {
 
   const [page, setPage] = useState(0);
   const perPage = 10;
+  const [highlightTxnId, setHighlightTxnId] = useState<string | null>(null);
 
   useEffect(() => { fetchData(); }, []);
 
@@ -329,7 +330,25 @@ const WalletPage = () => {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "wallet_transactions", filter: `dealer_id=eq.${dealerId}` },
         (payload) => {
-          setTransactions((prev) => [payload.new as any, ...prev]);
+          const row = payload.new as any;
+          setTransactions((prev) => {
+            // Dedupe in case fetchData() also picked up this row
+            if (prev.some((t) => t.id === row.id)) return prev;
+            return [row, ...prev];
+          });
+          // Jump to the first page so the new row is visible
+          setPage(0);
+          // Brief highlight on the freshly inserted row
+          setHighlightTxnId(row.id);
+          setTimeout(() => {
+            setHighlightTxnId((cur) => (cur === row.id ? null : cur));
+          }, 2500);
+          if (row.type === "purchase") {
+            toast({
+              title: "Lead purchased",
+              description: `-$${Math.abs(Number(row.amount)).toFixed(2)} • New balance $${Number(row.balance_after).toFixed(2)}`,
+            });
+          }
         }
       )
       .on(
@@ -964,7 +983,12 @@ const WalletPage = () => {
               </TableHeader>
               <TableBody>
                 {paginatedTxns.map((txn) => (
-                  <TableRow key={txn.id} className="border-border">
+                  <TableRow
+                    key={txn.id}
+                    className={`border-border transition-colors ${
+                      highlightTxnId === txn.id ? "bg-primary/10 animate-pulse" : ""
+                    }`}
+                  >
                     <TableCell className="text-sm text-muted-foreground">
                       {new Date(txn.created_at).toLocaleDateString()}
                     </TableCell>
