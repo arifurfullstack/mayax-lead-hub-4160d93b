@@ -815,8 +815,8 @@ const WalletPage = () => {
             }
             if (diff > 0) {
               toast({
-                title: "Wallet topped up",
-                description: `New balance: $${newBal.toFixed(2)}`,
+                title: `+$${diff.toFixed(2)} credited to your wallet`,
+                description: `New balance: $${newBal.toFixed(2)} (was $${prev.toFixed(2)})`,
               });
             }
             return newBal;
