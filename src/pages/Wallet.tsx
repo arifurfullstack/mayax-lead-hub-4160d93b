@@ -246,12 +246,17 @@ const WalletPage = () => {
     at: string;
   }>>({});
 
-  const handleVerifyWithStripe = async (paymentRequestId: string) => {
-    setVerifyingId(paymentRequestId);
-    setVerifyPhase("contacting");
+  const handleVerifyWithStripe = async (paymentRequestId: string, opts?: { silent?: boolean }) => {
+    const silent = opts?.silent === true;
+    if (!silent) {
+      setVerifyingId(paymentRequestId);
+      setVerifyPhase("contacting");
+    }
     try {
-      // Brief phase progression so the user sees what's happening
-      setTimeout(() => setVerifyPhase((p) => (p === "contacting" ? "checking" : p)), 400);
+      // Brief phase progression so the user sees what's happening (manual only)
+      if (!silent) {
+        setTimeout(() => setVerifyPhase((p) => (p === "contacting" ? "checking" : p)), 400);
+      }
       const { data, error } = await supabase.functions.invoke("reconcile-stripe-session", {
         body: { payment_request_id: paymentRequestId },
       });
@@ -267,30 +272,37 @@ const WalletPage = () => {
       };
       setVerifyResults((prev) => ({ ...prev, [paymentRequestId]: outcome }));
       if (data?.status === "completed") {
-        setVerifyPhase("crediting");
-        toast({
-          title: "Payment confirmed ✅",
-          description: "Stripe confirmed the charge — your wallet has been credited.",
-        });
+        if (!silent) {
+          setVerifyPhase("crediting");
+          toast({
+            title: "Payment confirmed ✅",
+            description: "Stripe confirmed the charge — your wallet has been credited.",
+          });
+        }
         await fetchData();
         if (receipt?.id === paymentRequestId) {
           await refreshReceipt();
         }
       } else if (data?.status === "failed") {
-        toast({
-          title: "Payment failed",
-          description: data?.error || "Stripe reports this checkout did not complete.",
-          variant: "destructive",
-        });
+        if (!silent) {
+          toast({
+            title: "Payment failed",
+            description: data?.error || "Stripe reports this checkout did not complete.",
+            variant: "destructive",
+          });
+        }
         await fetchData();
       } else {
-        toast({
-          title: "Still pending",
-          description: `Stripe status: ${data?.session_status ?? "unknown"} (${data?.payment_status ?? "—"}). Try again in a moment.`,
-        });
+        if (!silent) {
+          toast({
+            title: "Still pending",
+            description: `Stripe status: ${data?.session_status ?? "unknown"} (${data?.payment_status ?? "—"}). Try again in a moment.`,
+          });
+        }
         await fetchData();
       }
-      setVerifyPhase("done");
+      if (!silent) setVerifyPhase("done");
+      return data;
     } catch (e: any) {
       setVerifyResults((prev) => ({
         ...prev,
@@ -300,15 +312,20 @@ const WalletPage = () => {
           at: new Date().toISOString(),
         },
       }));
-      toast({
-        title: "Verification error",
-        description: e?.message || "Could not reach Stripe.",
-        variant: "destructive",
-      });
-      setVerifyPhase(null);
+      if (!silent) {
+        toast({
+          title: "Verification error",
+          description: e?.message || "Could not reach Stripe.",
+          variant: "destructive",
+        });
+        setVerifyPhase(null);
+      }
+      return null;
     } finally {
-      setVerifyingId(null);
-      setTimeout(() => setVerifyPhase(null), 1500);
+      if (!silent) {
+        setVerifyingId(null);
+        setTimeout(() => setVerifyPhase(null), 1500);
+      }
       // Auto-refresh fallback: re-fetch shortly after in case the webhook
       // updates the row a moment after reconcile returns, so the pending
       // list reflects the latest status without a manual reload.
@@ -322,6 +339,100 @@ const WalletPage = () => {
       setTimeout(refetch, 4000);
     }
   };
+
+  // Auto-verify pending Stripe top-ups in the background with exponential
+  // backoff. The user no longer needs to click "Verify with Stripe".
+  const autoVerifyRef = useRef<{
+    timers: Map<string, number>;
+    attempts: Map<string, number>;
+    inFlight: Set<string>;
+    handler: (id: string) => Promise<any>;
+  }>({ timers: new Map(), attempts: new Map(), inFlight: new Set(), handler: async () => null });
+  // Keep the latest handler reference so timers always call the freshest closure
+  autoVerifyRef.current.handler = (id: string) => handleVerifyWithStripe(id, { silent: true });
+
+  useEffect(() => {
+    const state = autoVerifyRef.current;
+    const BACKOFF_MS = [3000, 8000, 15000, 30000, 60000, 120000, 240000];
+    const MAX_ATTEMPTS = 20; // ~caps at ~15 min total
+
+    const stripePending = pendingDeposits.filter((d) => d.gateway === "stripe");
+    const activeIds = new Set(stripePending.map((d) => d.id));
+
+    // Cancel timers for rows that are no longer pending
+    for (const [id, t] of state.timers) {
+      if (!activeIds.has(id)) {
+        clearTimeout(t);
+        state.timers.delete(id);
+        state.attempts.delete(id);
+      }
+    }
+
+    const schedule = (id: string, delay: number) => {
+      const existing = state.timers.get(id);
+      if (existing) clearTimeout(existing);
+      const t = window.setTimeout(async () => {
+        if (state.inFlight.has(id)) return;
+        if (!autoVerifyRef.current) return;
+        state.inFlight.add(id);
+        try {
+          const data = await state.handler(id);
+          const status = (data as any)?.status;
+          // If still pending, schedule the next backoff step
+          if (status === "pending" || status === "unknown" || data == null) {
+            const n = (state.attempts.get(id) ?? 0) + 1;
+            state.attempts.set(id, n);
+            if (n < MAX_ATTEMPTS) {
+              const nextDelay = BACKOFF_MS[Math.min(n, BACKOFF_MS.length - 1)];
+              schedule(id, nextDelay);
+            }
+          } else {
+            // completed/failed — stop polling; realtime + fetchData will update UI
+            state.timers.delete(id);
+            state.attempts.delete(id);
+          }
+        } finally {
+          state.inFlight.delete(id);
+        }
+      }, delay);
+      state.timers.set(id, t);
+    };
+
+    // Schedule a first check for any newly pending row
+    for (const dep of stripePending) {
+      if (!state.timers.has(dep.id) && state.attempts.get(dep.id) === undefined) {
+        // First check: short delay so we don't double-fire with manual UI
+        schedule(dep.id, 3000);
+      }
+    }
+
+    // Re-check immediately on visibility/focus/online (covers "back from Stripe tab")
+    const checkAllNow = () => {
+      for (const dep of stripePending) {
+        state.attempts.set(dep.id, 0);
+        schedule(dep.id, 0);
+      }
+    };
+    const onVis = () => { if (document.visibilityState === "visible") checkAllNow(); };
+    window.addEventListener("focus", checkAllNow);
+    window.addEventListener("online", checkAllNow);
+    document.addEventListener("visibilitychange", onVis);
+
+    return () => {
+      window.removeEventListener("focus", checkAllNow);
+      window.removeEventListener("online", checkAllNow);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingDeposits.map((d) => d.id).join(",")]);
+
+  // Clear all auto-verify timers on unmount
+  useEffect(() => () => {
+    const state = autoVerifyRef.current;
+    for (const t of state.timers.values()) clearTimeout(t);
+    state.timers.clear();
+    state.attempts.clear();
+  }, []);
 
   // Realtime: instant updates when wallet balance, transactions, or pending deposits change
   useEffect(() => {
@@ -916,7 +1027,9 @@ const WalletPage = () => {
                     : lastCheck.status === "failed"
                       ? { tone: "bg-destructive/15 text-destructive border-destructive/30", text: `Stripe: ${lastCheck.session_status ?? "failed"} · checked ${checkedAgo}` }
                       : { tone: "bg-warning/15 text-warning border-warning/30", text: `Stripe: ${lastCheck.session_status ?? "open"} / ${lastCheck.payment_status ?? "unpaid"} · checked ${checkedAgo}` }
-                  : null;
+                  : dep.gateway === "stripe"
+                    ? { tone: "bg-primary/10 text-primary border-primary/20", text: "Auto-verifying…" }
+                    : null;
               return (
                 <div
                   key={dep.id}
@@ -955,26 +1068,26 @@ const WalletPage = () => {
                     {dep.gateway === "stripe" && (
                       <Button
                         size="sm"
-                        variant="outline"
-                        className="h-7 gap-1.5 text-xs"
+                        variant="ghost"
+                        className="h-7 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
                         disabled={verifyingId === dep.id}
                         onClick={() => handleVerifyWithStripe(dep.id)}
-                        title={lastCheck ? `Re-check Stripe (last checked ${checkedAgo})` : "Check this top-up against Stripe"}
+                        title="We auto-verify this with Stripe in the background. Click to check now."
                       >
                         {verifyingId === dep.id ? (
                           <RotateCw className="h-3 w-3 animate-spin" />
                         ) : (
-                          lastCheck ? <RotateCw className="h-3 w-3" /> : <ShieldCheck className="h-3 w-3" />
+                          <RotateCw className="h-3 w-3" />
                         )}
                         {verifyingId === dep.id
                           ? verifyPhase === "contacting"
-                            ? "Contacting Stripe…"
+                            ? "Contacting…"
                             : verifyPhase === "checking"
-                              ? "Checking session…"
+                              ? "Checking…"
                               : verifyPhase === "crediting"
-                                ? "Crediting wallet…"
+                                ? "Crediting…"
                                 : "Verifying…"
-                          : lastCheck ? "Re-verify" : "Verify with Stripe"}
+                          : "Check now"}
                       </Button>
                     )}
                     <Button
