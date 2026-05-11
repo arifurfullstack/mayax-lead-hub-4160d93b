@@ -315,6 +315,31 @@ const WalletPage = () => {
 
   useEffect(() => { fetchData(); }, []);
 
+  // When the open receipt reaches "completed", show the final summary briefly
+  // and then auto-close. The user can cancel by interacting with the dialog.
+  useEffect(() => {
+    if (!receipt || receipt.status !== "completed") {
+      setAutoCloseSec(null);
+      autoCloseCancelRef.current = false;
+      return;
+    }
+    autoCloseCancelRef.current = false;
+    setAutoCloseSec(6);
+    const tick = window.setInterval(() => {
+      setAutoCloseSec((s) => {
+        if (autoCloseCancelRef.current) return null;
+        if (s === null) return null;
+        if (s <= 1) {
+          window.clearInterval(tick);
+          if (!autoCloseCancelRef.current) setReceipt(null);
+          return null;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(tick);
+  }, [receipt?.id, receipt?.status]);
+
   // Handle return from Stripe / PayPal checkout — open receipt dialog on success
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
