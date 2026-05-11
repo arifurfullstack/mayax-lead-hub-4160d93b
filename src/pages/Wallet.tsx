@@ -1648,8 +1648,19 @@ const WalletPage = () => {
 
       {/* Transaction History */}
       <div className="glass-card overflow-hidden">
-        <div className="p-4 border-b border-border">
+        <div className="p-4 border-b border-border flex items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-foreground">Transaction History</h2>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 h-8"
+            onClick={handleExportCsv}
+            disabled={transactions.length === 0}
+            title="Download all transactions as CSV"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Export CSV
+          </Button>
         </div>
         {transactions.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground">
