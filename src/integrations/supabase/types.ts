@@ -585,6 +585,51 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_audit_log: {
+        Row: {
+          actor_user_id: string | null
+          amount: number | null
+          balance_after: number | null
+          created_at: string
+          dealer_id: string | null
+          details: Json
+          error_message: string | null
+          event_type: string
+          id: string
+          payment_request_id: string | null
+          source: string
+          status: string
+        }
+        Insert: {
+          actor_user_id?: string | null
+          amount?: number | null
+          balance_after?: number | null
+          created_at?: string
+          dealer_id?: string | null
+          details?: Json
+          error_message?: string | null
+          event_type: string
+          id?: string
+          payment_request_id?: string | null
+          source: string
+          status: string
+        }
+        Update: {
+          actor_user_id?: string | null
+          amount?: number | null
+          balance_after?: number | null
+          created_at?: string
+          dealer_id?: string | null
+          details?: Json
+          error_message?: string | null
+          event_type?: string
+          id?: string
+          payment_request_id?: string | null
+          source?: string
+          status?: string
+        }
+        Relationships: []
+      }
       payment_gateways: {
         Row: {
           config: Json

@@ -103,6 +103,16 @@ Deno.serve(async (req) => {
             status: "failed",
             error_message: msg,
           }).eq("id", paymentRequestId);
+          await admin.from("payment_audit_log").insert({
+            event_type: "credit_attempt",
+            source: "payment-webhook",
+            status: "failed",
+            payment_request_id: paymentRequestId,
+            dealer_id: dealerId,
+            amount: Number(payReq.amount),
+            error_message: msg,
+            details: { gateway: "stripe", stripe_event: event.type, session_id: session.id },
+          });
           throw e;
         }
 
@@ -122,6 +132,14 @@ Deno.serve(async (req) => {
             status: "failed",
             error_message: reason,
           }).eq("id", paymentRequestId).eq("status", "pending");
+          await admin.from("payment_audit_log").insert({
+            event_type: "credit_attempt",
+            source: "payment-webhook",
+            status: "failed",
+            payment_request_id: paymentRequestId,
+            error_message: reason,
+            details: { gateway: "stripe", stripe_event: event.type },
+          });
         }
         return new Response(JSON.stringify({ received: true, recorded: event.type }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -208,6 +226,18 @@ async function creditWallet(
     status: "completed",
     completed_at: new Date().toISOString(),
   }).eq("id", paymentRequestId);
+
+  // Audit: credit succeeded
+  await admin.from("payment_audit_log").insert({
+    event_type: "credit_attempt",
+    source: "payment-webhook",
+    status: "success",
+    payment_request_id: paymentRequestId,
+    dealer_id: dealerId,
+    amount,
+    balance_after: newBalance,
+    details: { gateway, previous_balance: currentBalance },
+  });
 
   // Send confirmation email (non-blocking)
   if (dealer) {
