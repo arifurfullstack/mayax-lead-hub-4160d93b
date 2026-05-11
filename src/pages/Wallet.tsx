@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 
 const presetAmounts = [100, 250, 500, 1000];
 const MIN_CUSTOM = 10;
@@ -381,6 +382,14 @@ const WalletPage = () => {
             toast({
               title: "Top-up confirmed ✅",
               description: `$${Number(row.amount).toFixed(2)} via ${String(row.gateway).replace("_", " ")} was credited.`,
+              action: (
+                <ToastAction
+                  altText="View receipt"
+                  onClick={() => openReceiptForTxn({ reference_id: row.id })}
+                >
+                  View receipt
+                </ToastAction>
+              ),
             });
             // Refresh full transaction list (covers cases where INSERT event was missed)
             fetchData();
@@ -397,6 +406,14 @@ const WalletPage = () => {
               title: "Top-up failed",
               description: (payload.new as any)?.error_message || "The payment could not be completed.",
               variant: "destructive",
+              action: (
+                <ToastAction
+                  altText="View details"
+                  onClick={() => openReceiptForTxn({ reference_id: row.id })}
+                >
+                  View details
+                </ToastAction>
+              ),
             });
             if (receiptRef.current?.id === row.id) {
               setReceipt({ ...(payload.new as any) });
