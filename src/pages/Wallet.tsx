@@ -3,6 +3,7 @@ import { DollarSign, ArrowUpRight, ArrowDownLeft, Plus, TrendingUp, CreditCard, 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Area, AreaChart, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis, CartesianGrid } from "recharts";
 import {
   Dialog,
   DialogContent,
