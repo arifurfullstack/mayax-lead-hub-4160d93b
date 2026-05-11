@@ -882,7 +882,7 @@ const WalletPage = () => {
           <div className="space-y-2">
             {pendingDeposits.map((dep) => {
               const created = new Date(dep.created_at);
-              const ageMin = Math.max(0, Math.floor((Date.now() - created.getTime()) / 60000));
+              const ageMin = Math.max(0, Math.floor((now - created.getTime()) / 60000));
               const ageLabel = ageMin < 1 ? "just now" : ageMin < 60 ? `${ageMin} min ago` : `${Math.floor(ageMin / 60)} h ago`;
               const statusLabel =
                 dep.gateway === "bank_transfer"
@@ -892,6 +892,19 @@ const WalletPage = () => {
                   : dep.gateway === "paypal"
                   ? "Awaiting PayPal confirmation"
                   : "Awaiting confirmation";
+              const lastCheck = verifyResults[dep.id];
+              const isVerifying = verifyingId === dep.id;
+              const checkedSec = lastCheck ? Math.max(0, Math.floor((now - new Date(lastCheck.at).getTime()) / 1000)) : 0;
+              const checkedAgo = checkedSec < 60 ? `${checkedSec}s ago` : `${Math.floor(checkedSec / 60)}m ago`;
+              const livePill = isVerifying
+                ? { tone: "bg-primary/15 text-primary border-primary/30", text: "Checking with Stripe…" }
+                : lastCheck
+                  ? lastCheck.status === "completed"
+                    ? { tone: "bg-success/15 text-success border-success/30", text: `Stripe: paid · checked ${checkedAgo}` }
+                    : lastCheck.status === "failed"
+                      ? { tone: "bg-destructive/15 text-destructive border-destructive/30", text: `Stripe: ${lastCheck.session_status ?? "failed"} · checked ${checkedAgo}` }
+                      : { tone: "bg-warning/15 text-warning border-warning/30", text: `Stripe: ${lastCheck.session_status ?? "open"} / ${lastCheck.payment_status ?? "unpaid"} · checked ${checkedAgo}` }
+                  : null;
               return (
                 <div
                   key={dep.id}
@@ -906,9 +919,14 @@ const WalletPage = () => {
                         ${Number(dep.amount).toFixed(2)}
                       </span>
                       <span className="inline-flex items-center gap-1 text-[10px] text-warning">
-                        <span className="h-1.5 w-1.5 rounded-full bg-warning animate-pulse" />
+                        <span className={`h-1.5 w-1.5 rounded-full animate-pulse ${isVerifying ? "bg-primary" : "bg-warning"}`} />
                         Pending
                       </span>
+                      {dep.gateway === "stripe" && livePill && (
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded border ${livePill.tone}`}>
+                          {livePill.text}
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-muted-foreground">{statusLabel}</p>
                     {dep.gateway_reference && (
@@ -929,11 +947,12 @@ const WalletPage = () => {
                         className="h-7 gap-1.5 text-xs"
                         disabled={verifyingId === dep.id}
                         onClick={() => handleVerifyWithStripe(dep.id)}
+                        title={lastCheck ? `Re-check Stripe (last checked ${checkedAgo})` : "Check this top-up against Stripe"}
                       >
                         {verifyingId === dep.id ? (
                           <RotateCw className="h-3 w-3 animate-spin" />
                         ) : (
-                          <ShieldCheck className="h-3 w-3" />
+                          lastCheck ? <RotateCw className="h-3 w-3" /> : <ShieldCheck className="h-3 w-3" />
                         )}
                         {verifyingId === dep.id
                           ? verifyPhase === "contacting"
@@ -943,7 +962,7 @@ const WalletPage = () => {
                               : verifyPhase === "crediting"
                                 ? "Crediting wallet…"
                                 : "Verifying…"
-                          : "Verify with Stripe"}
+                          : lastCheck ? "Re-verify" : "Verify with Stripe"}
                       </Button>
                     )}
                     <Button
