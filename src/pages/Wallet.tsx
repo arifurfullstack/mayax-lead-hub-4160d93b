@@ -291,6 +291,9 @@ const WalletPage = () => {
   const [receiptLoading, setReceiptLoading] = useState(false);
   const receiptRef = useRef<any | null>(null);
   useEffect(() => { receiptRef.current = receipt; }, [receipt]);
+  // Auto-close countdown for completed receipts
+  const [autoCloseSec, setAutoCloseSec] = useState<number | null>(null);
+  const autoCloseCancelRef = useRef(false);
   const pendingIdsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     pendingIdsRef.current = new Set(pendingDeposits.map((p) => p.id));
@@ -311,6 +314,31 @@ const WalletPage = () => {
   }, []);
 
   useEffect(() => { fetchData(); }, []);
+
+  // When the open receipt reaches "completed", show the final summary briefly
+  // and then auto-close. The user can cancel by interacting with the dialog.
+  useEffect(() => {
+    if (!receipt || receipt.status !== "completed") {
+      setAutoCloseSec(null);
+      autoCloseCancelRef.current = false;
+      return;
+    }
+    autoCloseCancelRef.current = false;
+    setAutoCloseSec(6);
+    const tick = window.setInterval(() => {
+      setAutoCloseSec((s) => {
+        if (autoCloseCancelRef.current) return null;
+        if (s === null) return null;
+        if (s <= 1) {
+          window.clearInterval(tick);
+          if (!autoCloseCancelRef.current) setReceipt(null);
+          return null;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(tick);
+  }, [receipt?.id, receipt?.status]);
 
   // Handle return from Stripe / PayPal checkout — open receipt dialog on success
   useEffect(() => {
@@ -1597,6 +1625,25 @@ const WalletPage = () => {
               <p className="text-xs text-muted-foreground text-center">
                 A copy of this receipt has been emailed to you.
               </p>
+
+              {autoCloseSec !== null && (
+                <div className="flex items-center justify-between gap-3 rounded-md border border-success/30 bg-success/5 px-3 py-2 text-xs">
+                  <span className="text-success">
+                    Closing in {autoCloseSec}s…
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => {
+                      autoCloseCancelRef.current = true;
+                      setAutoCloseSec(null);
+                    }}
+                  >
+                    Keep open
+                  </Button>
+                </div>
+              )}
 
               <div className="flex gap-2">
                 <Button variant="outline" className="flex-1" onClick={() => window.print()}>
