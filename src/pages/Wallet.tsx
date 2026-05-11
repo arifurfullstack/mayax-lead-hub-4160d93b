@@ -51,6 +51,10 @@ const WalletPage = () => {
   const [receiptLoading, setReceiptLoading] = useState(false);
   const receiptRef = useRef<any | null>(null);
   useEffect(() => { receiptRef.current = receipt; }, [receipt]);
+  const pendingIdsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    pendingIdsRef.current = new Set(pendingDeposits.map((p) => p.id));
+  }, [pendingDeposits]);
 
   const [page, setPage] = useState(0);
   const perPage = 10;
@@ -232,7 +236,9 @@ const WalletPage = () => {
         (payload) => {
           const row = (payload.new ?? payload.old) as any;
           const newStatus = (payload.new as any)?.status;
-          const oldStatus = (payload.old as any)?.status;
+          // REPLICA IDENTITY DEFAULT only sends PK in payload.old, so detect
+          // transitions by checking if we were tracking this row as pending.
+          const wasPending = pendingIdsRef.current.has(row.id);
 
           setPendingDeposits((prev) => {
             const filtered = prev.filter((p) => p.id !== row.id);
@@ -250,7 +256,7 @@ const WalletPage = () => {
           });
 
           // Pending → completed: announce, refresh transactions, auto-update open receipt
-          if (oldStatus === "pending" && newStatus === "completed") {
+          if (wasPending && newStatus === "completed") {
             toast({
               title: "Top-up confirmed ✅",
               description: `$${Number(row.amount).toFixed(2)} via ${String(row.gateway).replace("_", " ")} was credited.`,
@@ -265,7 +271,7 @@ const WalletPage = () => {
           }
 
           // Pending → failed: announce + refresh open receipt
-          if (oldStatus === "pending" && newStatus === "failed") {
+          if (wasPending && newStatus === "failed") {
             toast({
               title: "Top-up failed",
               description: (payload.new as any)?.error_message || "The payment could not be completed.",
