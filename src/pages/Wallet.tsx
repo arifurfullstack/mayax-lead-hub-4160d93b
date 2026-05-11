@@ -1424,6 +1424,14 @@ const WalletPage = () => {
                 </Badge>
               </div>
 
+              <div className="glass-card p-3">
+                <TopUpTimeline
+                  request={receipt}
+                  lastCheck={verifyResults[receipt.id]}
+                  isVerifying={verifyingId === receipt.id}
+                />
+              </div>
+
               <div className="glass-card p-4 space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Date</span>
