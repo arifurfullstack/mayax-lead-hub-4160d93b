@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { DollarSign, ArrowUpRight, ArrowDownLeft, Plus, TrendingUp, CreditCard, Building2, Clock, Copy, CheckCircle2, Receipt, Printer, AlertTriangle, RotateCw, X, ShieldCheck, Circle, Loader2 } from "lucide-react";
+import { Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -1139,6 +1140,54 @@ const WalletPage = () => {
   const paginatedTxns = transactions.slice(page * perPage, (page + 1) * perPage);
   const totalPages = Math.ceil(transactions.length / perPage);
 
+  const handleExportCsv = () => {
+    if (!transactions.length) {
+      toast({ title: "Nothing to export", description: "No transactions yet." });
+      return;
+    }
+    const escape = (val: any) => {
+      const s = val == null ? "" : String(val);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const headers = [
+      "Date (ISO)",
+      "Date (Local)",
+      "Type",
+      "Description",
+      "Reference",
+      "Amount",
+      "Balance After",
+    ];
+    // Sort ascending so the running balance reads naturally top-to-bottom
+    const rows = [...transactions]
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+      .map((t) => [
+        new Date(t.created_at).toISOString(),
+        new Date(t.created_at).toLocaleString(),
+        t.type ?? "",
+        t.description ?? "",
+        t.reference_id ?? "",
+        Number(t.amount).toFixed(2),
+        Number(t.balance_after).toFixed(2),
+      ]);
+    const csv = [headers, ...rows].map((r) => r.map(escape).join(",")).join("\n");
+    // BOM keeps Excel happy with UTF-8
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const stamp = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `wallet-transactions-${stamp}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast({
+      title: "Export ready",
+      description: `${rows.length} transaction${rows.length === 1 ? "" : "s"} downloaded.`,
+    });
+  };
+
   if (loading) {
     return (
       <div className="p-6 flex items-center justify-center">
@@ -1599,8 +1648,19 @@ const WalletPage = () => {
 
       {/* Transaction History */}
       <div className="glass-card overflow-hidden">
-        <div className="p-4 border-b border-border">
+        <div className="p-4 border-b border-border flex items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-foreground">Transaction History</h2>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 h-8"
+            onClick={handleExportCsv}
+            disabled={transactions.length === 0}
+            title="Download all transactions as CSV"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Export CSV
+          </Button>
         </div>
         {transactions.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground">
