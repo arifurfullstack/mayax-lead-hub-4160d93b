@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { DollarSign, ArrowUpRight, ArrowDownLeft, Plus, TrendingUp, CreditCard, Building2, Clock, Copy, CheckCircle2, Receipt, Printer, AlertTriangle, RotateCw, X, ShieldCheck, Circle, Loader2 } from "lucide-react";
-import { Download } from "lucide-react";
+import { Download, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -1185,6 +1185,119 @@ const WalletPage = () => {
     toast({
       title: "Export ready",
       description: `${rows.length} transaction${rows.length === 1 ? "" : "s"} downloaded.`,
+    });
+  };
+
+  const handleExportPdf = async () => {
+    if (!transactions.length) {
+      toast({ title: "Nothing to export", description: "No transactions yet." });
+      return;
+    }
+    const { default: jsPDF } = await import("jspdf");
+    const { default: autoTable } = await import("jspdf-autotable");
+    const doc = new jsPDF({ unit: "mm", format: "letter" });
+    const w = doc.internal.pageSize.getWidth();
+    const lm = 14;
+    let y = 18;
+
+    // Header
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.setTextColor(30, 30, 30);
+    doc.text("Wallet Statement", lm, y);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(120, 120, 120);
+    doc.text(`Generated ${new Date().toLocaleString()}`, w - lm, y, { align: "right" });
+    y += 8;
+    doc.setDrawColor(220, 220, 220);
+    doc.line(lm, y, w - lm, y);
+    y += 8;
+
+    // Sort ascending for natural reading
+    const sorted = [...transactions].sort(
+      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+    );
+    const totalDeposited = sorted
+      .filter((t) => Number(t.amount) > 0)
+      .reduce((s, t) => s + Number(t.amount), 0);
+    const totalSpent = sorted
+      .filter((t) => Number(t.amount) < 0)
+      .reduce((s, t) => s + Math.abs(Number(t.amount)), 0);
+    const openingBalance =
+      sorted.length > 0 ? Number(sorted[0].balance_after) - Number(sorted[0].amount) : Number(balance);
+    const closingBalance = Number(balance);
+    const periodStart = sorted.length ? new Date(sorted[0].created_at) : new Date();
+    const periodEnd = sorted.length ? new Date(sorted[sorted.length - 1].created_at) : new Date();
+
+    // Summary block
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(60, 60, 60);
+    doc.text("Summary", lm, y);
+    y += 6;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    const summaryRows: [string, string][] = [
+      ["Period", `${periodStart.toLocaleDateString()} – ${periodEnd.toLocaleDateString()}`],
+      ["Opening balance", `$${openingBalance.toFixed(2)}`],
+      ["Total deposited", `+$${totalDeposited.toFixed(2)}`],
+      ["Total spent", `-$${totalSpent.toFixed(2)}`],
+      ["Closing balance", `$${closingBalance.toFixed(2)}`],
+      ["Transactions", String(sorted.length)],
+    ];
+    summaryRows.forEach(([k, v]) => {
+      doc.setTextColor(120, 120, 120);
+      doc.text(k, lm, y);
+      doc.setTextColor(30, 30, 30);
+      doc.text(v, lm + 55, y);
+      y += 5.5;
+    });
+    y += 4;
+
+    // Transactions table
+    autoTable(doc, {
+      startY: y,
+      head: [["Date", "Type", "Description", "Amount", "Balance"]],
+      body: sorted.map((t) => {
+        const amt = Number(t.amount);
+        return [
+          new Date(t.created_at).toLocaleString(),
+          String(t.type ?? ""),
+          String(t.description ?? t.reference_id ?? ""),
+          `${amt >= 0 ? "+" : "-"}$${Math.abs(amt).toFixed(2)}`,
+          `$${Number(t.balance_after).toFixed(2)}`,
+        ];
+      }),
+      styles: { fontSize: 9, cellPadding: 2.5, textColor: [40, 40, 40] },
+      headStyles: { fillColor: [59, 130, 246], textColor: 255, fontStyle: "bold" },
+      alternateRowStyles: { fillColor: [245, 247, 250] },
+      columnStyles: {
+        0: { cellWidth: 38 },
+        1: { cellWidth: 22 },
+        3: { halign: "right", cellWidth: 26 },
+        4: { halign: "right", cellWidth: 26 },
+      },
+      margin: { left: lm, right: lm },
+      didDrawPage: () => {
+        const pageCount = doc.getNumberOfPages();
+        const pageNum = (doc as any).internal.getCurrentPageInfo().pageNumber;
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        doc.text(
+          `Page ${pageNum} of ${pageCount}`,
+          w - lm,
+          doc.internal.pageSize.getHeight() - 8,
+          { align: "right" },
+        );
+      },
+    });
+
+    const stamp = new Date().toISOString().slice(0, 10);
+    doc.save(`wallet-statement-${stamp}.pdf`);
+    toast({
+      title: "Statement ready",
+      description: `PDF with ${sorted.length} transaction${sorted.length === 1 ? "" : "s"} downloaded.`,
     });
   };
 
