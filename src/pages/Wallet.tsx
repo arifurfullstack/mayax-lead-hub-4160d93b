@@ -1559,6 +1559,9 @@ const WalletPage = () => {
         ))}
       </div>
 
+      {/* Balance History Chart */}
+      <BalanceHistoryChart transactions={transactions} currentBalance={balance} />
+
       {/* Transaction History */}
       <div className="glass-card overflow-hidden">
         <div className="p-4 border-b border-border">
