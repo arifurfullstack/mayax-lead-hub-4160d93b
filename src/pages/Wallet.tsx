@@ -31,6 +31,73 @@ const gatewayIcons: Record<string, typeof CreditCard> = {
   bank_transfer: Building2,
 };
 
+type StripeVerificationResult = {
+  status: string;
+  session_id?: string;
+  payment_intent?: string;
+  session_status?: string;
+  payment_status?: string;
+  error?: string;
+  at: string;
+};
+
+const StripeVerificationBlock = ({ result }: { result: StripeVerificationResult }) => {
+  const isOk = result.status === "completed";
+  const isFail = result.status === "failed" || result.status === "error";
+  const tone = isOk
+    ? "border-success/40 bg-success/5"
+    : isFail
+      ? "border-destructive/40 bg-destructive/5"
+      : "border-warning/40 bg-warning/5";
+  const label = isOk
+    ? "Verified — Paid"
+    : isFail
+      ? "Verification failed"
+      : "Still pending";
+  const labelTone = isOk ? "text-success" : isFail ? "text-destructive" : "text-warning";
+  return (
+    <div className={`rounded-lg border p-3 space-y-1.5 text-xs ${tone}`}>
+      <div className="flex items-center justify-between">
+        <span className="text-muted-foreground uppercase tracking-wide text-[10px]">
+          Stripe Verification
+        </span>
+        <span className={`font-semibold ${labelTone}`}>{label}</span>
+      </div>
+      {result.session_id && (
+        <div className="flex justify-between gap-3">
+          <span className="text-muted-foreground shrink-0">Session ID</span>
+          <span className="font-mono text-foreground truncate" title={result.session_id}>
+            {result.session_id}
+          </span>
+        </div>
+      )}
+      {result.payment_intent && (
+        <div className="flex justify-between gap-3">
+          <span className="text-muted-foreground shrink-0">Payment Intent</span>
+          <span className="font-mono text-foreground truncate" title={result.payment_intent}>
+            {result.payment_intent}
+          </span>
+        </div>
+      )}
+      {(result.session_status || result.payment_status) && (
+        <div className="flex justify-between gap-3">
+          <span className="text-muted-foreground shrink-0">Stripe Status</span>
+          <span className="text-foreground">
+            {result.session_status ?? "—"} / {result.payment_status ?? "—"}
+          </span>
+        </div>
+      )}
+      {result.error && (
+        <div className="text-destructive">{result.error}</div>
+      )}
+      <div className="flex justify-between gap-3 pt-1">
+        <span className="text-muted-foreground shrink-0">Checked</span>
+        <span className="text-foreground">{new Date(result.at).toLocaleString()}</span>
+      </div>
+    </div>
+  );
+};
+
 const WalletPage = () => {
   const [balance, setBalance] = useState(0);
   const [transactions, setTransactions] = useState<any[]>([]);
