@@ -80,14 +80,40 @@ Deno.serve(async (req) => {
 
     const results: any[] = [];
     for (const pr of targets) {
-      results.push(await reconcileOne(admin, stripeKey, pr));
+      results.push(await reconcileOne(admin, stripeKey, pr, user.id));
     }
 
+    // Audit: record the reconciliation run summary
+    const runSummary = {
+      checked: results.length,
+      credited: results.filter((r) => r.status === "completed").length,
+      failed: results.filter((r) => r.status === "failed").length,
+      pending: results.filter((r) => r.status === "pending").length,
+    };
+    await admin.from("payment_audit_log").insert({
+      event_type: "reconciliation_run",
+      source: "reconcile-stripe-session",
+      status: runSummary.failed > 0 && runSummary.credited === 0 ? "failed" : "success",
+      actor_user_id: user.id,
+      payment_request_id: reconcileAll ? null : paymentRequestId,
+      details: {
+        mode: reconcileAll ? "all" : "single",
+        is_admin: isAdmin,
+        ...runSummary,
+        results: results.map((r) => ({
+          id: r.id,
+          status: r.status,
+          session_id: r.session_id,
+          payment_intent: r.payment_intent,
+          session_status: r.session_status,
+          payment_status: r.payment_status,
+          error: r.error,
+        })),
+      },
+    });
+
     if (reconcileAll) {
-      const credited = results.filter((r) => r.status === "completed").length;
-      const failed = results.filter((r) => r.status === "failed").length;
-      const stillPending = results.filter((r) => r.status === "pending").length;
-      return json({ checked: results.length, credited, failed, pending: stillPending, results });
+      return json({ checked: results.length, ...runSummary, results });
     }
 
     return json(results[0]);
@@ -108,6 +134,7 @@ async function reconcileOne(
   admin: ReturnType<typeof createClient>,
   stripeKey: string,
   pr: any,
+  actorUserId: string,
 ) {
   if (pr.status !== "pending") {
     return { id: pr.id, status: pr.status, note: "Already finalized" };
@@ -128,7 +155,7 @@ async function reconcileOne(
 
   if (session.payment_status === "paid") {
     try {
-      await creditWallet(admin, pr.dealer_id, Number(pr.amount), pr.id, "stripe");
+      await creditWallet(admin, pr.dealer_id, Number(pr.amount), pr.id, "stripe", "reconcile-stripe-session", actorUserId);
       return { id: pr.id, status: "completed", session_id: session.id, payment_intent: session.payment_intent };
     } catch (e) {
       const msg = (e as Error).message || "Credit failed";
@@ -136,16 +163,39 @@ async function reconcileOne(
         status: "failed",
         error_message: msg,
       }).eq("id", pr.id).eq("status", "pending");
+      await admin.from("payment_audit_log").insert({
+        event_type: "credit_attempt",
+        source: "reconcile-stripe-session",
+        status: "failed",
+        payment_request_id: pr.id,
+        dealer_id: pr.dealer_id,
+        amount: Number(pr.amount),
+        actor_user_id: actorUserId,
+        error_message: msg,
+        details: { stripe_session_id: session.id, payment_intent: session.payment_intent },
+      });
       return { id: pr.id, status: "failed", error: msg };
     }
   }
 
   // Mark expired/unpaid sessions as failed
   if (session.status === "expired" || session.payment_status === "unpaid" && session.status === "complete") {
+    const reason = `Stripe session ${session.status} (payment_status=${session.payment_status})`;
     await admin.from("payment_requests").update({
       status: "failed",
-      error_message: `Stripe session ${session.status} (payment_status=${session.payment_status})`,
+      error_message: reason,
     }).eq("id", pr.id).eq("status", "pending");
+    await admin.from("payment_audit_log").insert({
+      event_type: "credit_attempt",
+      source: "reconcile-stripe-session",
+      status: "failed",
+      payment_request_id: pr.id,
+      dealer_id: pr.dealer_id,
+      amount: Number(pr.amount),
+      actor_user_id: actorUserId,
+      error_message: reason,
+      details: { stripe_session_id: session.id, session_status: session.status, payment_status: session.payment_status },
+    });
     return { id: pr.id, status: "failed", session_status: session.status };
   }
 
@@ -163,6 +213,8 @@ async function creditWallet(
   amount: number,
   paymentRequestId: string,
   gateway: string,
+  source: string,
+  actorUserId: string | null,
 ) {
   // Idempotency guard: only proceed if this payment request is still pending
   const { data: pending } = await admin
@@ -171,7 +223,19 @@ async function creditWallet(
     .eq("id", paymentRequestId)
     .eq("status", "pending")
     .maybeSingle();
-  if (!pending) return; // already credited by webhook or another call
+  if (!pending) {
+    await admin.from("payment_audit_log").insert({
+      event_type: "credit_attempt",
+      source,
+      status: "skipped",
+      payment_request_id: paymentRequestId,
+      dealer_id: dealerId,
+      amount,
+      actor_user_id: actorUserId,
+      details: { reason: "Already finalized (idempotency guard)", gateway },
+    });
+    return;
+  }
 
   const { data: dealer } = await admin
     .from("dealers")
@@ -197,6 +261,18 @@ async function creditWallet(
     status: "completed",
     completed_at: new Date().toISOString(),
   }).eq("id", paymentRequestId);
+
+  await admin.from("payment_audit_log").insert({
+    event_type: "credit_attempt",
+    source,
+    status: "success",
+    payment_request_id: paymentRequestId,
+    dealer_id: dealerId,
+    amount,
+    balance_after: newBalance,
+    actor_user_id: actorUserId,
+    details: { gateway, previous_balance: currentBalance },
+  });
 
   // Send receipt email (non-blocking)
   if (dealer) {
