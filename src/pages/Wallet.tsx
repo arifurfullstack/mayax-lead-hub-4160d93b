@@ -1164,9 +1164,10 @@ const WalletPage = () => {
               return (
                 <div
                   key={dep.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-warning/5 rounded-lg border border-warning/20"
+                  className="p-3 bg-warning/5 rounded-lg border border-warning/20 space-y-3"
                 >
-                  <div className="flex-1 min-w-0">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
                       <Badge className="bg-warning/20 text-warning border-0 text-[10px] capitalize">
                         {String(dep.gateway).replace("_", " ")}
@@ -1193,8 +1194,8 @@ const WalletPage = () => {
                         Ref: {dep.gateway_reference}
                       </p>
                     )}
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
                     <span className="text-xs text-muted-foreground">{ageLabel}</span>
                     {dep.gateway === "stripe" && (
                       <Button
@@ -1230,7 +1231,13 @@ const WalletPage = () => {
                     >
                       <Receipt className="h-4 w-4" />
                     </Button>
+                    </div>
                   </div>
+                  <TopUpTimeline
+                    request={dep}
+                    lastCheck={lastCheck}
+                    isVerifying={isVerifying}
+                  />
                 </div>
               );
             })}
