@@ -959,8 +959,36 @@ const WalletPage = () => {
         <div>
           <p className="text-sm text-muted-foreground flex items-center gap-2 mb-1">
             <DollarSign className="h-4 w-4" /> Available Balance
+            <span
+              className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide text-success/80"
+              title="Updates instantly via realtime"
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
+              Live
+            </span>
           </p>
-          <p className="text-4xl font-extrabold text-foreground">${balance.toFixed(2)}</p>
+          <div className="relative inline-flex items-baseline gap-3">
+            <p
+              key={balance}
+              className={cn(
+                "text-4xl font-extrabold text-foreground transition-all duration-500",
+                balanceFlash === "up" && "text-success drop-shadow-[0_0_12px_hsl(var(--success)/0.55)] scale-[1.04]",
+                balanceFlash === "down" && "text-destructive scale-[1.02]",
+              )}
+            >
+              ${balance.toFixed(2)}
+            </p>
+            {balanceDelta !== null && (
+              <span
+                className={cn(
+                  "text-sm font-semibold animate-in fade-in slide-in-from-bottom-1 duration-300",
+                  balanceDelta >= 0 ? "text-success" : "text-destructive",
+                )}
+              >
+                {balanceDelta >= 0 ? "+" : "−"}${Math.abs(balanceDelta).toFixed(2)}
+              </span>
+            )}
+          </div>
         </div>
         <Dialog open={addFundsOpen} onOpenChange={handleOpenChange}>
           <DialogTrigger asChild>
