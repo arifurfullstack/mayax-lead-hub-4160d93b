@@ -160,15 +160,39 @@ const WalletPage = () => {
   };
 
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
+  const [verifyPhase, setVerifyPhase] = useState<"contacting" | "checking" | "crediting" | "done" | null>(null);
+  const [verifyResults, setVerifyResults] = useState<Record<string, {
+    status: string;
+    session_id?: string;
+    payment_intent?: string;
+    session_status?: string;
+    payment_status?: string;
+    error?: string;
+    at: string;
+  }>>({});
 
   const handleVerifyWithStripe = async (paymentRequestId: string) => {
     setVerifyingId(paymentRequestId);
+    setVerifyPhase("contacting");
     try {
+      // Brief phase progression so the user sees what's happening
+      setTimeout(() => setVerifyPhase((p) => (p === "contacting" ? "checking" : p)), 400);
       const { data, error } = await supabase.functions.invoke("reconcile-stripe-session", {
         body: { payment_request_id: paymentRequestId },
       });
       if (error) throw error;
+      const outcome = {
+        status: data?.status ?? "unknown",
+        session_id: data?.session_id,
+        payment_intent: data?.payment_intent,
+        session_status: data?.session_status,
+        payment_status: data?.payment_status,
+        error: data?.error,
+        at: new Date().toISOString(),
+      };
+      setVerifyResults((prev) => ({ ...prev, [paymentRequestId]: outcome }));
       if (data?.status === "completed") {
+        setVerifyPhase("crediting");
         toast({
           title: "Payment confirmed ✅",
           description: "Stripe confirmed the charge — your wallet has been credited.",
@@ -190,14 +214,25 @@ const WalletPage = () => {
           description: `Stripe status: ${data?.session_status ?? "unknown"} (${data?.payment_status ?? "—"}). Try again in a moment.`,
         });
       }
+      setVerifyPhase("done");
     } catch (e: any) {
+      setVerifyResults((prev) => ({
+        ...prev,
+        [paymentRequestId]: {
+          status: "error",
+          error: e?.message || "Could not reach Stripe.",
+          at: new Date().toISOString(),
+        },
+      }));
       toast({
         title: "Verification error",
         description: e?.message || "Could not reach Stripe.",
         variant: "destructive",
       });
+      setVerifyPhase(null);
     } finally {
       setVerifyingId(null);
+      setTimeout(() => setVerifyPhase(null), 1500);
     }
   };
 
