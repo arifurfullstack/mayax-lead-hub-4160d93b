@@ -31,6 +31,73 @@ const gatewayIcons: Record<string, typeof CreditCard> = {
   bank_transfer: Building2,
 };
 
+type StripeVerificationResult = {
+  status: string;
+  session_id?: string;
+  payment_intent?: string;
+  session_status?: string;
+  payment_status?: string;
+  error?: string;
+  at: string;
+};
+
+const StripeVerificationBlock = ({ result }: { result: StripeVerificationResult }) => {
+  const isOk = result.status === "completed";
+  const isFail = result.status === "failed" || result.status === "error";
+  const tone = isOk
+    ? "border-success/40 bg-success/5"
+    : isFail
+      ? "border-destructive/40 bg-destructive/5"
+      : "border-warning/40 bg-warning/5";
+  const label = isOk
+    ? "Verified — Paid"
+    : isFail
+      ? "Verification failed"
+      : "Still pending";
+  const labelTone = isOk ? "text-success" : isFail ? "text-destructive" : "text-warning";
+  return (
+    <div className={`rounded-lg border p-3 space-y-1.5 text-xs ${tone}`}>
+      <div className="flex items-center justify-between">
+        <span className="text-muted-foreground uppercase tracking-wide text-[10px]">
+          Stripe Verification
+        </span>
+        <span className={`font-semibold ${labelTone}`}>{label}</span>
+      </div>
+      {result.session_id && (
+        <div className="flex justify-between gap-3">
+          <span className="text-muted-foreground shrink-0">Session ID</span>
+          <span className="font-mono text-foreground truncate" title={result.session_id}>
+            {result.session_id}
+          </span>
+        </div>
+      )}
+      {result.payment_intent && (
+        <div className="flex justify-between gap-3">
+          <span className="text-muted-foreground shrink-0">Payment Intent</span>
+          <span className="font-mono text-foreground truncate" title={result.payment_intent}>
+            {result.payment_intent}
+          </span>
+        </div>
+      )}
+      {(result.session_status || result.payment_status) && (
+        <div className="flex justify-between gap-3">
+          <span className="text-muted-foreground shrink-0">Stripe Status</span>
+          <span className="text-foreground">
+            {result.session_status ?? "—"} / {result.payment_status ?? "—"}
+          </span>
+        </div>
+      )}
+      {result.error && (
+        <div className="text-destructive">{result.error}</div>
+      )}
+      <div className="flex justify-between gap-3 pt-1">
+        <span className="text-muted-foreground shrink-0">Checked</span>
+        <span className="text-foreground">{new Date(result.at).toLocaleString()}</span>
+      </div>
+    </div>
+  );
+};
+
 const WalletPage = () => {
   const [balance, setBalance] = useState(0);
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -160,15 +227,39 @@ const WalletPage = () => {
   };
 
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
+  const [verifyPhase, setVerifyPhase] = useState<"contacting" | "checking" | "crediting" | "done" | null>(null);
+  const [verifyResults, setVerifyResults] = useState<Record<string, {
+    status: string;
+    session_id?: string;
+    payment_intent?: string;
+    session_status?: string;
+    payment_status?: string;
+    error?: string;
+    at: string;
+  }>>({});
 
   const handleVerifyWithStripe = async (paymentRequestId: string) => {
     setVerifyingId(paymentRequestId);
+    setVerifyPhase("contacting");
     try {
+      // Brief phase progression so the user sees what's happening
+      setTimeout(() => setVerifyPhase((p) => (p === "contacting" ? "checking" : p)), 400);
       const { data, error } = await supabase.functions.invoke("reconcile-stripe-session", {
         body: { payment_request_id: paymentRequestId },
       });
       if (error) throw error;
+      const outcome = {
+        status: data?.status ?? "unknown",
+        session_id: data?.session_id,
+        payment_intent: data?.payment_intent,
+        session_status: data?.session_status,
+        payment_status: data?.payment_status,
+        error: data?.error,
+        at: new Date().toISOString(),
+      };
+      setVerifyResults((prev) => ({ ...prev, [paymentRequestId]: outcome }));
       if (data?.status === "completed") {
+        setVerifyPhase("crediting");
         toast({
           title: "Payment confirmed ✅",
           description: "Stripe confirmed the charge — your wallet has been credited.",
@@ -190,14 +281,25 @@ const WalletPage = () => {
           description: `Stripe status: ${data?.session_status ?? "unknown"} (${data?.payment_status ?? "—"}). Try again in a moment.`,
         });
       }
+      setVerifyPhase("done");
     } catch (e: any) {
+      setVerifyResults((prev) => ({
+        ...prev,
+        [paymentRequestId]: {
+          status: "error",
+          error: e?.message || "Could not reach Stripe.",
+          at: new Date().toISOString(),
+        },
+      }));
       toast({
         title: "Verification error",
         description: e?.message || "Could not reach Stripe.",
         variant: "destructive",
       });
+      setVerifyPhase(null);
     } finally {
       setVerifyingId(null);
+      setTimeout(() => setVerifyPhase(null), 1500);
     }
   };
 
@@ -791,7 +893,15 @@ const WalletPage = () => {
                         ) : (
                           <ShieldCheck className="h-3 w-3" />
                         )}
-                        Verify with Stripe
+                        {verifyingId === dep.id
+                          ? verifyPhase === "contacting"
+                            ? "Contacting Stripe…"
+                            : verifyPhase === "checking"
+                              ? "Checking session…"
+                              : verifyPhase === "crediting"
+                                ? "Crediting wallet…"
+                                : "Verifying…"
+                          : "Verify with Stripe"}
                       </Button>
                     )}
                     <Button
@@ -949,7 +1059,15 @@ const WalletPage = () => {
                     ) : (
                       <ShieldCheck className="h-4 w-4 mr-2" />
                     )}
-                    Verify with Stripe
+                    {verifyingId === receipt.id
+                      ? verifyPhase === "contacting"
+                        ? "Contacting Stripe…"
+                        : verifyPhase === "checking"
+                          ? "Checking session…"
+                          : verifyPhase === "crediting"
+                            ? "Crediting wallet…"
+                            : "Verifying…"
+                      : "Verify with Stripe"}
                   </Button>
                 ) : (
                   <Button variant="outline" className="flex-1" onClick={refreshReceipt}>
@@ -960,6 +1078,9 @@ const WalletPage = () => {
                   Close
                 </Button>
               </div>
+              {verifyResults[receipt.id] && (
+                <StripeVerificationBlock result={verifyResults[receipt.id]} />
+              )}
             </div>
           ) : receipt ? (
             <div className="space-y-5 mt-2">
@@ -1002,6 +1123,10 @@ const WalletPage = () => {
                   <span className="text-foreground font-mono text-xs">{receipt.id}</span>
                 </div>
               </div>
+
+              {verifyResults[receipt.id] && (
+                <StripeVerificationBlock result={verifyResults[receipt.id]} />
+              )}
 
               <p className="text-xs text-muted-foreground text-center">
                 A copy of this receipt has been emailed to you.
