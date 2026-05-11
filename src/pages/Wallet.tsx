@@ -1027,7 +1027,9 @@ const WalletPage = () => {
                     : lastCheck.status === "failed"
                       ? { tone: "bg-destructive/15 text-destructive border-destructive/30", text: `Stripe: ${lastCheck.session_status ?? "failed"} · checked ${checkedAgo}` }
                       : { tone: "bg-warning/15 text-warning border-warning/30", text: `Stripe: ${lastCheck.session_status ?? "open"} / ${lastCheck.payment_status ?? "unpaid"} · checked ${checkedAgo}` }
-                  : null;
+                  : dep.gateway === "stripe"
+                    ? { tone: "bg-primary/10 text-primary border-primary/20", text: "Auto-verifying…" }
+                    : null;
               return (
                 <div
                   key={dep.id}
@@ -1066,26 +1068,26 @@ const WalletPage = () => {
                     {dep.gateway === "stripe" && (
                       <Button
                         size="sm"
-                        variant="outline"
-                        className="h-7 gap-1.5 text-xs"
+                        variant="ghost"
+                        className="h-7 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
                         disabled={verifyingId === dep.id}
                         onClick={() => handleVerifyWithStripe(dep.id)}
-                        title={lastCheck ? `Re-check Stripe (last checked ${checkedAgo})` : "Check this top-up against Stripe"}
+                        title="We auto-verify this with Stripe in the background. Click to check now."
                       >
                         {verifyingId === dep.id ? (
                           <RotateCw className="h-3 w-3 animate-spin" />
                         ) : (
-                          lastCheck ? <RotateCw className="h-3 w-3" /> : <ShieldCheck className="h-3 w-3" />
+                          <RotateCw className="h-3 w-3" />
                         )}
                         {verifyingId === dep.id
                           ? verifyPhase === "contacting"
-                            ? "Contacting Stripe…"
+                            ? "Contacting…"
                             : verifyPhase === "checking"
-                              ? "Checking session…"
+                              ? "Checking…"
                               : verifyPhase === "crediting"
-                                ? "Crediting wallet…"
+                                ? "Crediting…"
                                 : "Verifying…"
-                          : lastCheck ? "Re-verify" : "Verify with Stripe"}
+                          : "Check now"}
                       </Button>
                     )}
                     <Button
