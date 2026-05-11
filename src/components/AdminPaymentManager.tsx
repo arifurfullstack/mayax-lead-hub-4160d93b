@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CreditCard, Building2, Settings2, CheckCircle2, XCircle, DollarSign, Zap, Loader2, BookOpen, Copy, ExternalLink } from "lucide-react";
+import { CreditCard, Building2, Settings2, CheckCircle2, XCircle, DollarSign, Zap, Loader2, BookOpen, Copy, ExternalLink, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 
@@ -39,6 +39,7 @@ const AdminPaymentManager = () => {
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [webhookGuideOpen, setWebhookGuideOpen] = useState(false);
+  const [reconciling, setReconciling] = useState(false);
 
   const STRIPE_WEBHOOK_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/payment-webhook?provider=stripe`;
   const STRIPE_WEBHOOK_EVENTS = [
@@ -47,6 +48,32 @@ const AdminPaymentManager = () => {
     "checkout.session.async_payment_failed",
     "payment_intent.payment_failed",
   ];
+
+  const reconcileStripePending = async () => {
+    setReconciling(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("reconcile-stripe-session", {
+        body: { all: true },
+      });
+      if (error) throw error;
+      const credited = data?.credited ?? 0;
+      const failed = data?.failed ?? 0;
+      const pending = data?.pending ?? 0;
+      toast({
+        title: "Reconciliation complete",
+        description: `Checked ${data?.checked ?? 0} • Credited ${credited} • Failed ${failed} • Still pending ${pending}`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["pending-payment-requests"] });
+    } catch (e: any) {
+      toast({
+        title: "Reconciliation failed",
+        description: e?.message || "Could not reach Stripe.",
+        variant: "destructive",
+      });
+    } finally {
+      setReconciling(false);
+    }
+  };
 
   const copyToClipboard = async (text: string, label: string) => {
     try {
@@ -255,6 +282,22 @@ const AdminPaymentManager = () => {
       </div>
 
       {/* Pending Bank Transfers */}
+      <div className="glass-card p-4 flex items-center justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium text-foreground flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-primary" /> Reconcile Stripe pending deposits
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Manually checks every pending Stripe top-up against Stripe and credits any that succeeded.
+            Use this if the webhook is missing or delayed.
+          </p>
+        </div>
+        <Button onClick={reconcileStripePending} disabled={reconciling} className="gap-1.5 shrink-0">
+          {reconciling ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />}
+          {reconciling ? "Checking…" : "Run reconciliation"}
+        </Button>
+      </div>
+
       <div className="glass-card overflow-hidden">
         <div className="p-4 border-b border-border">
           <h3 className="text-sm font-semibold text-foreground">Pending Bank Transfers</h3>
