@@ -108,6 +108,34 @@ type TopUpTimelineProps = {
   compact?: boolean;
 };
 
+const TOP_UP_STEP_LEGEND: { key: string; label: string; description: string }[] = [
+  { key: "created", label: "Created", description: "Top-up request recorded in your account." },
+  { key: "processing", label: "Processing", description: "Sent to the payment gateway, waiting for you (or the bank) to confirm." },
+  { key: "verified", label: "Verified", description: "Gateway (or admin, for bank transfers) confirmed the payment was received." },
+  { key: "credited", label: "Credited", description: "Funds added to your wallet balance — ready to use." },
+];
+
+const TopUpTimelineLegend = ({ className }: { className?: string }) => (
+  <div
+    className={cn(
+      "rounded-md border border-border/60 bg-muted/30 p-2.5 text-[11px] text-muted-foreground",
+      className,
+    )}
+  >
+    <p className="text-[10px] uppercase tracking-wide text-muted-foreground/80 mb-1.5">
+      What these steps mean
+    </p>
+    <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
+      {TOP_UP_STEP_LEGEND.map((s) => (
+        <li key={s.key} className="flex gap-1.5 leading-snug">
+          <span className="font-semibold text-foreground shrink-0">{s.label}:</span>
+          <span>{s.description}</span>
+        </li>
+      ))}
+    </ul>
+  </div>
+);
+
 const TopUpTimeline = ({ request, lastCheck, isVerifying, compact }: TopUpTimelineProps) => {
   const status: string = request?.status ?? "pending";
   const gateway: string = request?.gateway ?? "";
@@ -1133,6 +1161,7 @@ const WalletPage = () => {
               {pendingDeposits.length}
             </Badge>
           </h3>
+          <TopUpTimelineLegend className="mb-3" />
           <div className="space-y-2">
             {pendingDeposits.map((dep) => {
               const created = new Date(dep.created_at);
@@ -1382,6 +1411,7 @@ const WalletPage = () => {
                   isVerifying={verifyingId === receipt.id}
                 />
               </div>
+              <TopUpTimelineLegend className="w-full text-left" />
               <div className="flex gap-2 w-full mt-2">
                 {receipt?.gateway === "stripe" || (!receipt?.gateway && receipt?.id) ? (
                   <Button
@@ -1438,6 +1468,7 @@ const WalletPage = () => {
                   isVerifying={verifyingId === receipt.id}
                 />
               </div>
+              <TopUpTimelineLegend />
 
               <div className="glass-card p-4 space-y-2 text-sm">
                 <div className="flex justify-between">
