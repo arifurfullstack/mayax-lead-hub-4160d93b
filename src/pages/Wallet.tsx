@@ -630,7 +630,11 @@ const WalletPage = () => {
         (payload) => {
           const newBal = Number((payload.new as any)?.wallet_balance ?? 0);
           setBalance((prev) => {
-            if (newBal > prev) {
+            const diff = newBal - prev;
+            if (diff !== 0) {
+              triggerBalanceFlash(diff);
+            }
+            if (diff > 0) {
               toast({
                 title: "Wallet topped up",
                 description: `New balance: $${newBal.toFixed(2)}`,
