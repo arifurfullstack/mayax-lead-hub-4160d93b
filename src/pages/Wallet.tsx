@@ -137,6 +137,152 @@ const TopUpTimelineLegend = ({ className }: { className?: string }) => (
   </div>
 );
 
+type BalanceRange = "7d" | "30d" | "all";
+
+const BalanceHistoryChart = ({
+  transactions,
+  currentBalance,
+}: {
+  transactions: any[];
+  currentBalance: number;
+}) => {
+  const [range, setRange] = useState<BalanceRange>("30d");
+
+  // Sort ascending by time; each row already carries balance_after
+  const sorted = [...transactions]
+    .filter((t) => t?.created_at != null && t?.balance_after != null)
+    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+  const cutoff =
+    range === "7d"
+      ? Date.now() - 7 * 24 * 60 * 60 * 1000
+      : range === "30d"
+        ? Date.now() - 30 * 24 * 60 * 60 * 1000
+        : 0;
+
+  // Find the last balance BEFORE the cutoff so the chart starts from a real baseline
+  let baseline: number | null = null;
+  const inRange: typeof sorted = [];
+  for (const t of sorted) {
+    const ts = new Date(t.created_at).getTime();
+    if (ts < cutoff) baseline = Number(t.balance_after);
+    else inRange.push(t);
+  }
+
+  const points: { ts: number; label: string; balance: number }[] = [];
+  if (baseline !== null && cutoff > 0) {
+    points.push({ ts: cutoff, label: "start", balance: baseline });
+  } else if (inRange.length > 0) {
+    const first = inRange[0];
+    const startBal = Number(first.balance_after) - Number(first.amount);
+    points.push({ ts: new Date(first.created_at).getTime() - 1, label: "start", balance: startBal });
+  }
+  for (const t of inRange) {
+    points.push({
+      ts: new Date(t.created_at).getTime(),
+      label: new Date(t.created_at).toLocaleString(),
+      balance: Number(t.balance_after),
+    });
+  }
+  // Always anchor the right edge at the current balance / now
+  if (points.length > 0) {
+    points.push({ ts: Date.now(), label: "now", balance: currentBalance });
+  }
+
+  const fmtTick = (ts: number) => {
+    const d = new Date(ts);
+    return range === "7d"
+      ? d.toLocaleDateString(undefined, { weekday: "short" })
+      : d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  };
+
+  return (
+    <div className="glass-card p-4 mb-8">
+      <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
+        <div>
+          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-primary" /> Balance History
+          </h2>
+          <p className="text-xs text-muted-foreground">How your wallet balance changed over time.</p>
+        </div>
+        <div className="inline-flex rounded-md border border-border bg-muted/30 p-0.5 text-xs">
+          {(["7d", "30d", "all"] as BalanceRange[]).map((r) => (
+            <button
+              key={r}
+              onClick={() => setRange(r)}
+              className={cn(
+                "px-2.5 py-1 rounded-sm transition-colors",
+                range === r
+                  ? "bg-primary/20 text-primary"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {r === "7d" ? "7 days" : r === "30d" ? "30 days" : "All"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {points.length < 2 ? (
+        <div className="h-48 flex items-center justify-center text-xs text-muted-foreground">
+          Not enough activity in this range yet.
+        </div>
+      ) : (
+        <div className="h-48 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={points} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="balanceFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.45} />
+                  <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} vertical={false} />
+              <XAxis
+                dataKey="ts"
+                type="number"
+                domain={["dataMin", "dataMax"]}
+                scale="time"
+                tickFormatter={fmtTick}
+                stroke="hsl(var(--muted-foreground))"
+                fontSize={10}
+                tickLine={false}
+                axisLine={false}
+              />
+              <YAxis
+                stroke="hsl(var(--muted-foreground))"
+                fontSize={10}
+                tickLine={false}
+                axisLine={false}
+                tickFormatter={(v) => `$${Number(v).toFixed(0)}`}
+                width={50}
+              />
+              <RTooltip
+                contentStyle={{
+                  background: "hsl(var(--popover))",
+                  border: "1px solid hsl(var(--border))",
+                  borderRadius: 8,
+                  fontSize: 12,
+                }}
+                labelFormatter={(ts) => new Date(Number(ts)).toLocaleString()}
+                formatter={(v: any) => [`$${Number(v).toFixed(2)}`, "Balance"]}
+              />
+              <Area
+                type="monotone"
+                dataKey="balance"
+                stroke="hsl(var(--primary))"
+                strokeWidth={2}
+                fill="url(#balanceFill)"
+                isAnimationActive={false}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const TopUpTimeline = ({ request, lastCheck, isVerifying, compact }: TopUpTimelineProps) => {
   const status: string = request?.status ?? "pending";
   const gateway: string = request?.gateway ?? "";
