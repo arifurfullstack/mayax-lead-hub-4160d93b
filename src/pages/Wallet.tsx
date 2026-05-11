@@ -679,10 +679,33 @@ const WalletPage = () => {
             setReceipt((prev: any) => ({ ...(prev || {}), ...(payload.new as any) }));
           }
 
+          // Step toast: Processing — gateway_reference appeared (sent to Stripe / etc.)
+          if (
+            payload.eventType !== "DELETE" &&
+            newStatus === "pending" &&
+            (payload.new as any)?.gateway_reference &&
+            !announcedStepsRef.current[row.id]?.processing
+          ) {
+            announcedStepsRef.current[row.id] = {
+              ...(announcedStepsRef.current[row.id] || {}),
+              processing: true,
+            };
+            toast({
+              title: "Processing top-up",
+              description: `$${Number(row.amount).toFixed(2)} sent to ${String(row.gateway).replace("_", " ")} for confirmation.`,
+            });
+          }
+
           // Pending → completed: announce, refresh transactions, auto-update open receipt
           if (wasPending && newStatus === "completed") {
+            const already = announcedStepsRef.current[row.id]?.credited;
+            announcedStepsRef.current[row.id] = {
+              ...(announcedStepsRef.current[row.id] || {}),
+              credited: true,
+            };
+            if (!already) {
             toast({
-              title: "Top-up confirmed ✅",
+              title: "Credited to wallet ✅",
               description: `$${Number(row.amount).toFixed(2)} via ${String(row.gateway).replace("_", " ")} was credited.`,
               action: (
                 <ToastAction
@@ -693,6 +716,7 @@ const WalletPage = () => {
                 </ToastAction>
               ),
             });
+            }
             // Refresh full transaction list (covers cases where INSERT event was missed)
             fetchData();
             // If the receipt dialog is open for this exact request, swap pending → final
