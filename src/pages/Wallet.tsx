@@ -127,6 +127,12 @@ const WalletPage = () => {
   const [page, setPage] = useState(0);
   const perPage = 10;
   const [highlightTxnId, setHighlightTxnId] = useState<string | null>(null);
+  // Ticking clock so "X min ago" and "checked Xs ago" stay live without refresh
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 15000);
+    return () => clearInterval(t);
+  }, []);
 
   useEffect(() => { fetchData(); }, []);
 
