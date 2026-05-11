@@ -23,6 +23,7 @@ import {
 import { CreditCard, Building2, Settings2, CheckCircle2, XCircle, DollarSign, Zap, Loader2, BookOpen, Copy, ExternalLink, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import PaymentAuditLog from "@/components/PaymentAuditLog";
 
 const gatewayIcons: Record<string, typeof CreditCard> = {
   stripe: CreditCard,
@@ -297,6 +298,8 @@ const AdminPaymentManager = () => {
           {reconciling ? "Checking…" : "Run reconciliation"}
         </Button>
       </div>
+
+      <PaymentAuditLog />
 
       <div className="glass-card overflow-hidden">
         <div className="p-4 border-b border-border">
