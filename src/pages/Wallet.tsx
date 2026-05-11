@@ -1626,6 +1626,25 @@ const WalletPage = () => {
                 A copy of this receipt has been emailed to you.
               </p>
 
+              {autoCloseSec !== null && (
+                <div className="flex items-center justify-between gap-3 rounded-md border border-success/30 bg-success/5 px-3 py-2 text-xs">
+                  <span className="text-success">
+                    Closing in {autoCloseSec}s…
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => {
+                      autoCloseCancelRef.current = true;
+                      setAutoCloseSec(null);
+                    }}
+                  >
+                    Keep open
+                  </Button>
+                </div>
+              )}
+
               <div className="flex gap-2">
                 <Button variant="outline" className="flex-1" onClick={() => window.print()}>
                   <Printer className="h-4 w-4 mr-2" /> Print / Save PDF
