@@ -435,12 +435,20 @@ const WalletPage = () => {
       };
       setVerifyResults((prev) => ({ ...prev, [paymentRequestId]: outcome }));
       if (data?.status === "completed") {
+        // Step toast: Verified — Stripe confirmed the charge (fires once per request,
+        // independent of whether this run was silent/auto or a manual click).
+        if (!announcedStepsRef.current[paymentRequestId]?.verified) {
+          announcedStepsRef.current[paymentRequestId] = {
+            ...(announcedStepsRef.current[paymentRequestId] || {}),
+            verified: true,
+          };
+          toast({
+            title: "Payment verified",
+            description: "Stripe confirmed the charge — crediting your wallet now.",
+          });
+        }
         if (!silent) {
           setVerifyPhase("crediting");
-          toast({
-            title: "Payment confirmed ✅",
-            description: "Stripe confirmed the charge — your wallet has been credited.",
-          });
         }
         await fetchData();
         if (receipt?.id === paymentRequestId) {
