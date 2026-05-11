@@ -260,6 +260,19 @@ const TopUpTimeline = ({ request, lastCheck, isVerifying, compact }: TopUpTimeli
 
 const WalletPage = () => {
   const [balance, setBalance] = useState(0);
+  // Pulse the header balance briefly whenever it increases (realtime credit).
+  const [balanceFlash, setBalanceFlash] = useState<null | "up" | "down">(null);
+  const [balanceDelta, setBalanceDelta] = useState<number | null>(null);
+  const flashTimerRef = useRef<number | null>(null);
+  const triggerBalanceFlash = (delta: number) => {
+    setBalanceDelta(delta);
+    setBalanceFlash(delta >= 0 ? "up" : "down");
+    if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current);
+    flashTimerRef.current = window.setTimeout(() => {
+      setBalanceFlash(null);
+      setBalanceDelta(null);
+    }, 2400);
+  };
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dealerId, setDealerId] = useState<string | null>(null);
