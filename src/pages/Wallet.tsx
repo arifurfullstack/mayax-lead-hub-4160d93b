@@ -1140,6 +1140,54 @@ const WalletPage = () => {
   const paginatedTxns = transactions.slice(page * perPage, (page + 1) * perPage);
   const totalPages = Math.ceil(transactions.length / perPage);
 
+  const handleExportCsv = () => {
+    if (!transactions.length) {
+      toast({ title: "Nothing to export", description: "No transactions yet." });
+      return;
+    }
+    const escape = (val: any) => {
+      const s = val == null ? "" : String(val);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const headers = [
+      "Date (ISO)",
+      "Date (Local)",
+      "Type",
+      "Description",
+      "Reference",
+      "Amount",
+      "Balance After",
+    ];
+    // Sort ascending so the running balance reads naturally top-to-bottom
+    const rows = [...transactions]
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+      .map((t) => [
+        new Date(t.created_at).toISOString(),
+        new Date(t.created_at).toLocaleString(),
+        t.type ?? "",
+        t.description ?? "",
+        t.reference_id ?? "",
+        Number(t.amount).toFixed(2),
+        Number(t.balance_after).toFixed(2),
+      ]);
+    const csv = [headers, ...rows].map((r) => r.map(escape).join(",")).join("\n");
+    // BOM keeps Excel happy with UTF-8
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const stamp = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `wallet-transactions-${stamp}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast({
+      title: "Export ready",
+      description: `${rows.length} transaction${rows.length === 1 ? "" : "s"} downloaded.`,
+    });
+  };
+
   if (loading) {
     return (
       <div className="p-6 flex items-center justify-center">
