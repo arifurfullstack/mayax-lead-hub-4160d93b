@@ -407,6 +407,10 @@ const TopUpTimeline = ({ request, lastCheck, isVerifying, compact }: TopUpTimeli
 
 const WalletPage = () => {
   const [balance, setBalance] = useState(0);
+  // Realtime channel connection status (drives the header pill)
+  const [rtStatus, setRtStatus] = useState<"connecting" | "live" | "reconnecting" | "offline" | "error">(
+    typeof navigator !== "undefined" && navigator.onLine === false ? "offline" : "connecting",
+  );
   // Pulse the header balance briefly whenever it increases (realtime credit).
   const [balanceFlash, setBalanceFlash] = useState<null | "up" | "down">(null);
   const [balanceDelta, setBalanceDelta] = useState<number | null>(null);
@@ -948,10 +952,26 @@ const WalletPage = () => {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        // Map Supabase realtime statuses to our UI pill states
+        if (status === "SUBSCRIBED") {
+          setRtStatus(navigator.onLine === false ? "offline" : "live");
+        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          setRtStatus(navigator.onLine === false ? "offline" : "reconnecting");
+        } else if (status === "CLOSED") {
+          setRtStatus(navigator.onLine === false ? "offline" : "reconnecting");
+        }
+      });
+
+    const handleOnline = () => setRtStatus("reconnecting");
+    const handleOffline = () => setRtStatus("offline");
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
 
     return () => {
       supabase.removeChannel(channel);
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
     };
   }, [dealerId]);
 
@@ -1134,13 +1154,28 @@ const WalletPage = () => {
         <div>
           <p className="text-sm text-muted-foreground flex items-center gap-2 mb-1">
             <DollarSign className="h-4 w-4" /> Available Balance
-            <span
-              className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide text-success/80"
-              title="Updates instantly via realtime"
-            >
-              <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
-              Live
-            </span>
+            {(() => {
+              const cfg =
+                rtStatus === "live"
+                  ? { label: "Live", tone: "text-success/80", dot: "bg-success animate-pulse", title: "Realtime updates connected" }
+                  : rtStatus === "connecting"
+                    ? { label: "Connecting", tone: "text-muted-foreground", dot: "bg-muted-foreground animate-pulse", title: "Connecting to realtime…" }
+                    : rtStatus === "reconnecting"
+                      ? { label: "Reconnecting", tone: "text-warning", dot: "bg-warning animate-pulse", title: "Lost realtime connection — retrying…" }
+                      : rtStatus === "offline"
+                        ? { label: "Offline", tone: "text-destructive", dot: "bg-destructive", title: "You appear to be offline" }
+                        : { label: "Error", tone: "text-destructive", dot: "bg-destructive animate-pulse", title: "Realtime connection error" };
+              return (
+                <span
+                  className={cn("inline-flex items-center gap-1 text-[10px] uppercase tracking-wide", cfg.tone)}
+                  title={cfg.title}
+                  aria-live="polite"
+                >
+                  <span className={cn("h-1.5 w-1.5 rounded-full", cfg.dot)} />
+                  {cfg.label}
+                </span>
+              );
+            })()}
           </p>
           <div className="relative inline-flex items-baseline gap-3">
             <p
