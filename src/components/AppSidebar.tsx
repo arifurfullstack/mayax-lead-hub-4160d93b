@@ -286,6 +286,16 @@ export function AppSidebar({ walletBalance = 0, onLogout }: AppSidebarProps) {
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
+        {!collapsed && (
+          <a
+            href="mailto:Leads@mayax.ca"
+            className="mt-2 flex items-center gap-2 px-3 py-2 rounded-md text-xs text-muted-foreground hover:text-primary hover:bg-sidebar-accent transition-colors"
+            title="Contact support"
+          >
+            <Mail className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">Leads@mayax.ca</span>
+          </a>
+        )}
       </SidebarFooter>
     </Sidebar>
   );
