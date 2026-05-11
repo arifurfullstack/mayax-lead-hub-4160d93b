@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -116,9 +116,8 @@ export const PaymentAuditLog = () => {
               {rows.map((r) => {
                 const isOpen = expanded === r.id;
                 return (
-                  <>
+                  <Fragment key={r.id}>
                     <tr
-                      key={r.id}
                       className="hover:bg-muted/20 transition-colors cursor-pointer"
                       onClick={() => setExpanded(isOpen ? null : r.id)}
                     >
@@ -144,7 +143,7 @@ export const PaymentAuditLog = () => {
                       </td>
                     </tr>
                     {isOpen && (
-                      <tr key={r.id + "-d"} className="bg-muted/10">
+                      <tr className="bg-muted/10">
                         <td colSpan={7} className="p-3">
                           <div className="grid sm:grid-cols-2 gap-3 text-xs">
                             <div>
@@ -165,7 +164,7 @@ export const PaymentAuditLog = () => {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
             </tbody>
