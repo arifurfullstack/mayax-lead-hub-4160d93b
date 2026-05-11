@@ -125,6 +125,7 @@ const WalletPage = () => {
 
   const [page, setPage] = useState(0);
   const perPage = 10;
+  const [highlightTxnId, setHighlightTxnId] = useState<string | null>(null);
 
   useEffect(() => { fetchData(); }, []);
 
@@ -982,7 +983,12 @@ const WalletPage = () => {
               </TableHeader>
               <TableBody>
                 {paginatedTxns.map((txn) => (
-                  <TableRow key={txn.id} className="border-border">
+                  <TableRow
+                    key={txn.id}
+                    className={`border-border transition-colors ${
+                      highlightTxnId === txn.id ? "bg-primary/10 animate-pulse" : ""
+                    }`}
+                  >
                     <TableCell className="text-sm text-muted-foreground">
                       {new Date(txn.created_at).toLocaleDateString()}
                     </TableCell>
