@@ -407,6 +407,10 @@ const TopUpTimeline = ({ request, lastCheck, isVerifying, compact }: TopUpTimeli
 
 const WalletPage = () => {
   const [balance, setBalance] = useState(0);
+  // Realtime channel connection status (drives the header pill)
+  const [rtStatus, setRtStatus] = useState<"connecting" | "live" | "reconnecting" | "offline" | "error">(
+    typeof navigator !== "undefined" && navigator.onLine === false ? "offline" : "connecting",
+  );
   // Pulse the header balance briefly whenever it increases (realtime credit).
   const [balanceFlash, setBalanceFlash] = useState<null | "up" | "down">(null);
   const [balanceDelta, setBalanceDelta] = useState<number | null>(null);
