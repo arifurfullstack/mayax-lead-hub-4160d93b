@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { DollarSign, ArrowUpRight, ArrowDownLeft, Plus, TrendingUp, CreditCard, Building2, Clock, Copy, CheckCircle2, Receipt, Printer, AlertTriangle, RotateCw, X, ShieldCheck } from "lucide-react";
+import { DollarSign, ArrowUpRight, ArrowDownLeft, Plus, TrendingUp, CreditCard, Building2, Clock, Copy, CheckCircle2, Receipt, Printer, AlertTriangle, RotateCw, X, ShieldCheck, Circle, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -94,6 +94,137 @@ const StripeVerificationBlock = ({ result }: { result: StripeVerificationResult 
       <div className="flex justify-between gap-3 pt-1">
         <span className="text-muted-foreground shrink-0">Checked</span>
         <span className="text-foreground">{new Date(result.at).toLocaleString()}</span>
+      </div>
+    </div>
+  );
+};
+
+type TimelineStepState = "done" | "active" | "failed" | "pending";
+
+type TopUpTimelineProps = {
+  request: any; // payment_requests row (or partial)
+  lastCheck?: StripeVerificationResult;
+  isVerifying?: boolean;
+  compact?: boolean;
+};
+
+const TopUpTimeline = ({ request, lastCheck, isVerifying, compact }: TopUpTimelineProps) => {
+  const status: string = request?.status ?? "pending";
+  const gateway: string = request?.gateway ?? "";
+  const hasGatewayRef = Boolean(request?.gateway_reference);
+  const checkPaid = lastCheck?.status === "completed" || lastCheck?.payment_status === "paid";
+  const checkFailed = lastCheck?.status === "failed" || lastCheck?.status === "error";
+
+  const isCompleted = status === "completed";
+  const isFailed = status === "failed";
+
+  // Step semantics
+  // 1. Created — always done once a request row exists
+  // 2. Processing — user redirected to gateway (have a reference) or completed/failed
+  // 3. Verified — gateway confirmed paid (or terminal status)
+  // 4. Credited — wallet credited (status=completed)
+  const createdState: TimelineStepState = "done";
+
+  let processingState: TimelineStepState = "pending";
+  if (isCompleted || isFailed || checkPaid || checkFailed) processingState = "done";
+  else if (hasGatewayRef) processingState = "done";
+  else processingState = "active";
+
+  let verifiedState: TimelineStepState = "pending";
+  if (isCompleted || checkPaid) verifiedState = "done";
+  else if (isFailed || checkFailed) verifiedState = "failed";
+  else if (gateway === "bank_transfer") verifiedState = status === "pending" ? "active" : "pending";
+  else if (isVerifying) verifiedState = "active";
+  else if (hasGatewayRef) verifiedState = "active";
+
+  let creditedState: TimelineStepState = "pending";
+  if (isCompleted) creditedState = "done";
+  else if (isFailed) creditedState = "failed";
+  else if (checkPaid) creditedState = "active";
+
+  const steps: { key: string; label: string; state: TimelineStepState; hint?: string }[] = [
+    { key: "created", label: "Created", state: createdState, hint: request?.created_at ? new Date(request.created_at).toLocaleTimeString() : undefined },
+    { key: "processing", label: "Processing", state: processingState, hint: gateway === "bank_transfer" ? "Awaiting transfer" : "At gateway" },
+    { key: "verified", label: "Verified", state: verifiedState, hint: gateway === "bank_transfer" ? "Admin approval" : "Gateway confirms" },
+    { key: "credited", label: "Credited", state: creditedState, hint: request?.completed_at ? new Date(request.completed_at).toLocaleTimeString() : undefined },
+  ];
+
+  return (
+    <div className={cn("w-full", compact ? "py-1" : "py-2")}>
+      <div className="flex items-start">
+        {steps.map((s, i) => {
+          const isLast = i === steps.length - 1;
+          const dotTone =
+            s.state === "done"
+              ? "bg-success text-success-foreground border-success"
+              : s.state === "active"
+                ? "bg-primary/15 text-primary border-primary animate-pulse"
+                : s.state === "failed"
+                  ? "bg-destructive text-destructive-foreground border-destructive"
+                  : "bg-muted/40 text-muted-foreground border-border";
+          const labelTone =
+            s.state === "done"
+              ? "text-foreground"
+              : s.state === "active"
+                ? "text-primary"
+                : s.state === "failed"
+                  ? "text-destructive"
+                  : "text-muted-foreground";
+          const connectorTone =
+            steps[i + 1] && (steps[i + 1].state === "done" || s.state === "done")
+              ? s.state === "failed" || steps[i + 1].state === "failed"
+                ? "bg-destructive/40"
+                : "bg-success/50"
+              : "bg-border";
+          return (
+            <div key={s.key} className="flex-1 flex flex-col items-center min-w-0">
+              <div className="flex items-center w-full">
+                <div className="flex-1 h-px" style={{ background: i === 0 ? "transparent" : undefined }}>
+                  {i !== 0 && <div className={cn("h-px w-full", connectorTone)} />}
+                </div>
+                <div
+                  className={cn(
+                    "h-5 w-5 rounded-full border flex items-center justify-center shrink-0",
+                    dotTone,
+                  )}
+                  title={s.hint}
+                >
+                  {s.state === "done" ? (
+                    <CheckCircle2 className="h-3 w-3" />
+                  ) : s.state === "failed" ? (
+                    <X className="h-3 w-3" />
+                  ) : s.state === "active" ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Circle className="h-2 w-2" />
+                  )}
+                </div>
+                <div className="flex-1 h-px">
+                  {!isLast && (
+                    <div
+                      className={cn(
+                        "h-px w-full",
+                        steps[i + 1].state === "done"
+                          ? "bg-success/50"
+                          : steps[i + 1].state === "failed"
+                            ? "bg-destructive/40"
+                            : s.state === "done"
+                              ? "bg-success/50"
+                              : "bg-border",
+                      )}
+                    />
+                  )}
+                </div>
+              </div>
+              <div className="mt-1 text-center px-1 min-w-0">
+                <p className={cn("text-[10px] font-medium leading-tight truncate", labelTone)}>{s.label}</p>
+                {!compact && s.hint && (
+                  <p className="text-[9px] text-muted-foreground/70 leading-tight truncate">{s.hint}</p>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -1033,9 +1164,10 @@ const WalletPage = () => {
               return (
                 <div
                   key={dep.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-warning/5 rounded-lg border border-warning/20"
+                  className="p-3 bg-warning/5 rounded-lg border border-warning/20 space-y-3"
                 >
-                  <div className="flex-1 min-w-0">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
                       <Badge className="bg-warning/20 text-warning border-0 text-[10px] capitalize">
                         {String(dep.gateway).replace("_", " ")}
@@ -1062,8 +1194,8 @@ const WalletPage = () => {
                         Ref: {dep.gateway_reference}
                       </p>
                     )}
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
                     <span className="text-xs text-muted-foreground">{ageLabel}</span>
                     {dep.gateway === "stripe" && (
                       <Button
@@ -1099,7 +1231,13 @@ const WalletPage = () => {
                     >
                       <Receipt className="h-4 w-4" />
                     </Button>
+                    </div>
                   </div>
+                  <TopUpTimeline
+                    request={dep}
+                    lastCheck={lastCheck}
+                    isVerifying={isVerifying}
+                  />
                 </div>
               );
             })}
@@ -1237,6 +1375,13 @@ const WalletPage = () => {
                 This is taking longer than usual. Your funds will appear automatically once the
                 payment processor confirms — or refresh now to check again.
               </p>
+              <div className="w-full glass-card p-3">
+                <TopUpTimeline
+                  request={receipt}
+                  lastCheck={verifyResults[receipt.id]}
+                  isVerifying={verifyingId === receipt.id}
+                />
+              </div>
               <div className="flex gap-2 w-full mt-2">
                 {receipt?.gateway === "stripe" || (!receipt?.gateway && receipt?.id) ? (
                   <Button
@@ -1284,6 +1429,14 @@ const WalletPage = () => {
                 <Badge className="bg-success/20 text-success border-0 mt-1">
                   {receipt.status === "completed" ? "Paid" : receipt.status}
                 </Badge>
+              </div>
+
+              <div className="glass-card p-3">
+                <TopUpTimeline
+                  request={receipt}
+                  lastCheck={verifyResults[receipt.id]}
+                  isVerifying={verifyingId === receipt.id}
+                />
               </div>
 
               <div className="glass-card p-4 space-y-2 text-sm">
