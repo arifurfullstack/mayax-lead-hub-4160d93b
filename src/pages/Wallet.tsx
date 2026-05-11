@@ -291,6 +291,9 @@ const WalletPage = () => {
   const [receiptLoading, setReceiptLoading] = useState(false);
   const receiptRef = useRef<any | null>(null);
   useEffect(() => { receiptRef.current = receipt; }, [receipt]);
+  // Auto-close countdown for completed receipts
+  const [autoCloseSec, setAutoCloseSec] = useState<number | null>(null);
+  const autoCloseCancelRef = useRef(false);
   const pendingIdsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     pendingIdsRef.current = new Set(pendingDeposits.map((p) => p.id));
