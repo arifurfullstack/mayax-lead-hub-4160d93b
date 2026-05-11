@@ -283,6 +283,10 @@ const WalletPage = () => {
     pendingIdsRef.current = new Set(pendingDeposits.map((p) => p.id));
   }, [pendingDeposits]);
 
+  // Track which step toasts we've already shown per top-up so each milestone
+  // (Processing, Verified, Credited) fires exactly once per request.
+  const announcedStepsRef = useRef<Record<string, { processing?: boolean; verified?: boolean; credited?: boolean }>>({});
+
   const [page, setPage] = useState(0);
   const perPage = 10;
   const [highlightTxnId, setHighlightTxnId] = useState<string | null>(null);
