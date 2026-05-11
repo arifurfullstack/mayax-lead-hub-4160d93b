@@ -99,6 +99,137 @@ const StripeVerificationBlock = ({ result }: { result: StripeVerificationResult 
   );
 };
 
+type TimelineStepState = "done" | "active" | "failed" | "pending";
+
+type TopUpTimelineProps = {
+  request: any; // payment_requests row (or partial)
+  lastCheck?: StripeVerificationResult;
+  isVerifying?: boolean;
+  compact?: boolean;
+};
+
+const TopUpTimeline = ({ request, lastCheck, isVerifying, compact }: TopUpTimelineProps) => {
+  const status: string = request?.status ?? "pending";
+  const gateway: string = request?.gateway ?? "";
+  const hasGatewayRef = Boolean(request?.gateway_reference);
+  const checkPaid = lastCheck?.status === "completed" || lastCheck?.payment_status === "paid";
+  const checkFailed = lastCheck?.status === "failed" || lastCheck?.status === "error";
+
+  const isCompleted = status === "completed";
+  const isFailed = status === "failed";
+
+  // Step semantics
+  // 1. Created — always done once a request row exists
+  // 2. Processing — user redirected to gateway (have a reference) or completed/failed
+  // 3. Verified — gateway confirmed paid (or terminal status)
+  // 4. Credited — wallet credited (status=completed)
+  const createdState: TimelineStepState = "done";
+
+  let processingState: TimelineStepState = "pending";
+  if (isCompleted || isFailed || checkPaid || checkFailed) processingState = "done";
+  else if (hasGatewayRef) processingState = "done";
+  else processingState = "active";
+
+  let verifiedState: TimelineStepState = "pending";
+  if (isCompleted || checkPaid) verifiedState = "done";
+  else if (isFailed || checkFailed) verifiedState = "failed";
+  else if (gateway === "bank_transfer") verifiedState = status === "pending" ? "active" : "pending";
+  else if (isVerifying) verifiedState = "active";
+  else if (hasGatewayRef) verifiedState = "active";
+
+  let creditedState: TimelineStepState = "pending";
+  if (isCompleted) creditedState = "done";
+  else if (isFailed) creditedState = "failed";
+  else if (checkPaid) creditedState = "active";
+
+  const steps: { key: string; label: string; state: TimelineStepState; hint?: string }[] = [
+    { key: "created", label: "Created", state: createdState, hint: request?.created_at ? new Date(request.created_at).toLocaleTimeString() : undefined },
+    { key: "processing", label: "Processing", state: processingState, hint: gateway === "bank_transfer" ? "Awaiting transfer" : "At gateway" },
+    { key: "verified", label: "Verified", state: verifiedState, hint: gateway === "bank_transfer" ? "Admin approval" : "Gateway confirms" },
+    { key: "credited", label: "Credited", state: creditedState, hint: request?.completed_at ? new Date(request.completed_at).toLocaleTimeString() : undefined },
+  ];
+
+  return (
+    <div className={cn("w-full", compact ? "py-1" : "py-2")}>
+      <div className="flex items-start">
+        {steps.map((s, i) => {
+          const isLast = i === steps.length - 1;
+          const dotTone =
+            s.state === "done"
+              ? "bg-success text-success-foreground border-success"
+              : s.state === "active"
+                ? "bg-primary/15 text-primary border-primary animate-pulse"
+                : s.state === "failed"
+                  ? "bg-destructive text-destructive-foreground border-destructive"
+                  : "bg-muted/40 text-muted-foreground border-border";
+          const labelTone =
+            s.state === "done"
+              ? "text-foreground"
+              : s.state === "active"
+                ? "text-primary"
+                : s.state === "failed"
+                  ? "text-destructive"
+                  : "text-muted-foreground";
+          const connectorTone =
+            steps[i + 1] && (steps[i + 1].state === "done" || s.state === "done")
+              ? s.state === "failed" || steps[i + 1].state === "failed"
+                ? "bg-destructive/40"
+                : "bg-success/50"
+              : "bg-border";
+          return (
+            <div key={s.key} className="flex-1 flex flex-col items-center min-w-0">
+              <div className="flex items-center w-full">
+                <div className="flex-1 h-px" style={{ background: i === 0 ? "transparent" : undefined }}>
+                  {i !== 0 && <div className={cn("h-px w-full", connectorTone)} />}
+                </div>
+                <div
+                  className={cn(
+                    "h-5 w-5 rounded-full border flex items-center justify-center shrink-0",
+                    dotTone,
+                  )}
+                  title={s.hint}
+                >
+                  {s.state === "done" ? (
+                    <CheckCircle2 className="h-3 w-3" />
+                  ) : s.state === "failed" ? (
+                    <X className="h-3 w-3" />
+                  ) : s.state === "active" ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Circle className="h-2 w-2" />
+                  )}
+                </div>
+                <div className="flex-1 h-px">
+                  {!isLast && (
+                    <div
+                      className={cn(
+                        "h-px w-full",
+                        steps[i + 1].state === "done"
+                          ? "bg-success/50"
+                          : steps[i + 1].state === "failed"
+                            ? "bg-destructive/40"
+                            : s.state === "done"
+                              ? "bg-success/50"
+                              : "bg-border",
+                      )}
+                    />
+                  )}
+                </div>
+              </div>
+              <div className="mt-1 text-center px-1 min-w-0">
+                <p className={cn("text-[10px] font-medium leading-tight truncate", labelTone)}>{s.label}</p>
+                {!compact && s.hint && (
+                  <p className="text-[9px] text-muted-foreground/70 leading-tight truncate">{s.hint}</p>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 const WalletPage = () => {
   const [balance, setBalance] = useState(0);
   const [transactions, setTransactions] = useState<any[]>([]);
