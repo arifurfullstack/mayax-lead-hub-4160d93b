@@ -1375,6 +1375,13 @@ const WalletPage = () => {
                 This is taking longer than usual. Your funds will appear automatically once the
                 payment processor confirms — or refresh now to check again.
               </p>
+              <div className="w-full glass-card p-3">
+                <TopUpTimeline
+                  request={receipt}
+                  lastCheck={verifyResults[receipt.id]}
+                  isVerifying={verifyingId === receipt.id}
+                />
+              </div>
               <div className="flex gap-2 w-full mt-2">
                 {receipt?.gateway === "stripe" || (!receipt?.gateway && receipt?.id) ? (
                   <Button
