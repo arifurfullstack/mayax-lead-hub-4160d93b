@@ -49,6 +49,8 @@ const WalletPage = () => {
   const [failedDeposits, setFailedDeposits] = useState<any[]>([]);
   const [receipt, setReceipt] = useState<any | null>(null);
   const [receiptLoading, setReceiptLoading] = useState(false);
+  const receiptRef = useRef<any | null>(null);
+  useEffect(() => { receiptRef.current = receipt; }, [receipt]);
 
   const [page, setPage] = useState(0);
   const perPage = 10;
@@ -228,22 +230,52 @@ const WalletPage = () => {
         "postgres_changes",
         { event: "*", schema: "public", table: "payment_requests", filter: `dealer_id=eq.${dealerId}` },
         (payload) => {
+          const row = (payload.new ?? payload.old) as any;
+          const newStatus = (payload.new as any)?.status;
+          const oldStatus = (payload.old as any)?.status;
+
           setPendingDeposits((prev) => {
-            const row = (payload.new ?? payload.old) as any;
             const filtered = prev.filter((p) => p.id !== row.id);
-            if (payload.eventType !== "DELETE" && (payload.new as any)?.status === "pending") {
+            if (payload.eventType !== "DELETE" && newStatus === "pending") {
               return [payload.new as any, ...filtered];
             }
             return filtered;
           });
           setFailedDeposits((prev) => {
-            const row = (payload.new ?? payload.old) as any;
             const filtered = prev.filter((p) => p.id !== row.id);
-            if (payload.eventType !== "DELETE" && (payload.new as any)?.status === "failed") {
+            if (payload.eventType !== "DELETE" && newStatus === "failed") {
               return [payload.new as any, ...filtered].slice(0, 5);
             }
             return filtered;
           });
+
+          // Pending → completed: announce, refresh transactions, auto-update open receipt
+          if (oldStatus === "pending" && newStatus === "completed") {
+            toast({
+              title: "Top-up confirmed ✅",
+              description: `$${Number(row.amount).toFixed(2)} via ${String(row.gateway).replace("_", " ")} was credited.`,
+            });
+            // Refresh full transaction list (covers cases where INSERT event was missed)
+            fetchData();
+            // If the receipt dialog is open for this exact request, swap pending → final
+            if (receiptRef.current?.id === row.id) {
+              setReceipt({ ...(payload.new as any) });
+              setReceiptLoading(false);
+            }
+          }
+
+          // Pending → failed: announce + refresh open receipt
+          if (oldStatus === "pending" && newStatus === "failed") {
+            toast({
+              title: "Top-up failed",
+              description: (payload.new as any)?.error_message || "The payment could not be completed.",
+              variant: "destructive",
+            });
+            if (receiptRef.current?.id === row.id) {
+              setReceipt({ ...(payload.new as any) });
+              setReceiptLoading(false);
+            }
+          }
         }
       )
       .subscribe();
