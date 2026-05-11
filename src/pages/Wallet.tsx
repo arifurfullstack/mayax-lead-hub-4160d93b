@@ -826,7 +826,15 @@ const WalletPage = () => {
                         ) : (
                           <ShieldCheck className="h-3 w-3" />
                         )}
-                        Verify with Stripe
+                        {verifyingId === dep.id
+                          ? verifyPhase === "contacting"
+                            ? "Contacting Stripe…"
+                            : verifyPhase === "checking"
+                              ? "Checking session…"
+                              : verifyPhase === "crediting"
+                                ? "Crediting wallet…"
+                                : "Verifying…"
+                          : "Verify with Stripe"}
                       </Button>
                     )}
                     <Button
