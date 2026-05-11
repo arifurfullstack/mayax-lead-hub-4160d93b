@@ -899,9 +899,25 @@ const WalletPage = () => {
                 payment processor confirms — or refresh now to check again.
               </p>
               <div className="flex gap-2 w-full mt-2">
-                <Button variant="outline" className="flex-1" onClick={refreshReceipt}>
-                  <RotateCw className="h-4 w-4 mr-2" /> Refresh
-                </Button>
+                {receipt?.gateway === "stripe" || (!receipt?.gateway && receipt?.id) ? (
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    disabled={verifyingId === receipt.id}
+                    onClick={() => handleVerifyWithStripe(receipt.id)}
+                  >
+                    {verifyingId === receipt.id ? (
+                      <RotateCw className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <ShieldCheck className="h-4 w-4 mr-2" />
+                    )}
+                    Verify with Stripe
+                  </Button>
+                ) : (
+                  <Button variant="outline" className="flex-1" onClick={refreshReceipt}>
+                    <RotateCw className="h-4 w-4 mr-2" /> Refresh
+                  </Button>
+                )}
                 <Button className="flex-1" onClick={() => setReceipt(null)}>
                   Close
                 </Button>
