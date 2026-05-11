@@ -1161,6 +1161,7 @@ const WalletPage = () => {
               {pendingDeposits.length}
             </Badge>
           </h3>
+          <TopUpTimelineLegend className="mb-3" />
           <div className="space-y-2">
             {pendingDeposits.map((dep) => {
               const created = new Date(dep.created_at);
