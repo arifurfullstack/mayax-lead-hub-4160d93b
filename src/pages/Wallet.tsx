@@ -992,7 +992,15 @@ const WalletPage = () => {
                     ) : (
                       <ShieldCheck className="h-4 w-4 mr-2" />
                     )}
-                    Verify with Stripe
+                    {verifyingId === receipt.id
+                      ? verifyPhase === "contacting"
+                        ? "Contacting Stripe…"
+                        : verifyPhase === "checking"
+                          ? "Checking session…"
+                          : verifyPhase === "crediting"
+                            ? "Crediting wallet…"
+                            : "Verifying…"
+                      : "Verify with Stripe"}
                   </Button>
                 ) : (
                   <Button variant="outline" className="flex-1" onClick={refreshReceipt}>
@@ -1003,6 +1011,9 @@ const WalletPage = () => {
                   Close
                 </Button>
               </div>
+              {verifyResults[receipt.id] && (
+                <StripeVerificationBlock result={verifyResults[receipt.id]} />
+              )}
             </div>
           ) : receipt ? (
             <div className="space-y-5 mt-2">
@@ -1045,6 +1056,10 @@ const WalletPage = () => {
                   <span className="text-foreground font-mono text-xs">{receipt.id}</span>
                 </div>
               </div>
+
+              {verifyResults[receipt.id] && (
+                <StripeVerificationBlock result={verifyResults[receipt.id]} />
+              )}
 
               <p className="text-xs text-muted-foreground text-center">
                 A copy of this receipt has been emailed to you.
