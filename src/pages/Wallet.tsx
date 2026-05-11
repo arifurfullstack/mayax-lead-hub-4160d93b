@@ -288,6 +288,7 @@ const WalletPage = () => {
           title: "Still pending",
           description: `Stripe status: ${data?.session_status ?? "unknown"} (${data?.payment_status ?? "—"}). Try again in a moment.`,
         });
+        await fetchData();
       }
       setVerifyPhase("done");
     } catch (e: any) {
@@ -308,6 +309,17 @@ const WalletPage = () => {
     } finally {
       setVerifyingId(null);
       setTimeout(() => setVerifyPhase(null), 1500);
+      // Auto-refresh fallback: re-fetch shortly after in case the webhook
+      // updates the row a moment after reconcile returns, so the pending
+      // list reflects the latest status without a manual reload.
+      const refetch = async () => {
+        try {
+          await fetchData();
+          if (receipt?.id === paymentRequestId) await refreshReceipt();
+        } catch { /* noop */ }
+      };
+      setTimeout(refetch, 1500);
+      setTimeout(refetch, 4000);
     }
   };
 
