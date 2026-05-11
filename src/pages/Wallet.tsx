@@ -952,10 +952,26 @@ const WalletPage = () => {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        // Map Supabase realtime statuses to our UI pill states
+        if (status === "SUBSCRIBED") {
+          setRtStatus(navigator.onLine === false ? "offline" : "live");
+        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          setRtStatus(navigator.onLine === false ? "offline" : "reconnecting");
+        } else if (status === "CLOSED") {
+          setRtStatus(navigator.onLine === false ? "offline" : "reconnecting");
+        }
+      });
+
+    const handleOnline = () => setRtStatus("reconnecting");
+    const handleOffline = () => setRtStatus("offline");
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
 
     return () => {
       supabase.removeChannel(channel);
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
     };
   }, [dealerId]);
 
