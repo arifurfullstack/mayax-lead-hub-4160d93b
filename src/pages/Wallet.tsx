@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { DollarSign, ArrowUpRight, ArrowDownLeft, Plus, TrendingUp, CreditCard, Building2, Clock, Copy, CheckCircle2, Receipt, Printer, AlertTriangle, RotateCw, X } from "lucide-react";
+import { DollarSign, ArrowUpRight, ArrowDownLeft, Plus, TrendingUp, CreditCard, Building2, Clock, Copy, CheckCircle2, Receipt, Printer, AlertTriangle, RotateCw, X, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -151,6 +151,48 @@ const WalletPage = () => {
   const handleDismissFailed = async (id: string) => {
     setFailedDeposits((prev) => prev.filter((p) => p.id !== id));
     await supabase.from("payment_requests").update({ status: "dismissed" }).eq("id", id);
+  };
+
+  const [verifyingId, setVerifyingId] = useState<string | null>(null);
+
+  const handleVerifyWithStripe = async (paymentRequestId: string) => {
+    setVerifyingId(paymentRequestId);
+    try {
+      const { data, error } = await supabase.functions.invoke("reconcile-stripe-session", {
+        body: { payment_request_id: paymentRequestId },
+      });
+      if (error) throw error;
+      if (data?.status === "completed") {
+        toast({
+          title: "Payment confirmed ✅",
+          description: "Stripe confirmed the charge — your wallet has been credited.",
+        });
+        await fetchData();
+        if (receipt?.id === paymentRequestId) {
+          await refreshReceipt();
+        }
+      } else if (data?.status === "failed") {
+        toast({
+          title: "Payment failed",
+          description: data?.error || "Stripe reports this checkout did not complete.",
+          variant: "destructive",
+        });
+        await fetchData();
+      } else {
+        toast({
+          title: "Still pending",
+          description: `Stripe status: ${data?.session_status ?? "unknown"} (${data?.payment_status ?? "—"}). Try again in a moment.`,
+        });
+      }
+    } catch (e: any) {
+      toast({
+        title: "Verification error",
+        description: e?.message || "Could not reach Stripe.",
+        variant: "destructive",
+      });
+    } finally {
+      setVerifyingId(null);
+    }
   };
 
   // Realtime: instant updates when wallet balance, transactions, or pending deposits change
@@ -698,6 +740,22 @@ const WalletPage = () => {
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="text-xs text-muted-foreground">{ageLabel}</span>
+                    {dep.gateway === "stripe" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 gap-1.5 text-xs"
+                        disabled={verifyingId === dep.id}
+                        onClick={() => handleVerifyWithStripe(dep.id)}
+                      >
+                        {verifyingId === dep.id ? (
+                          <RotateCw className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <ShieldCheck className="h-3 w-3" />
+                        )}
+                        Verify with Stripe
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="icon"
@@ -841,9 +899,25 @@ const WalletPage = () => {
                 payment processor confirms — or refresh now to check again.
               </p>
               <div className="flex gap-2 w-full mt-2">
-                <Button variant="outline" className="flex-1" onClick={refreshReceipt}>
-                  <RotateCw className="h-4 w-4 mr-2" /> Refresh
-                </Button>
+                {receipt?.gateway === "stripe" || (!receipt?.gateway && receipt?.id) ? (
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    disabled={verifyingId === receipt.id}
+                    onClick={() => handleVerifyWithStripe(receipt.id)}
+                  >
+                    {verifyingId === receipt.id ? (
+                      <RotateCw className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <ShieldCheck className="h-4 w-4 mr-2" />
+                    )}
+                    Verify with Stripe
+                  </Button>
+                ) : (
+                  <Button variant="outline" className="flex-1" onClick={refreshReceipt}>
+                    <RotateCw className="h-4 w-4 mr-2" /> Refresh
+                  </Button>
+                )}
                 <Button className="flex-1" onClick={() => setReceipt(null)}>
                   Close
                 </Button>
