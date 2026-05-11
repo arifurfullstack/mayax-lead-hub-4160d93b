@@ -665,6 +665,16 @@ const WalletPage = () => {
             return filtered;
           });
 
+          // Keep an open receipt dialog in sync on ANY change to its row
+          // (e.g. gateway_reference set → timeline advances to "Processing done").
+          if (
+            payload.eventType !== "DELETE" &&
+            payload.new &&
+            receiptRef.current?.id === (payload.new as any).id
+          ) {
+            setReceipt((prev: any) => ({ ...(prev || {}), ...(payload.new as any) }));
+          }
+
           // Pending → completed: announce, refresh transactions, auto-update open receipt
           if (wasPending && newStatus === "completed") {
             toast({
