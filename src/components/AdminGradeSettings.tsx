@@ -44,6 +44,10 @@ const FIELD_OPTIONS = [
   "phone",
   "document_files",
   "documents",
+  "credit_range_min",
+  "credit_range_max",
+  "city",
+  "province",
 ];
 
 const SAMPLE_LEAD = {
