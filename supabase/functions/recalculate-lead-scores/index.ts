@@ -140,7 +140,7 @@ Deno.serve(async (req) => {
   while (true) {
     const { data, error } = await supabase
       .from("leads")
-      .select("id, income, vehicle_preference, trade_in, has_bankruptcy, appointment_time, email, phone, document_files, documents, ai_score, quality_grade")
+      .select("id, income, vehicle_preference, trade_in, has_bankruptcy, appointment_time, email, phone, document_files, documents, credit_range_min, credit_range_max, city, province, ai_score, quality_grade")
       .range(from, from + pageSize - 1);
     if (error) {
       return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: jsonHeaders });
