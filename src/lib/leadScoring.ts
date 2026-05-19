@@ -12,6 +12,10 @@ interface LeadInput {
   phone?: string | null;
   document_files?: unknown;
   documents?: string[] | null;
+  credit_range_min?: number | null;
+  credit_range_max?: number | null;
+  city?: string | null;
+  province?: string | null;
 }
 
 /* ─── Dynamic Grading Settings ─── */
