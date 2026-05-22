@@ -1,41 +1,89 @@
-# Fix: "Credit" rule scores both leads the same
+# Plan: Use Hostinger Business Email (mayax.ca) for All App Emails
 
-## Root cause
+## Goal
+- Send all outgoing app emails from your Hostinger mailbox (e.g. `noreply@mayax.ca` or `notify@mayax.ca`) instead of the default Lovable sender.
+- Notify the **admin** mailbox on key events (new lead purchase, top-ups, etc.).
+- Continue notifying **dealers/users** at their own email addresses.
 
-In Admin → Grade & AI Score Settings, the rule labeled **"Credit"** is saved as:
+## Approach
+Hostinger gives you SMTP credentials (host: `smtp.hostinger.com`, port `465` SSL, username = full email, password = mailbox password). The cleanest fit is:
 
-```
-field: income
-op:    between [300, 900]
-points: 3
-```
+1. Add a new edge function `send-smtp-email` that delivers via Hostinger SMTP using `denomailer`.
+2. Keep the existing template registry (`_shared/transactional-email-templates/*`) — render React Email to HTML and hand it to SMTP.
+3. Replace the 6 existing `send-transactional-email` call sites to call the new function (same payload shape).
+4. Add an `ADMIN_NOTIFY_EMAIL` so the admin gets a copy/notification on important events.
 
-It targets the wrong column (`income`) and uses a numeric range that almost no lead's income falls inside, so it contributes **0 points to every lead** — including the one that has `credit_range_min=500, max=600`.
+No Lovable email domain / NS delegation needed — your DNS stays on Hostinger.
 
-Both shown leads compute to the exact same 80:
+## Steps
 
-```
-base 65 + income present 5 + vehicle present 5 + city 3 + province 2 = 80
-```
+### 1. Collect secrets (you enter them in a secure form)
+- `SMTP_HOST` = `smtp.hostinger.com`
+- `SMTP_PORT` = `465`
+- `SMTP_USER` = the full Hostinger mailbox (e.g. `noreply@mayax.ca`)
+- `SMTP_PASSWORD` = that mailbox's password
+- `SMTP_FROM` = display From (e.g. `MayaX <noreply@mayax.ca>`)
+- `ADMIN_NOTIFY_EMAIL` = the admin inbox to receive notifications (can be the same mailbox)
 
-Nothing about credit is being evaluated.
+### 2. New edge function: `send-smtp-email`
+- Inputs: `{ templateName, recipientEmail, templateData, idempotencyKey, cc?, bcc? }` (same shape as today).
+- Looks up the template from `_shared/transactional-email-templates/registry.ts`.
+- Renders the React Email component to HTML with `@react-email/render`.
+- Sends via `denomailer` SMTP over SSL.
+- Logs every send into a new `smtp_email_log` table (recipient, template, status, error, message_id, created_at) for the Admin → Emails page.
+- Idempotency: skip if a `sent` row already exists for the same `idempotency_key`.
 
-## Plan
+### 3. Admin notification logic
+Add a tiny helper inside `send-smtp-email` (or at call sites) that, for these events, also sends to `ADMIN_NOTIFY_EMAIL`:
+- Lead purchased (single + bulk) → admin gets a copy of the dealer's lead-purchase email.
+- Wallet top-up succeeded / failed → admin notified.
+- New dealer signup / pending approval (optional, recommend including).
 
-**1. Repair the rule in `platform_settings.grading_score_rules`** (one-row update via migration):
-- Change `field` from `"income"` → `"credit_range_min"`
-- Change `op` from `"between"` → `"present"`
-- Drop the `value` array
-- Keep `points: 3` (or whatever you want)
+Implementation: when `templateName` is in an `ADMIN_CC_TEMPLATES` allowlist, also BCC `ADMIN_NOTIFY_EMAIL`.
 
-After this, any lead with a credit range gets +3, leads without it get 0 — Sagar would become 83 / B+, Arnab stays 80 / B.
+### 4. Swap call sites (same payload, just new function name)
+Update these 6 places from `send-transactional-email` → `send-smtp-email`:
+- `supabase/functions/purchase-lead/index.ts`
+- `supabase/functions/payment-webhook/index.ts`
+- `supabase/functions/reconcile-stripe-session/index.ts` (2 calls)
+- `supabase/functions/cron-reconcile-stripe/index.ts` (2 calls)
+- `src/components/AdminPaymentManager.tsx`
 
-**2. Re-grade all existing leads** by invoking `recalculate-lead-scores` once after the settings update so historical leads reflect the fix.
+### 5. Auth emails (password reset, signup confirm, etc.)
+Supabase auth emails are separate. Two options — recommend **Option A** for simplicity:
+- **A. Leave auth emails on Lovable defaults** (they still work, just from Lovable's sender). No DNS conflict with Hostinger.
+- **B. Configure Supabase Auth SMTP** to use the same Hostinger credentials so password reset / verification also come from `@mayax.ca`. Requires updating Auth settings with SMTP host/port/user/password and a `From` address.
 
-**3. (Optional polish) Guardrail in `AdminGradeSettings.tsx`** — when the field dropdown is `credit_range_min` / `credit_range_max`, default new rules to `op: present` instead of `gte 0`, so this misconfiguration is harder to repeat. Pure UX hint, no behavior change to existing rules.
+Tell me which you want; B gives a fully unified `@mayax.ca` experience.
 
-## Technical notes
+### 6. Verification
+- Send a test through the new function (lead purchase confirmation template) to a real inbox.
+- Confirm the admin BCC arrives.
+- Check `smtp_email_log` for a `sent` row.
 
-- No schema change. Only `platform_settings` row `grading_score_rules` is rewritten and edge function `recalculate-lead-scores` is invoked.
-- `credit_range_min` and `credit_range_max` are already wired end-to-end (FIELD_OPTIONS, LeadInput, edge function `.select`) from the previous change, so the `present` op will work immediately.
-- Alternative: you can fix this yourself in the Admin UI by editing that rule row (field → `credit_range_min`, op → `is present`, then Save — it auto-recalculates). Let me know if you'd rather do it manually instead of via migration.
+## Technical details
+- Library: `denomailer` (Deno-native SMTP client, no Node polyfills).
+- React Email render: `@react-email/render` (already used implicitly by current templates).
+- New table:
+  ```sql
+  create table smtp_email_log (
+    id uuid primary key default gen_random_uuid(),
+    template_name text not null,
+    recipient_email text not null,
+    idempotency_key text unique,
+    status text not null,  -- 'sent' | 'failed'
+    error text,
+    created_at timestamptz default now()
+  );
+  -- RLS: only admins can select
+  ```
+- The existing Lovable `send-transactional-email` function and templates stay in place but become unused; safe to delete later.
+
+## Out of scope (unless you ask)
+- Migrating Supabase Auth emails to Hostinger SMTP (Option B above).
+- Building a UI to manage SMTP credentials from the admin panel — secrets stay in env vars.
+
+Confirm:
+1. Mailbox to send **from** (e.g. `noreply@mayax.ca`)?
+2. Admin notification inbox (`ADMIN_NOTIFY_EMAIL`)?
+3. Auth emails — Option A (leave alone) or B (route through Hostinger too)?
