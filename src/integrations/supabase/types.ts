@@ -946,6 +946,48 @@ export type Database = {
         }
         Relationships: []
       }
+      smtp_email_log: {
+        Row: {
+          bcc: string | null
+          cc: string | null
+          created_at: string
+          error: string | null
+          id: string
+          idempotency_key: string | null
+          message_id: string | null
+          recipient_email: string
+          status: string
+          subject: string | null
+          template_name: string
+        }
+        Insert: {
+          bcc?: string | null
+          cc?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          idempotency_key?: string | null
+          message_id?: string | null
+          recipient_email: string
+          status: string
+          subject?: string | null
+          template_name: string
+        }
+        Update: {
+          bcc?: string | null
+          cc?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          idempotency_key?: string | null
+          message_id?: string | null
+          recipient_email?: string
+          status?: string
+          subject?: string | null
+          template_name?: string
+        }
+        Relationships: []
+      }
       subscription_plans: {
         Row: {
           accent_color: string

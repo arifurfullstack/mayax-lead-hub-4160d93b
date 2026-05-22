@@ -17,3 +17,5 @@ project_id = "ikusoyppxhubbmrbxzfc"
     verify_jwt = true
   [functions.send-transactional-email]
     verify_jwt = false
+  [functions.send-smtp-email]
+    verify_jwt = false
