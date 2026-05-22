@@ -222,7 +222,7 @@ async function sendFailedTopupEmail(
       .single();
     const recipient = (dealer as any)?.notification_email || (dealer as any)?.email;
     if (!recipient) return;
-    await admin.functions.invoke("send-transactional-email", {
+    await admin.functions.invoke("send-smtp-email", {
       headers: { Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!}` },
       body: {
         templateName: "wallet-topup-failed",
@@ -315,7 +315,7 @@ async function creditWallet(
     const recipient = (dealer as any).notification_email || (dealer as any).email;
     if (recipient) {
       try {
-        await admin.functions.invoke("send-transactional-email", {
+        await admin.functions.invoke("send-smtp-email", {
           headers: { Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!}` },
           body: {
             templateName: "wallet-topup",

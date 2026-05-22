@@ -213,7 +213,7 @@ const AdminPaymentManager = () => {
     // Send wallet top-up confirmation email (non-blocking)
     const recipient = (dealer as any).notification_email || (dealer as any).email;
     if (recipient) {
-      supabase.functions.invoke("send-transactional-email", {
+      supabase.functions.invoke("send-smtp-email", {
         body: {
           templateName: "wallet-topup",
           recipientEmail: recipient,

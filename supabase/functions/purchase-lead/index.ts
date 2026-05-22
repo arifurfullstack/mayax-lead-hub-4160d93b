@@ -423,7 +423,7 @@ Deno.serve(async (req) => {
     // Send a SINGLE confirmation email covering all successful purchases
     const recipientEmail = dealer.notification_email || dealer.email;
     const sendEmail = async (payload: Record<string, unknown>) => {
-      const url = `${supabaseUrl}/functions/v1/send-transactional-email`;
+      const url = `${supabaseUrl}/functions/v1/send-smtp-email`;
       // Use anon key (a real JWT) for the gateway, service key as a custom header
       // so the function still has admin-level trust to do its work.
       const res = await fetch(url, {
@@ -438,9 +438,9 @@ Deno.serve(async (req) => {
       });
       if (!res.ok) {
         const txt = await res.text().catch(() => "");
-        console.error("send-transactional-email failed", { status: res.status, body: txt });
+        console.error("send-smtp-email failed", { status: res.status, body: txt });
       } else {
-        console.log("send-transactional-email queued", { template: payload.templateName, to: payload.recipientEmail });
+        console.log("send-smtp-email queued", { template: payload.templateName, to: payload.recipientEmail });
       }
     };
 
